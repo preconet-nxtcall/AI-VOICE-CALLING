@@ -9,7 +9,9 @@ services:
       - key: APP_ENV
         value: production
       - key: FLASK_APP
-        value: run.py
+        value: run:app
+      - key: PYTHONPATH
+        value: .
       - key: DATABASE_URL
         value: postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a/ai_voice_calling
       - key: SECRET_KEY
