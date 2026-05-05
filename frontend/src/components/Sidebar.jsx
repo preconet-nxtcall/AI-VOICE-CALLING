@@ -37,7 +37,7 @@ export default function Sidebar() {
           <BarChart2 className="text-white" size={18} />
         </div>
         <div>
-          <h1 className="text-white font-bold text-lg tracking-tight">AINxt.call</h1>
+          <h1 className="text-white font-bold text-lg tracking-tight">AINXT.call</h1>
           <p className="text-xs text-slate-500 font-semibold tracking-wider">ENTERPRISE TIER</p>
         </div>
       </div>
