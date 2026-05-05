@@ -11,9 +11,7 @@ services:
       - key: FLASK_APP
         value: run.py
       - key: DATABASE_URL
-        fromDatabase:
-          name: ai-voice-db
-          property: connectionString
+        value: postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a/ai_voice_calling
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
@@ -39,9 +37,7 @@ services:
       - key: APP_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: ai-voice-db
-          property: connectionString
+        value: postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a/ai_voice_calling
       - key: FAISS_INDEX_DIR
         value: /data/faiss_indices
 
@@ -53,12 +49,8 @@ services:
     publishPath: frontend/dist
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://ai-voice-backend.onrender.com/api/v1 # Update this if the name changes
+        value: https://ai-voice-backend.onrender.com/api/v1
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
-
-databases:
-  - name: ai-voice-db
-    plan: free # Change to 'standard' if needed
