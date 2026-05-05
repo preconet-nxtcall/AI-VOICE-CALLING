@@ -11,8 +11,11 @@ from app.routes import register_routes
 
 
 def create_app(config_override=None):
-    # Set static_folder to the built frontend directory
-    app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
+    # Set static_folder to the built frontend directory (using absolute path)
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    static_folder = os.path.join(basedir, "..", "frontend", "dist")
+    
+    app = Flask(__name__, static_folder=static_folder, static_url_path="/")
     CORS(app) # Enable CORS for development
     app.config.from_object(get_config())
 
