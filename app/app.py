@@ -1,4 +1,5 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
+import os
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -10,8 +11,9 @@ from app.routes import register_routes
 
 
 def create_app(config_override=None):
-    app = Flask(__name__)
-    CORS(app) # Enable CORS for frontend integration
+    # Set static_folder to the built frontend directory
+    app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
+    CORS(app) # Enable CORS for development
     app.config.from_object(get_config())
 
     if config_override:
@@ -71,14 +73,14 @@ def create_app(config_override=None):
         app.logger.exception("Unhandled exception: %s", exc)
         return jsonify({"success": False, "error": "An internal server error occurred."}), 500
 
-    @app.get("/")
-    def index():
-        return jsonify({
-            "status": "online",
-            "message": "AINxt.call Backend API is running.",
-            "version": "v1",
-            "api_prefix": "/api/v1"
-        })
+    # Route to serve the frontend
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve(path):
+        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+            return send_from_directory(app.static_folder, path)
+        else:
+            return send_from_directory(app.static_folder, "index.html")
 
     @app.get("/health")
     def health():

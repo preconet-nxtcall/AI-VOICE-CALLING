@@ -3,7 +3,7 @@ services:
   - type: web
     name: ai-voice-backend
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
     startCommand: flask db upgrade && gunicorn run:app
     envVars:
       - key: APP_ENV
@@ -33,7 +33,7 @@ services:
   - type: worker
     name: ai-voice-dialer
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
     startCommand: python run_dialer.py
     envVars:
       - key: APP_ENV
@@ -43,16 +43,3 @@ services:
       - key: FAISS_INDEX_DIR
         value: /data/faiss_indices
 
-  # Frontend (Vite)
-  - type: static
-    name: ai-voice-frontend
-    env: static
-    buildCommand: cd frontend && npm install && npm run build
-    publishPath: frontend/dist
-    envVars:
-      - key: VITE_API_BASE_URL
-        value: https://ai-voice-backend.onrender.com/api/v1
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
