@@ -70,6 +70,21 @@ config_map = {
 
 
 def get_config():
-    # Use APP_ENV instead of FLASK_ENV (removed in Flask 3.0)
-    env = os.environ.get("APP_ENV", "development")
-    return config_map.get(env, DevelopmentConfig)
+    # Use APP_ENV or check if running on Render
+    env = os.environ.get("APP_ENV")
+    if not env:
+        # Auto-detect Render environment
+        if os.environ.get("RENDER"):
+            env = "production"
+        else:
+            env = "development"
+            
+    config_obj = config_map.get(env, DevelopmentConfig)
+    
+    # Fix Render's 'postgres://' to 'postgresql://' for SQLAlchemy 1.4+
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        config_obj.SQLALCHEMY_DATABASE_URI = db_url
+        
+    return config_obj
