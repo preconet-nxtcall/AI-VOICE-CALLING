@@ -27,6 +27,14 @@ def create_app(config_override=None):
     Migrate(app, db)
     jwt = JWTManager(app)
 
+    # Start Background Dialer Thread (For Free Tier support)
+    if os.environ.get("START_DIALER", "true").lower() == "true":
+        try:
+            from app.services.dialer_worker import start_dialer
+            start_dialer(app)
+        except Exception as e:
+            app.logger.error("Failed to start background dialer: %s", e)
+
     # Import models here so Flask-Migrate can detect them
     from app.models import user  # noqa: F401
     from app.models import knowledge_base  # noqa: F401
