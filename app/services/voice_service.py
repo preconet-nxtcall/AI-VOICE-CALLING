@@ -82,7 +82,7 @@ class VoiceService:
                 }
                 data = {
                     "text": text,
-                    "model_id": "eleven_turbo_v2", # Faster and multilingual
+                    "model_id": "eleven_multilingual_v2", # Required for Hindi voice IDs
                     "voice_settings": {
                         "stability": 0.5,
                         "similarity_boost": 0.75
@@ -99,7 +99,7 @@ class VoiceService:
         
         # Fallback to gTTS
         try:
-            tts = gTTS(text=text, lang='en')
+            tts = gTTS(text=text, lang='hi')
             fp = io.BytesIO()
             tts.write_to_fp(fp)
             fp.seek(0)

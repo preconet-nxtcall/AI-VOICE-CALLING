@@ -46,7 +46,7 @@ class TTSService:
                 logger.exception("ElevenLabs TTS failed, falling back to gTTS")
 
         try:
-            tts = gTTS(text=text, lang="en")
+            tts = gTTS(text=text, lang="hi")
             tts.save(str(file_path))
             logger.info("TTS (gTTS) saved: %s", file_path)
             return str(file_path)
@@ -65,7 +65,7 @@ class TTSService:
         }
         payload = {
             "text": text,
-            "model_id": "eleven_turbo_v2",
+            "model_id": "eleven_multilingual_v2",
             "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
         }
         resp = requests.post(url, json=payload, headers=headers, timeout=30)

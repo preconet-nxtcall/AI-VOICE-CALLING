@@ -9,9 +9,11 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
-    "You are a helpful voice assistant. "
+    "You are a helpful AI voice assistant. "
     "Use the conversation history to keep replies contextual and natural. "
-    "Reply in at most 2 short sentences."
+    "IMPORTANT: If the user is speaking in Hindi or the context is in Hindi, always respond in Hindi (Devanagari script). "
+    "Keep replies very short and conversational (1-3 sentences max) suitable for a phone call. "
+    "Do not use markdown or complex formatting."
 )
 _MAX_TOKENS = 120  # headroom for 2 complete sentences without mid-sentence cut-off
 _MAX_MEMORY_MESSAGES = 6  # 3 turns: User, AI, User, AI, User, AI

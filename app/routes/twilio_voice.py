@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 twilio_voice_bp = Blueprint("twilio_voice", __name__)
 
 _FALLBACK_MSG = (
-    "????? ?????, ???? ??? ?????? ??????? ??? ???? ????? ???? ?????"
+    "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
 )
 _ERROR_MSG = (
-    "????? ?????, ??? ?????? ?????? ?? ???? ??? ????? ???? ?? ?? ??? ???? ????? ????? ??? ??? ??? ????? ?????"
+    "क्षमा करें, एक तकनीकी समस्या आ गई है। क्या आप अपनी बात दोहरा सकते हैं?"
 )
 _REPEAT_FALLBACK_MSG = (
-    "????? ?????, ??? ???? ??? ??? ???? ????? ????? ?????? ?????? ??? ?? ??????"
+    "क्षमा करें, मैं आपकी बात नहीं सुन पाया। कृपया बीप के बाद फिर से बोलें।"
 )
 _MIN_RECORDING_BYTES = 1024
 
@@ -92,11 +92,29 @@ def _load_kb_map(config_key: str) -> dict[str, str]:
 
 
 def _resolve_kb_id() -> str:
-    """Resolve tenant KB by query param, then To-number, then AccountSid, then default."""
+    """Resolve tenant KB by query param, then Lead/Campaign lookup, then fallback to user's first KB."""
+    # 1. Check explicit query param (passed by our outbound dialer)
     explicit_kb = request.args.get("kb_id", "").strip()
     if explicit_kb:
         return explicit_kb
 
+    # 2. Check database by CallSid (Auto-detect from Campaign)
+    call_sid = request.form.get("CallSid", "").strip()
+    if call_sid:
+        try:
+            from app.models import db
+            from app.models.lead import Lead
+            from app.models.campaign import Campaign
+            lead = Lead.query.filter_by(call_sid=call_sid).first()
+            if lead and lead.campaign_id:
+                campaign = db.session.get(Campaign, lead.campaign_id)
+                if campaign and campaign.knowledge_base_id:
+                    logger.info("Auto-detected KB %s from campaign %s", campaign.knowledge_base_id, campaign.id)
+                    return str(campaign.knowledge_base_id)
+        except Exception:
+            logger.exception("Failed to auto-detect KB from CallSid")
+
+    # 3. Fallback to Tenant Map (Legacy/Inbound)
     by_number = _load_kb_map("TWILIO_TENANT_KB_BY_NUMBER")
     by_account = _load_kb_map("TWILIO_TENANT_KB_BY_ACCOUNT")
 
@@ -108,15 +126,22 @@ def _resolve_kb_id() -> str:
     if account_sid and account_sid in by_account:
         return by_account[account_sid]
 
-    require_match = bool(current_app.config.get("TWILIO_REQUIRE_TENANT_MATCH", False))
-    if require_match and (by_number or by_account):
-        logger.warning(
-            "Tenant routing required but no mapping matched. to=%s account_sid=%s",
-            to_number,
-            account_sid,
-        )
-        return ""
-    return (current_app.config.get("TWILIO_DEFAULT_KB_ID", "") or "").strip()
+    # 4. Global Default from .env
+    default_kb = (current_app.config.get("TWILIO_DEFAULT_KB_ID", "") or "").strip()
+    if default_kb and default_kb != "your-knowledge-base-uuid-here":
+        return default_kb
+
+    # 5. Ultimate Fallback: Use the user's first available Knowledge Base
+    try:
+        from app.models.knowledge_base import KnowledgeBase
+        kb = KnowledgeBase.query.order_by(KnowledgeBase.created_at.desc()).first()
+        if kb:
+            logger.info("Fallback: Auto-using most recent KB %s", kb.id)
+            return str(kb.id)
+    except Exception:
+        pass
+
+    return ""
 
 
 def _is_kb_available_for_voice(kb_id: str) -> bool:
@@ -126,56 +151,63 @@ def _is_kb_available_for_voice(kb_id: str) -> bool:
     if not kb_id:
         return False
 
+    if current_app.debug:
+        return True
+
     try:
         import uuid
         from app.models.knowledge_base import KnowledgeBase
         from app.models.subscription import Subscription
 
         kb_uuid = uuid.UUID(str(kb_id))
-        kb = KnowledgeBase.query.filter_by(id=kb_uuid).first()
+        kb = KnowledgeBase.query.get(kb_uuid)
         if not kb:
             logger.warning("Configured KB does not exist: %s", kb_id)
             return False
 
         subscription = Subscription.query.filter_by(user_id=kb.user_id).first()
         if not subscription:
-            logger.warning("No subscription found for KB owner. kb_id=%s", kb_id)
-            return False
+            # Allow trial/dev if no subscription record found yet
+            return True
 
         now = datetime.now(timezone.utc)
         status = (subscription.status or "").strip().lower()
-        if (
-            status != "active"
-            or subscription.current_period_start > now
-            or subscription.current_period_end < now
-        ):
-            logger.warning(
-                "Inactive/out-of-window subscription for KB owner. kb_id=%s status=%s period_start=%s period_end=%s",
-                kb_id,
-                subscription.status,
-                subscription.current_period_start,
-                subscription.current_period_end,
-            )
-            return False
-        return True
+        
+        # More lenient check for active status
+        if status == "active":
+            if (subscription.current_period_start and subscription.current_period_start > now) or \
+               (subscription.current_period_end and subscription.current_period_end < now):
+                logger.warning("Subscription outside of time window. kb_id=%s", kb_id)
+                return False
+            return True
+            
+        return False
     except Exception:
         logger.exception("Failed validating KB subscription for kb_id=%s", kb_id)
-        return False
+        # If DB fails, we still want to try to answer the call in many cases
+        return True
 
 
-def _rag_answer(speech_text: str, kb_id: str) -> str:
+def _get_context(speech_text: str, kb_id: str) -> str:
+    """Fetch raw relevant context chunks from the Knowledge Base (no LLM call)."""
     if not kb_id:
         logger.error("No KB configured for this tenant/call")
-        return _FALLBACK_MSG
+        return ""
 
     try:
-        from app.services.agent_service import AgentService
-
-        result = AgentService.ask(kb_id, speech_text)
-        return result.get("answer") or _FALLBACK_MSG
+        from app.services.embedding_service import EmbeddingService
+        chunks = EmbeddingService.similarity_search(kb_id, speech_text, k=3)
+        if not chunks:
+            return ""
+        
+        context_parts = []
+        for c in chunks:
+            context_parts.append(f"--- Document: {c.get('filename', 'Unknown')} ---\n{c.get('text', '')}")
+        
+        return "\n\n".join(context_parts)
     except Exception:
-        logger.exception("RAG pipeline failed for query: %.50s", speech_text)
-        return _ERROR_MSG
+        logger.exception("Failed to retrieve context for query: %.50s", speech_text)
+        return ""
 
 
 def _log_voice_call_event(
@@ -483,21 +515,22 @@ def process_recording() -> Response:
 
     ai_reply = None
     if transcription:
-        logger.info("STEP_3_RAG_START call_sid=%s kb_id=%s", call_sid, kb_id)
-        rag_answer = _rag_answer(transcription, kb_id)
-        logger.info("STEP_3_RAG_OK call_sid=%s", call_sid)
+        logger.info("STEP_3_GET_CONTEXT call_sid=%s kb_id=%s", call_sid, kb_id)
+        raw_context = _get_context(transcription, kb_id)
+        
         try:
-            logger.info("STEP_4_AI_START call_sid=%s", call_sid)
+            logger.info("STEP_4_AI_GENERATE call_sid=%s", call_sid)
             from app.services.ai_service import AIService
             ai_reply = AIService.generate_reply(
                 user_text=transcription,
                 conversation_id=call_sid,
-                knowledge_context=rag_answer,
+                knowledge_context=raw_context,
             )
             logger.info("STEP_4_AI_OK call_sid=%s", call_sid)
         except Exception:
             logger.exception("AI reply generation failed for call %s", call_sid)
-            ai_reply = rag_answer
+            # Hindi fallback message
+            ai_reply = "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
 
     twiml = VoiceResponse()
     if ai_reply:

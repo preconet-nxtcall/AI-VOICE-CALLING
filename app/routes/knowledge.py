@@ -120,6 +120,28 @@ class KnowledgeListResource(Resource):
         except Exception:
             return error("An error occurred while fetching knowledge bases", 500)
 
+    @jwt_required()
+    def post(self):
+        """Create a new Knowledge Base with a custom name."""
+        user_uuid, auth_err = _parse_user_uuid()
+        if auth_err:
+            return auth_err
+        
+        body = request.get_json(silent=True) or {}
+        name = (body.get("name") or "").strip()
+        
+        if not name:
+            return error("Knowledge Base name is required.", 400)
+            
+        try:
+            kb = KnowledgeBase(name=name, user_id=user_uuid)
+            db.session.add(kb)
+            db.session.commit()
+            return success({"knowledge_base": kb.to_dict()}, 201)
+        except Exception:
+            db.session.rollback()
+            return error("Failed to create Knowledge Base", 500)
+
 
 class KnowledgeUrlResource(Resource):
     @jwt_required()

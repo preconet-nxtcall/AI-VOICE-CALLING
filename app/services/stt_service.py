@@ -45,6 +45,7 @@ class STTService:
                 response = client.audio.transcriptions.create(
                     model="whisper-1",
                     file=(audio_path.name, fh),
+                    language="hi"  # Hint for Hindi transcription
                 )
             text = (response.text or "").strip()
             logger.info("Transcription [%s]: %.200s", audio_path.name, text)

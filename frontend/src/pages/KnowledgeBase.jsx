@@ -19,14 +19,23 @@ export default function KnowledgeBase() {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
+  const [selectedKbId, setSelectedKbId] = useState('');
+  const [newKbName, setNewKbName] = useState('');
+  const [creatingKb, setCreatingKb] = useState(false);
+
   const fetchDocuments = async () => {
     try {
       setLoading(true);
       setError('');
       const res = await api.get('/knowledge/list');
-      // Flatten documents from all knowledge bases for display, or just take the default one.
       const kbs = res.data.knowledge_bases || [];
       setKnowledgeBases(kbs);
+      
+      // Select the first KB by default if none selected
+      if (kbs.length > 0 && !selectedKbId) {
+        setSelectedKbId(kbs[0].id);
+      }
+
       const allDocs = kbs.reduce((acc, kb) => {
         return [...acc, ...(kb.documents || [])];
       }, []);
@@ -36,6 +45,21 @@ export default function KnowledgeBase() {
       setError(error.response?.data?.error || 'Failed to fetch documents.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createKb = async () => {
+    if (!newKbName.trim()) return;
+    try {
+      setCreatingKb(true);
+      const res = await api.post('/knowledge/list', { name: newKbName });
+      setNewKbName('');
+      fetchDocuments();
+      setSelectedKbId(res.data.knowledge_base.id);
+    } catch (error) {
+      setError(error.response?.data?.error || 'Failed to create Knowledge Base');
+    } finally {
+      setCreatingKb(false);
     }
   };
 
@@ -57,7 +81,7 @@ export default function KnowledgeBase() {
     const timer = setInterval(() => {
       fetchJobs();
       fetchDocuments();
-    }, 5000);
+    }, 10000); // 10s is enough
     return () => clearInterval(timer);
   }, []);
 
@@ -67,6 +91,9 @@ export default function KnowledgeBase() {
 
     const formData = new FormData();
     formData.append('file', file);
+    if (selectedKbId) {
+      formData.append('knowledge_base_id', selectedKbId);
+    }
 
     try {
       setUploading(true);
@@ -81,7 +108,6 @@ export default function KnowledgeBase() {
     } catch (error) {
       console.error('Upload failed', error);
       setError(error.response?.data?.error || 'Upload failed');
-      alert(error.response?.data?.error || "Upload failed");
     } finally {
       setUploading(false);
       e.target.value = null;
@@ -94,14 +120,16 @@ export default function KnowledgeBase() {
     try {
       setProcessingUrl(true);
       setError('');
-      await api.post('/knowledge/url', { url: urlInput });
+      await api.post('/knowledge/url', { 
+        url: urlInput,
+        knowledge_base_id: selectedKbId 
+      });
       setUrlInput('');
       fetchJobs();
       fetchDocuments();
     } catch (error) {
       console.error('URL processing failed', error);
       setError(error.response?.data?.error || 'Failed to process URL');
-      alert(error.response?.data?.error || "Failed to process URL");
     } finally {
       setProcessingUrl(false);
     }
@@ -159,30 +187,65 @@ export default function KnowledgeBase() {
       </div>
       {error && <div className="text-red-400 text-sm">{error}</div>}
 
-      <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Ingestion Queue</h2>
-        <div className="space-y-3">
-          {jobs.length === 0 ? (
-            <p className="text-slate-500 text-sm">No ingestion jobs yet.</p>
-          ) : jobs.slice(0, 8).map((job) => (
-            <div key={job.id} className="border border-slate-700 rounded-lg p-3 flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-slate-200 text-sm truncate">{job.source_name}</p>
-                <p className="text-slate-500 text-xs uppercase tracking-wider">{job.source_type}</p>
-                {job.error_message && <p className="text-red-400 text-xs mt-1 truncate">{job.error_message}</p>}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Database className="text-amber-400" /> Knowledge Folders
+          </h2>
+          <p className="text-slate-400 text-sm mb-6">Create folders to organize your documents. Each folder can be used for different campaigns.</p>
+          <div className="flex gap-2 mb-6">
+            <input 
+              type="text" 
+              value={newKbName}
+              onChange={(e) => setNewKbName(e.target.value)}
+              placeholder="Folder name (e.g. Real Estate FAQ)" 
+              className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+            />
+            <button 
+              onClick={createKb}
+              disabled={creatingKb || !newKbName.trim()}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {creatingKb ? '...' : 'Create'}
+            </button>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Folder for Uploads</label>
+            <select 
+              value={selectedKbId}
+              onChange={(e) => setSelectedKbId(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500"
+            >
+              {knowledgeBases.map((kb) => (
+                <option key={kb.id} value={kb.id}>{kb.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-white mb-4">Ingestion Queue</h2>
+          <div className="space-y-3 max-h-[160px] overflow-y-auto pr-2">
+            {jobs.length === 0 ? (
+              <p className="text-slate-500 text-sm">No ingestion jobs yet.</p>
+            ) : jobs.slice(0, 10).map((job) => (
+              <div key={job.id} className="border border-slate-700/50 rounded-lg p-2.5 flex items-center justify-between gap-3 bg-slate-900/30">
+                <div className="min-w-0">
+                  <p className="text-slate-300 text-xs font-medium truncate">{job.source_name}</p>
+                  {job.error_message && <p className="text-red-400 text-[10px] truncate">{job.error_message}</p>}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className={`text-[10px] font-bold uppercase ${
+                    job.status === 'completed' ? 'text-emerald-400' :
+                    job.status === 'failed' ? 'text-red-400' :
+                    job.status === 'processing' ? 'text-amber-400' : 'text-indigo-400'
+                  }`}>
+                    {job.status}
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className={`text-xs font-semibold uppercase ${
-                  job.status === 'completed' ? 'text-emerald-400' :
-                  job.status === 'failed' ? 'text-red-400' :
-                  job.status === 'processing' ? 'text-amber-400' : 'text-indigo-400'
-                }`}>
-                  {job.status}
-                </p>
-                <p className="text-slate-500 text-xs">{new Date(job.created_at).toLocaleTimeString()}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
