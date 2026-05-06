@@ -167,7 +167,13 @@ class CampaignLeadUploadResource(Resource):
                 continue
 
             # Take the first column as the phone number
-            phone = row[0].strip()
+            raw_phone = row[0].strip() if row else ""
+            if not raw_phone:
+                continue
+
+            # Clean the number: remove quotes, spaces, and common separators
+            phone = re.sub(r'["\'\s\(\)\-]', '', raw_phone)
+            
             if not phone:
                 continue
 
@@ -182,7 +188,7 @@ class CampaignLeadUploadResource(Resource):
             if not _PHONE_RE.match(phone):
                 skipped += 1
                 if len(errors_list) < 10:
-                    errors_list.append(f"Row {row_idx}: Invalid number '{row[0].strip()}'")
+                    errors_list.append(f"Row {row_idx}: Invalid number format '{raw_phone}'")
                 continue
 
             # Check for duplicates within the same campaign
