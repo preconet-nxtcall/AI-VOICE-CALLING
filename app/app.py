@@ -61,17 +61,21 @@ def create_app(config_override=None):
         return jsonify({"success": False, "error": "Token has been revoked."}), 401
 
     # --- Global error handler ---
-
-    from werkzeug.exceptions import HTTPException
+    from werkzeug.exceptions import HTTPException, NotFound
 
     @app.errorhandler(Exception)
     def handle_exception(exc):
+        # If it's a 404 on a non-API route, serve the SPA index.html
+        if isinstance(exc, NotFound):
+            from flask import request
+            if not request.path.startswith("/api/"):
+                return send_from_directory(app.static_folder, "index.html")
+
         if isinstance(exc, HTTPException):
             return jsonify({"success": False, "error": exc.description}), exc.code
         
         import traceback
         with open("debug.log", "a") as f:
-            f.write(f"URI: {app.config.get('SQLALCHEMY_DATABASE_URI')}\n")
             f.write(traceback.format_exc())
         app.logger.exception("Unhandled exception: %s", exc)
         return jsonify({"success": False, "error": "An internal server error occurred."}), 500
