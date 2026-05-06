@@ -31,11 +31,6 @@ export default function KnowledgeBase() {
       const kbs = res.data.knowledge_bases || [];
       setKnowledgeBases(kbs);
       
-      // Select the first KB by default if none selected
-      if (kbs.length > 0 && !selectedKbId) {
-        setSelectedKbId(kbs[0].id);
-      }
-
       const allDocs = kbs.reduce((acc, kb) => {
         return [...acc, ...(kb.documents || [])];
       }, []);
@@ -75,14 +70,6 @@ export default function KnowledgeBase() {
   useEffect(() => {
     fetchDocuments();
     fetchJobs();
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      fetchJobs();
-      fetchDocuments();
-    }, 10000); // 10s is enough
-    return () => clearInterval(timer);
   }, []);
 
   const handleFileSelect = async (e) => {
