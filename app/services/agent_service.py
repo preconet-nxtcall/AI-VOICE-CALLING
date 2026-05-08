@@ -24,15 +24,18 @@ class AgentService:
         :param document_id: Optional UUID of a specific document to restrict context to.
         :param mode: 'chat' for text (respond in user's language) or 'voice' for Hindi voice calls.
         """
-        # 1. Retrieve similar chunks
-        chunks = EmbeddingService.similarity_search(knowledge_base_id, query, k=5)
-        
-        # Filter by document_id if provided
-        if document_id and chunks:
-            filtered = [c for c in chunks if str(c.get('document_id', '')) == str(document_id)]
-            if filtered:
-                chunks = filtered
-            # else keep all chunks (fallback) so we don't return empty
+        # 1. Build search filter
+        search_filter = None
+        if document_id:
+            search_filter = {"document_id": str(document_id)}
+            
+        # 2. Retrieve similar chunks
+        chunks = EmbeddingService.similarity_search(
+            knowledge_base_id, 
+            query, 
+            k=5, 
+            filter=search_filter
+        )
         
         if not chunks:
             return {

@@ -181,6 +181,7 @@ class EmbeddingService:
         knowledge_base_id: str,
         query: str,
         k: int = 5,
+        filter: Optional[dict] = None
     ) -> list[dict]:
         """
         Return the *k* most relevant chunks for *query* in this knowledge base.
@@ -193,7 +194,7 @@ class EmbeddingService:
         if store is None:
             return []
 
-        results = store.similarity_search_with_score(query, k=k)
+        results = store.similarity_search_with_score(query, k=k, filter=filter)
         return [
             {
                 "text": doc.page_content,
