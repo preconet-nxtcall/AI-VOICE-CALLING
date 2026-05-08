@@ -1,4 +1,4 @@
-from app.routes.auth import SignupResource, LoginResource, RefreshResource, MeResource
+from app.routes.auth import SignupResource, LoginResource, RefreshResource, MeResource, ForgotPasswordResource
 from app.routes.knowledge import (
     KnowledgeUploadResource,
     KnowledgeListResource,
@@ -20,6 +20,7 @@ def register_routes(api):
     api.add_resource(LoginResource, "/auth/login")
     api.add_resource(RefreshResource, "/auth/refresh")
     api.add_resource(MeResource, "/auth/me")
+    api.add_resource(ForgotPasswordResource, "/auth/forgot-password")
     
     # Knowledge Base routes
     api.add_resource(KnowledgeUploadResource, "/knowledge/upload")

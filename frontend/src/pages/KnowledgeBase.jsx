@@ -31,6 +31,10 @@ export default function KnowledgeBase() {
       const kbs = res.data.knowledge_bases || [];
       setKnowledgeBases(kbs);
       
+      if (kbs.length > 0) {
+        setSelectedKbId(prev => prev || kbs[0].id);
+      }
+      
       const allDocs = kbs.reduce((acc, kb) => {
         return [...acc, ...(kb.documents || [])];
       }, []);
@@ -129,6 +133,7 @@ export default function KnowledgeBase() {
       await api.delete(`/knowledge/document/${docId}`);
       setError('');
       fetchDocuments();
+      fetchJobs();
     } catch (error) {
       console.error('Failed to delete document', error);
       setError(error.response?.data?.error || 'Failed to delete document');
@@ -149,7 +154,7 @@ export default function KnowledgeBase() {
     try {
       setCalling(true);
       setCallMessage('');
-      const kbId = knowledgeBases[0].id; // Use the first KB for testing
+      const kbId = selectedKbId || knowledgeBases[0].id; // Use the selected KB for testing
       
       const res = await api.post('/agent/call', {
         phone_number: testPhoneNumber,

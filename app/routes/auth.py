@@ -65,3 +65,23 @@ class MeResource(Resource):
             return error(exc.message, exc.status_code)
 
         return success({"user": user.to_dict()}, 200)
+
+
+class ForgotPasswordResource(Resource):
+    def post(self):
+        body = request.get_json(silent=True) or {}
+        email = body.get("email", "").strip().lower()
+
+        if not email:
+            return error("Email is required.", 400)
+
+        try:
+            success_sent = AuthService.forgot_password(email)
+            if not success_sent:
+                return error("Failed to send password email. Please try again later.", 500)
+        except AppError as exc:
+            return error(exc.message, exc.status_code)
+        except Exception as e:
+            return error(str(e), 500)
+
+        return success({"message": "If an account exists with this email, a new password has been sent."}, 200)

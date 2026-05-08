@@ -43,7 +43,31 @@ export default function Campaigns() {
   useEffect(() => {
     fetchCampaigns();
     fetchKnowledgeBases();
+
+    const fetchCampaignsBg = async () => {
+      try {
+        const res = await api.get('/campaigns');
+        setCampaigns(res.data.campaigns || []);
+      } catch (err) {}
+    };
+
+    const interval = setInterval(fetchCampaignsBg, 10000);
+    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!expandedCampaign) return;
+    
+    const fetchLeadsBg = async () => {
+      try {
+        const res = await api.get(`/campaigns/${expandedCampaign}/leads`);
+        setLeads(res.data.leads || []);
+      } catch (err) {}
+    };
+    
+    const interval = setInterval(fetchLeadsBg, 10000);
+    return () => clearInterval(interval);
+  }, [expandedCampaign]);
 
   const createCampaign = async (e) => {
     e.preventDefault();
@@ -112,6 +136,7 @@ export default function Campaigns() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setUploadMessage(`✅ ${res.data.message}`);
+      setTimeout(() => setUploadMessage(''), 5000);
       fetchCampaigns();
       if (expandedCampaign === campaignId) {
         const leadsRes = await api.get(`/campaigns/${campaignId}/leads`);
@@ -119,6 +144,7 @@ export default function Campaigns() {
       }
     } catch (err) {
       setUploadMessage(`❌ ${err?.response?.data?.error || 'Upload failed.'}`);
+      setTimeout(() => setUploadMessage(''), 5000);
     } finally {
       setUploadingCampaignId(null);
       if (fileInputRef.current) fileInputRef.current.value = '';

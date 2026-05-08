@@ -8,6 +8,7 @@ import Chat from './pages/Chat';
 import Campaigns from './pages/Campaigns';
 import CallLogs from './pages/CallLogs';
 import Billing from './pages/Billing';
+import ForgotPassword from './pages/ForgotPassword';
 
 const isTokenValid = () => {
   const token = localStorage.getItem('token');
@@ -48,6 +49,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
         <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
+        <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
         
         {/* Protected Routes inside Layout */}
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>

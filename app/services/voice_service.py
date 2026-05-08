@@ -118,10 +118,11 @@ class VoiceService:
         auth_token = _get_api_key("TWILIO_AUTH_TOKEN")
         from_number = _get_api_key("TWILIO_PHONE_NUMBER")
         
-        # We assume the same PUBLIC_BASE_URL is used as in twilio_voice route.
         try:
-            from flask import current_app
+            from flask import current_app, request
             base_url = current_app.config.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+            if not base_url and request:
+                base_url = request.host_url.rstrip("/")
         except RuntimeError:
             base_url = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
 
@@ -130,7 +131,7 @@ class VoiceService:
         if not from_number:
             raise ValueError("TWILIO_PHONE_NUMBER is not configured for outbound calls.")
         if not base_url:
-            raise ValueError("PUBLIC_BASE_URL is not configured.")
+            raise ValueError("PUBLIC_BASE_URL is not configured (or no active request).")
 
         from twilio.rest import Client
         client = Client(account_sid, auth_token)

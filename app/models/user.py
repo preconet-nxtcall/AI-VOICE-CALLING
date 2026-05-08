@@ -7,23 +7,28 @@ from app.models import db
 class User(db.Model):
     __tablename__ = "users"
 
-    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    full_name = db.Column(db.String(255), nullable=False)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    is_verified = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(
+    id: uuid.UUID = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: str = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    password_hash: str = db.Column(db.String(255), nullable=False)
+    full_name: str = db.Column(db.String(255), nullable=False)
+    is_active: bool = db.Column(db.Boolean, default=True, nullable=False)
+    is_verified: bool = db.Column(db.Boolean, default=False, nullable=False)
+    created_at: datetime = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    updated_at = db.Column(
+    updated_at: datetime = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
 
     def to_dict(self):
         return {

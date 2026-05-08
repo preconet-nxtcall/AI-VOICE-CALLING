@@ -239,6 +239,8 @@ class DocumentResource(Resource):
 
             EmbeddingService.delete_document_chunks(str(kb.id), str(document.id))
 
+            IngestionJob.query.filter_by(document_id=document.id).delete()
+
             db.session.delete(document)
             db.session.commit()
 

@@ -12,9 +12,16 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/auth/signup', { full_name: name, email, password });
-      alert('Registration successful! Please log in.');
-      navigate('/login');
+      const response = await api.post('/auth/signup', { full_name: name, email, password });
+      const token = response?.data?.access_token;
+      
+      if (token) {
+        localStorage.setItem('token', token);
+        navigate('/dashboard');
+      } else {
+        alert('Registration successful! Please log in.');
+        navigate('/login');
+      }
     } catch (error) {
       console.error('Registration failed', error);
       alert(error.response?.data?.error || 'Registration failed');

@@ -74,15 +74,17 @@ class CampaignListResource(Resource):
 
         # Validate knowledge_base_id
         knowledge_base_id = body.get("knowledge_base_id")
-        kb_uuid = None
-        if knowledge_base_id:
-            try:
-                kb_uuid = uuid.UUID(str(knowledge_base_id))
-            except ValueError:
-                return error("Invalid knowledge_base_id format.", 400)
-            kb = KnowledgeBase.query.filter_by(id=kb_uuid, user_id=user_uuid).first()
-            if not kb:
-                return error("Knowledge base not found or access denied.", 404)
+        if not knowledge_base_id:
+            return error("Knowledge Base ID is required.", 400)
+
+        try:
+            kb_uuid = uuid.UUID(str(knowledge_base_id))
+        except ValueError:
+            return error("Invalid knowledge_base_id format.", 400)
+            
+        kb = KnowledgeBase.query.filter_by(id=kb_uuid, user_id=user_uuid).first()
+        if not kb:
+            return error("Knowledge base not found or access denied.", 404)
 
         campaign = Campaign(
             user_id=user_uuid,

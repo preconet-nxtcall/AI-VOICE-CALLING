@@ -20,7 +20,8 @@ def dialer_loop(app):
                 cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
                 stale = Lead.query.filter(Lead.status == "calling", Lead.updated_at < cutoff).all()
                 for s in stale:
-                    s.status = "completed"
+                    s.status = "failed"
+                    s.error_message = "Call timed out."
                 
                 # 2. Find next lead from active campaigns
                 active_campaigns = Campaign.query.filter_by(status="active").order_by(Campaign.created_at.asc()).all()
@@ -67,6 +68,11 @@ def dialer_loop(app):
                             lead_to_dial.status = "failed"
                             lead_to_dial.error_message = str(e)[:200]
                         
+                        db.session.commit()
+                    else:
+                        logger.error(f"No KB ID for campaign {target_campaign.id}")
+                        lead_to_dial.status = "failed"
+                        lead_to_dial.error_message = "No Knowledge Base configured"
                         db.session.commit()
                 
                 # Auto-pause finished campaigns
