@@ -1,8 +1,11 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import { Search, Bell, HelpCircle, AlertTriangle, Sun, Moon } from 'lucide-react';
+import { Search, Bell, HelpCircle, AlertTriangle, Sun, Moon, Menu } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Routes where the main content should be flush (no padding, no outer scroll)
+const FLUSH_ROUTES = ['/chat'];
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -64,6 +67,14 @@ export default function Layout() {
   };
 
   const isProfilePage = location.pathname === '/profile';
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   return (
     <div className="flex h-screen bg-background text-foreground font-sans overflow-hidden transition-colors duration-300">
@@ -72,19 +83,32 @@ export default function Layout() {
       <motion.div 
         layout
         initial={false}
-        animate={{ marginLeft: isProfilePage ? 0 : (isSidebarCollapsed ? 80 : 260) }}
+        animate={{ 
+          marginLeft: isProfilePage || isMobile ? 0 : (isSidebarCollapsed ? 80 : 260),
+          paddingLeft: isMobile && !isProfilePage ? 0 : 0
+        }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="flex-1 flex flex-col min-w-0"
       >
         {/* Top Navbar */}
-        <header className="h-20 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-xl z-30 flex items-center justify-between px-8 sticky top-0 transition-colors duration-300">
-          <div className="flex items-center w-full max-w-md bg-slate-100 dark:bg-[#1e293b]/50 rounded-xl border border-slate-200 dark:border-slate-700/50 px-4 py-2.5 text-slate-500 dark:text-slate-400 focus-within:border-indigo-500/50 focus-within:bg-white dark:focus-within:bg-[#1e293b]/80 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-inner">
-            <Search size={18} className="text-indigo-600 dark:text-indigo-400" />
-            <input 
-              type="text" 
-              placeholder="Search analytics, campaigns, or logs... (Press '/')" 
-              className="bg-transparent border-none outline-none w-full ml-3 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:placeholder-slate-500 dark:focus:placeholder-slate-400"
-            />
+        <header className="h-20 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-xl z-30 flex items-center justify-between px-4 md:px-8 sticky top-0 transition-colors duration-300">
+          <div className="flex items-center gap-3 w-full max-w-xs md:max-w-md">
+            {isMobile && !isProfilePage && (
+              <button 
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+              >
+                <Menu size={20} />
+              </button>
+            )}
+            <div className="flex items-center w-full bg-slate-100 dark:bg-[#1e293b]/50 rounded-xl border border-slate-200 dark:border-slate-700/50 px-3 md:px-4 py-2 md:py-2.5 text-slate-500 dark:text-slate-400 focus-within:border-indigo-500/50 focus-within:bg-white dark:focus-within:bg-[#1e293b]/80 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-inner">
+              <Search size={18} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <input 
+                type="text" 
+                placeholder={isMobile ? "Search..." : "Search analytics, campaigns, or logs... (Press '/Layer')"} 
+                className="bg-transparent border-none outline-none w-full ml-2 md:ml-3 text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:placeholder-slate-500 dark:focus:placeholder-slate-400"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-6">
@@ -150,7 +174,12 @@ export default function Layout() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-8 bg-gradient-to-br from-[#0b1120] via-[#0f172a] to-[#0b1120] custom-scrollbar">
+        {/* Flush layout for routes that manage their own height (e.g. Chat) */}
+        <main className={`flex-1 min-h-0 bg-slate-50 dark:bg-gradient-to-br dark:from-[#0b1120] dark:via-[#0f172a] dark:to-[#0b1120] transition-colors duration-300 ${
+          FLUSH_ROUTES.includes(location.pathname)
+            ? 'overflow-hidden flex flex-col p-0'
+            : 'overflow-y-auto p-8 custom-scrollbar'
+        }`}>
           <Outlet />
         </main>
       </motion.div>

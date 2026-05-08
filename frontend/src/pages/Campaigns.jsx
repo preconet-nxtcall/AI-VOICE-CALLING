@@ -48,7 +48,7 @@ export default function Campaigns() {
       try {
         const res = await api.get('/campaigns');
         setCampaigns(res.data.campaigns || []);
-      } catch (err) {}
+      } catch (err) { }
     };
 
     const interval = setInterval(fetchCampaignsBg, 10000);
@@ -57,14 +57,14 @@ export default function Campaigns() {
 
   useEffect(() => {
     if (!expandedCampaign) return;
-    
+
     const fetchLeadsBg = async () => {
       try {
         const res = await api.get(`/campaigns/${expandedCampaign}/leads`);
         setLeads(res.data.leads || []);
-      } catch (err) {}
+      } catch (err) { }
     };
-    
+
     const interval = setInterval(fetchLeadsBg, 10000);
     return () => clearInterval(interval);
   }, [expandedCampaign]);

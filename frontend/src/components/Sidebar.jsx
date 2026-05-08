@@ -38,6 +38,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         to={item.path}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onClick={() => {
+          if (window.innerWidth < 768) {
+            setIsCollapsed(true);
+          }
+        }}
         className={`relative flex items-center gap-3 px-4 py-3 mx-3 my-1 rounded-xl transition-all duration-300 group ${
           isActive 
             ? 'bg-indigo-600/10 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 neon-glow border border-indigo-500/30' 
@@ -92,9 +97,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   return (
     <motion.div 
       initial={false}
-      animate={{ width: isCollapsed ? 80 : 260 }}
+      animate={{ 
+        width: isCollapsed ? (window.innerWidth < 768 ? 0 : 80) : 260,
+        x: isCollapsed && window.innerWidth < 768 ? -80 : 0
+      }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="h-screen bg-white dark:bg-[#0b1120] border-r border-slate-200 dark:border-slate-800 flex flex-col fixed left-0 top-0 z-40 shadow-xl dark:shadow-2xl"
+      className="h-screen bg-white dark:bg-[#0b1120] border-r border-slate-200 dark:border-slate-800 flex flex-col fixed left-0 top-0 z-40 shadow-xl dark:shadow-2xl overflow-hidden"
     >
       <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center px-4' : 'justify-between'} transition-all duration-300 h-20`}>
         <div className={`flex items-center gap-3 overflow-hidden ${isCollapsed ? 'justify-center w-full' : ''}`}>

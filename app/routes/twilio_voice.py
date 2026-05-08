@@ -215,8 +215,9 @@ def _log_voice_call_event(
     phone_number: str,
     status: str,
     duration_seconds: int,
+    call_sid: Optional[str] = None,
 ) -> None:
-    """Persist a call-log row for SaaS dashboard visibility."""
+    """Persist or update a call-log row for SaaS dashboard visibility."""
     if not kb_id:
         return
     try:
@@ -231,10 +232,11 @@ def _log_voice_call_event(
             return
 
         # Also update lead status if this call was part of a campaign
-        try:
-            call_sid = request.form.get("CallSid", "").strip()
-        except RuntimeError:
-            call_sid = None
+        if not call_sid:
+            try:
+                call_sid = request.form.get("CallSid", "").strip() or None
+            except RuntimeError:
+                call_sid = None
 
         campaign_id = None
         if call_sid:
@@ -244,9 +246,18 @@ def _log_voice_call_event(
                 campaign_id = lead.campaign_id
                 _update_lead_status_obj(lead, status)
 
+        # Try to update an existing row for this call_sid first
+        existing = CallLog.query.filter_by(call_sid=call_sid).first() if call_sid else None
+        if existing:
+            existing.status = status
+            existing.duration_seconds = max(int(duration_seconds or 0), 0)
+            db.session.commit()
+            return
+
         call_log = CallLog(
             user_id=kb.user_id,
             campaign_id=campaign_id,
+            call_sid=call_sid,
             phone_number=phone_number or "unknown",
             status=status,
             duration_seconds=max(int(duration_seconds or 0), 0),
@@ -255,6 +266,82 @@ def _log_voice_call_event(
         db.session.commit()
     except Exception:
         logger.exception("Failed to persist call log for kb_id=%s", kb_id)
+
+
+def _save_conversation_turn(
+    call_sid: Optional[str],
+    kb_id: str,
+    phone_number: str,
+    customer_text: Optional[str],
+    ai_text: Optional[str],
+    status: str = "in_progress",
+    duration_seconds: int = 0,
+) -> None:
+    """
+    Append one conversation turn {customer, ai} to the CallLog row for this call_sid.
+    Creates the row if it doesn't exist yet.
+    Each turn stores: [{role, text, ts}, ...] in the `conversation` JSON column.
+    """
+    if not kb_id:
+        return
+    try:
+        import uuid
+        from app.models import db
+        from app.models.call_log import CallLog
+        from app.models.knowledge_base import KnowledgeBase
+
+        kb_uuid = uuid.UUID(str(kb_id))
+        kb = KnowledgeBase.query.filter_by(id=kb_uuid).first()
+        if not kb:
+            return
+
+        now_ts = datetime.now(timezone.utc).isoformat()
+        new_turns = []
+        if customer_text and customer_text.strip():
+            new_turns.append({"role": "customer", "text": customer_text.strip(), "ts": now_ts})
+        if ai_text and ai_text.strip():
+            new_turns.append({"role": "ai", "text": ai_text.strip(), "ts": now_ts})
+
+        if not new_turns:
+            return
+
+        campaign_id = None
+        if call_sid:
+            from app.models.lead import Lead
+            lead = Lead.query.filter_by(call_sid=call_sid).first()
+            if lead:
+                campaign_id = lead.campaign_id
+
+        existing = CallLog.query.filter_by(call_sid=call_sid).first() if call_sid else None
+        if existing:
+            # Append new turns to the existing conversation list
+            current = list(existing.conversation or [])
+            current.extend(new_turns)
+            existing.conversation = current
+            existing.status = status
+            existing.duration_seconds = max(
+                int(duration_seconds or 0), existing.duration_seconds
+            )
+            # SQLAlchemy won't detect in-place mutation of JSON; reassign explicitly
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(existing, "conversation")
+            db.session.commit()
+        else:
+            # First turn for this call — create the row
+            call_log = CallLog(
+                user_id=kb.user_id,
+                campaign_id=campaign_id,
+                call_sid=call_sid,
+                phone_number=phone_number or "unknown",
+                status=status,
+                duration_seconds=max(int(duration_seconds or 0), 0),
+                conversation=new_turns,
+            )
+            db.session.add(call_log)
+            db.session.commit()
+            logger.info("Created CallLog row for call_sid=%s", call_sid)
+    except Exception:
+        logger.exception("Failed to save conversation turn for call_sid=%s", call_sid)
 
 
 def _update_lead_status_obj(lead, status: str) -> None:
@@ -517,7 +604,7 @@ def process_recording() -> Response:
     if transcription:
         logger.info("STEP_3_GET_CONTEXT call_sid=%s kb_id=%s", call_sid, kb_id)
         raw_context = _get_context(transcription, kb_id)
-        
+
         try:
             logger.info("STEP_4_AI_GENERATE call_sid=%s", call_sid)
             from app.services.ai_service import AIService
@@ -543,13 +630,40 @@ def process_recording() -> Response:
             twiml.say(ai_reply, voice="alice", language="hi-IN")
             logger.warning("STEP_5_TTS_PLAY_FALLBACK_SAY call_sid=%s", call_sid)
         _append_record_step(twiml, kb_id=kb_id)
-        _log_voice_call_event(kb_id, caller_number, "completed", recording_duration)
+        # ── Save this turn's transcript ──────────────────────────────────────
+        _save_conversation_turn(
+            call_sid=call_sid,
+            kb_id=kb_id,
+            phone_number=caller_number,
+            customer_text=transcription,
+            ai_text=ai_reply,
+            status="in_progress",
+            duration_seconds=recording_duration,
+        )
+        logger.info("STEP_6_TRANSCRIPT_SAVED call_sid=%s", call_sid)
     elif transcription_failed:
         _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id)
-        _log_voice_call_event(kb_id, caller_number, "failed", recording_duration)
+        # Still save what we captured (empty ai side) so the row exists
+        _save_conversation_turn(
+            call_sid=call_sid,
+            kb_id=kb_id,
+            phone_number=caller_number,
+            customer_text=transcription,
+            ai_text=None,
+            status="in_progress",
+            duration_seconds=recording_duration,
+        )
     else:
         _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id)
-        _log_voice_call_event(kb_id, caller_number, "failed", recording_duration)
+        _save_conversation_turn(
+            call_sid=call_sid,
+            kb_id=kb_id,
+            phone_number=caller_number,
+            customer_text=transcription,
+            ai_text=None,
+            status="in_progress",
+            duration_seconds=recording_duration,
+        )
 
     logger.info("VOICE_PIPELINE_END call_sid=%s", call_sid)
 
@@ -593,13 +707,15 @@ def voice_status_callback() -> Response:
 
     # Convert Twilio status to our internal status
     internal_status = "completed" if status == "completed" else "failed"
-    
-    # This also handles lead status update
+
+    # Update the final status + duration on the existing CallLog row (created during process_recording)
+    # If no row exists yet (e.g. call was never answered), _log_voice_call_event creates it.
     _log_voice_call_event(
         kb_id=kb_id,
         phone_number=phone,
         status=internal_status,
-        duration_seconds=int(duration) if duration.isdigit() else 0
+        duration_seconds=int(duration) if duration.isdigit() else 0,
+        call_sid=call_sid or None,
     )
 
     return Response("", status=200)

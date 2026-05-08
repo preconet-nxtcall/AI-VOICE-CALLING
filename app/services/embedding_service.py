@@ -186,6 +186,11 @@ class EmbeddingService:
         """
         Return the *k* most relevant chunks for *query* in this knowledge base.
 
+        When a ``filter`` dict is provided (e.g. ``{"document_id": "<uuid>"}``),
+        we fetch a larger candidate pool and apply the filter in Python.
+        FAISS native metadata filtering is unreliable for UUID string comparisons
+        and often returns empty results even when matching documents exist.
+
         Each result dict contains: ``text``, ``score``, ``document_id``,
         ``filename``, ``chunk_index``.
         Returns an empty list when no index exists.
@@ -194,7 +199,29 @@ class EmbeddingService:
         if store is None:
             return []
 
-        results = store.similarity_search_with_score(query, k=k, filter=filter)
+        if filter:
+            # Fetch a large pool, then post-filter in Python for reliability
+            fetch_k = max(k * 10, 50)
+            try:
+                all_results = store.similarity_search_with_score(query, k=fetch_k)
+            except Exception:
+                all_results = store.similarity_search_with_score(query, k=k)
+
+            filtered = []
+            for doc, score in all_results:
+                match = all(
+                    str(doc.metadata.get(key, "")) == str(value)
+                    for key, value in filter.items()
+                )
+                if match:
+                    filtered.append((doc, score))
+                if len(filtered) >= k:
+                    break
+
+            results = filtered
+        else:
+            results = store.similarity_search_with_score(query, k=k)
+
         return [
             {
                 "text": doc.page_content,

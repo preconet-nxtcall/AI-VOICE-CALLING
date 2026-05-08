@@ -10,7 +10,7 @@ export default function KnowledgeBase() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [processingUrl, setProcessingUrl] = useState(false);
-  
+
   // States for Outbound Call testing
   const [testPhoneNumber, setTestPhoneNumber] = useState('');
   const [calling, setCalling] = useState(false);
@@ -30,11 +30,11 @@ export default function KnowledgeBase() {
       const res = await api.get('/knowledge/list');
       const kbs = res.data.knowledge_bases || [];
       setKnowledgeBases(kbs);
-      
+
       if (kbs.length > 0) {
         setSelectedKbId(prev => prev || kbs[0].id);
       }
-      
+
       const allDocs = kbs.reduce((acc, kb) => {
         return [...acc, ...(kb.documents || [])];
       }, []);
@@ -111,9 +111,9 @@ export default function KnowledgeBase() {
     try {
       setProcessingUrl(true);
       setError('');
-      await api.post('/knowledge/url', { 
+      await api.post('/knowledge/url', {
         url: urlInput,
-        knowledge_base_id: selectedKbId 
+        knowledge_base_id: selectedKbId
       });
       setUrlInput('');
       fetchJobs();
@@ -150,17 +150,17 @@ export default function KnowledgeBase() {
       alert("No knowledge base found. Please upload a document first.");
       return;
     }
-    
+
     try {
       setCalling(true);
       setCallMessage('');
       const kbId = selectedKbId || knowledgeBases[0].id; // Use the selected KB for testing
-      
+
       const res = await api.post('/agent/call', {
         phone_number: testPhoneNumber,
         knowledge_base_id: kbId
       });
-      
+
       setCallMessage(`Success: ${res.data.data?.message || 'Call initiated!'}`);
       setTestPhoneNumber('');
     } catch (error) {
@@ -186,14 +186,14 @@ export default function KnowledgeBase() {
           </h2>
           <p className="text-slate-400 text-sm mb-6">Create folders to organize your documents. Each folder can be used for different campaigns.</p>
           <div className="flex gap-2 mb-6">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={newKbName}
               onChange={(e) => setNewKbName(e.target.value)}
-              placeholder="Folder name (e.g. Real Estate FAQ)" 
+              placeholder="Folder name (e.g. Real Estate FAQ)"
               className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
             />
-            <button 
+            <button
               onClick={createKb}
               disabled={creatingKb || !newKbName.trim()}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
@@ -203,7 +203,7 @@ export default function KnowledgeBase() {
           </div>
           <div className="space-y-2">
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Folder for Uploads</label>
-            <select 
+            <select
               value={selectedKbId}
               onChange={(e) => setSelectedKbId(e.target.value)}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500"
@@ -227,11 +227,10 @@ export default function KnowledgeBase() {
                   {job.error_message && <p className="text-red-400 text-[10px] truncate">{job.error_message}</p>}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className={`text-[10px] font-bold uppercase ${
-                    job.status === 'completed' ? 'text-emerald-400' :
-                    job.status === 'failed' ? 'text-red-400' :
-                    job.status === 'processing' ? 'text-amber-400' : 'text-indigo-400'
-                  }`}>
+                  <p className={`text-[10px] font-bold uppercase ${job.status === 'completed' ? 'text-emerald-400' :
+                      job.status === 'failed' ? 'text-red-400' :
+                        job.status === 'processing' ? 'text-amber-400' : 'text-indigo-400'
+                    }`}>
                     {job.status}
                   </p>
                 </div>
@@ -247,14 +246,14 @@ export default function KnowledgeBase() {
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <Upload className="text-indigo-400" /> Upload File
           </h2>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileSelect} 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden"
             accept=".pdf,.docx,.txt"
           />
-          <div 
+          <div
             onClick={() => !uploading && fileInputRef.current?.click()}
             className={`border-2 border-dashed border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-indigo-500/50 hover:bg-slate-800/30 cursor-pointer group'}`}
           >
@@ -280,15 +279,15 @@ export default function KnowledgeBase() {
           <div className="flex flex-col gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Website URL</label>
-              <input 
-                type="url" 
+              <input
+                type="url"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://example.com/docs" 
+                placeholder="https://example.com/docs"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <button 
+            <button
               onClick={handleAddUrl}
               disabled={processingUrl || !urlInput.trim()}
               className="px-4 py-3 flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-lg text-sm font-medium transition-colors w-full mt-2"
@@ -309,15 +308,15 @@ export default function KnowledgeBase() {
           <div className="flex flex-col gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Phone Number</label>
-              <input 
-                type="tel" 
+              <input
+                type="tel"
                 value={testPhoneNumber}
                 onChange={(e) => setTestPhoneNumber(e.target.value)}
-                placeholder="+1234567890" 
+                placeholder="+1234567890"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
               />
             </div>
-            <button 
+            <button
               onClick={handleTestCall}
               disabled={calling || !testPhoneNumber.trim()}
               className="px-4 py-3 flex justify-center items-center gap-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-lg text-sm font-medium transition-colors w-full mt-2"
@@ -341,7 +340,7 @@ export default function KnowledgeBase() {
           </h2>
           <span className="text-sm text-slate-400 bg-slate-800 px-3 py-1 rounded-full">{documents.length} Items</span>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

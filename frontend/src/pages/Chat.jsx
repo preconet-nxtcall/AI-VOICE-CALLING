@@ -2,20 +2,21 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Send, Bot, User, Sparkles, Loader2, AlertTriangle,
   ChevronDown, Database, Trash2, Volume2, VolumeX,
-  RefreshCw, BookOpen, FileText, Link as LinkIcon, MessageSquare
+  BookOpen, FileText, Link as LinkIcon, MessageSquare,
+  Zap, Copy, Check, RotateCcw
 } from 'lucide-react';
 import api from '../services/api';
 
-// ─────────────────────────────────────────────
-//  Helpers
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+//  Typing Dots
+// ─────────────────────────────────────────────────────────────
 function TypingDots() {
   return (
-    <div className="flex gap-1 items-center py-1">
+    <div className="flex gap-1 items-center py-1 px-1">
       {[0, 1, 2].map(i => (
         <span
           key={i}
-          className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce"
+          className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
           style={{ animationDelay: `${i * 0.15}s` }}
         />
       ))}
@@ -23,19 +24,17 @@ function TypingDots() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+//  Audio Player
+// ─────────────────────────────────────────────────────────────
 function AudioPlayer({ url }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
 
   const toggle = () => {
     if (!audioRef.current) return;
-    if (playing) {
-      audioRef.current.pause();
-      setPlaying(false);
-    } else {
-      audioRef.current.play();
-      setPlaying(true);
-    }
+    if (playing) { audioRef.current.pause(); setPlaying(false); }
+    else { audioRef.current.play(); setPlaying(true); }
   };
 
   return (
@@ -43,26 +42,156 @@ function AudioPlayer({ url }) {
       <audio ref={audioRef} src={url} onEnded={() => setPlaying(false)} className="hidden" />
       <button
         onClick={toggle}
-        className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 px-3 py-1.5 rounded-full transition-all"
+        className="flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-100 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 px-3 py-1.5 rounded-full transition-all"
       >
-        {playing ? <VolumeX size={13} /> : <Volume2 size={13} />}
-        {playing ? 'Pause Audio' : 'Play Response'}
+        {playing ? <VolumeX size={12} /> : <Volume2 size={12} />}
+        {playing ? 'Pause' : 'Play Response'}
       </button>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+//  Copy Button
+// ─────────────────────────────────────────────────────────────
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={copy}
+      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-slate-300 transition-all"
+      title="Copy"
+    >
+      {copied ? <Check size={13} /> : <Copy size={13} />}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Message Bubble
+// ─────────────────────────────────────────────────────────────
+function MessageBubble({ msg, kbDocs }) {
+  const isUser = msg.role === 'user';
+  return (
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} group`}>
+      {/* Avatar */}
+      <div className={`
+        flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mt-0.5
+        ${isUser
+          ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20'
+          : 'bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30'
+        }
+      `}>
+        {isUser ? <User size={14} /> : <Bot size={14} />}
+      </div>
+
+      {/* Content */}
+      <div className={`flex flex-col gap-1 max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+        <div className={`
+          relative px-4 py-3 rounded-2xl text-sm leading-relaxed
+          ${isUser
+            ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
+            : msg.isError
+              ? 'bg-red-500/8 border border-red-500/20 text-red-300 rounded-tl-sm'
+              : 'bg-[#141e33] border border-[#1e2d4a] text-slate-200 rounded-tl-sm shadow-sm'
+          }
+        `}>
+          <p className="whitespace-pre-wrap break-words leading-7">{msg.content}</p>
+
+          {/* Sources */}
+          {!isUser && msg.context && msg.context.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-white/5">
+              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                <MessageSquare size={9} /> Sources used
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {msg.context.slice(0, 3).map((ctx, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 text-[10px] text-violet-400 bg-violet-500/8 border border-violet-500/15 rounded-full px-2 py-0.5 max-w-[160px] truncate">
+                    {ctx.file_type === 'url' ? <LinkIcon size={9} /> : <FileText size={9} />}
+                    {ctx.filename || 'Document'}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Audio */}
+          {!isUser && msg.audioUrl && <AudioPlayer url={msg.audioUrl} />}
+        </div>
+
+        {/* Copy action row */}
+        {!isUser && (
+          <div className="flex items-center gap-1 px-1">
+            <CopyButton text={msg.content} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Welcome Screen
+// ─────────────────────────────────────────────────────────────
+function WelcomeScreen({ selectedKb, kbDocs }) {
+  const suggestions = [
+    'Summarize the key points in this document',
+    'What are the main topics covered?',
+    'Explain the most important findings',
+    'Give me a brief overview of this knowledge base',
+  ];
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-8 px-4 py-12 text-center">
+      {/* Logo */}
+      <div className="relative">
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-600 via-indigo-600 to-fuchsia-600 flex items-center justify-center shadow-2xl shadow-violet-500/30 ring-1 ring-violet-400/20">
+          <Sparkles size={36} className="text-white" />
+        </div>
+        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-[#0d1117] flex items-center justify-center">
+          <Zap size={10} className="text-white" />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
+          How can I help you today?
+        </h2>
+        <p className="text-slate-400 text-sm max-w-md">
+          {selectedKb
+            ? <>Searching through <span className="text-violet-400 font-medium">{selectedKb.name}</span>
+              {kbDocs.length > 0 && <> · {kbDocs.length} document{kbDocs.length !== 1 ? 's' : ''}</>}</>
+            : 'Select a knowledge base and start asking questions'
+          }
+        </p>
+      </div>
+
+      {/* Suggestion chips */}
+      {selectedKb && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              className="text-left px-4 py-3 rounded-xl border border-[#1e2d4a] bg-[#0d1624]/60 hover:bg-[#141e33] hover:border-violet-500/40 text-slate-300 text-xs leading-relaxed transition-all group"
+            >
+              <span className="group-hover:text-violet-300 transition-colors">{s}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Main Component
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 export default function Chat() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: 'assistant',
-      content: 'Hello! I am your AI assistant. Select a knowledge base and optionally a specific document, then ask me anything.',
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -71,20 +200,20 @@ export default function Chat() {
   const [selectedKbId, setSelectedKbId] = useState('');
   const [kbDocs, setKbDocs] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState('all');
-
   const [kbLoading, setKbLoading] = useState(true);
   const [kbError, setKbError] = useState('');
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const chatBodyRef = useRef(null);
 
-  // Auto-scroll
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // Fetch knowledge bases on mount
+  // Fetch knowledge bases
   useEffect(() => {
     const fetchKbs = async () => {
       try {
@@ -97,11 +226,11 @@ export default function Chat() {
           setSelectedKbId(kbs[0].id);
           setKbDocs(kbs[0].documents || []);
         } else {
-          setKbError('No knowledge base found. Please upload documents first.');
+          setKbError('No knowledge base found. Upload documents first.');
         }
       } catch (err) {
         console.error('Failed to fetch knowledge bases', err);
-        setKbError('Failed to load knowledge bases. Please check your connection.');
+        setKbError('Failed to load knowledge bases.');
       } finally {
         setKbLoading(false);
       }
@@ -109,7 +238,6 @@ export default function Chat() {
     fetchKbs();
   }, []);
 
-  // When KB changes, update document list
   const handleKbChange = (kbId) => {
     setSelectedKbId(kbId);
     setSelectedDocId('all');
@@ -117,13 +245,12 @@ export default function Chat() {
     setKbDocs(kb?.documents || []);
   };
 
-  // Auto-resize textarea
   const handleInputChange = (e) => {
     setInput(e.target.value);
     const ta = textareaRef.current;
     if (ta) {
       ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+      ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
     }
   };
 
@@ -145,611 +272,270 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      const payload = {
-        knowledge_base_id: selectedKbId,
-        query: trimmed,
-      };
-      // Pass document filter if a specific doc is selected
-      if (selectedDocId && selectedDocId !== 'all') {
-        payload.document_id = selectedDocId;
-      }
+      const payload = { knowledge_base_id: selectedKbId, query: trimmed };
+      if (selectedDocId && selectedDocId !== 'all') payload.document_id = selectedDocId;
 
       const res = await api.post('/agent/ask', payload);
       const data = res.data.data;
 
-      const assistantMsg = {
+      setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: 'assistant',
         content: data.answer,
         context: data.context_used || [],
         audioUrl: data.audio_url || null,
-      };
-      setMessages(prev => [...prev, assistantMsg]);
+      }]);
     } catch (err) {
       console.error('Failed to get answer', err);
-      const errMsg = {
+      setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: 'assistant',
-        content: err.response?.data?.error || "I'm sorry, I encountered an error while processing your request. Please try again.",
+        content: err.response?.data?.error || "I encountered an error. Please try again.",
         isError: true,
-      };
-      setMessages(prev => [...prev, errMsg]);
+      }]);
     } finally {
       setLoading(false);
     }
   };
 
-  const clearChat = () => {
-    setMessages([{
-      id: Date.now(),
-      role: 'assistant',
-      content: 'Chat cleared. Ask me anything about your documents!',
-    }]);
-  };
+  const clearChat = () => setMessages([]);
 
-  const isReady = !kbLoading && selectedKbId && !kbError;
-
-  // ─── selected KB info ───
+  const isReady = !kbLoading && !!selectedKbId && !kbError;
   const selectedKb = knowledgeBases.find(k => k.id === selectedKbId);
+  const selectedDoc = kbDocs.find(d => d.id === selectedDocId);
 
   return (
-    <div className="chat-page">
-      {/* ── Page Header ── */}
-      <div className="chat-header-section">
-        <div>
-          <h1 className="chat-title">
-            <Sparkles size={28} className="chat-title-icon" />
-            AI Assistant
-          </h1>
-          <p className="chat-subtitle">
-            Ask questions and get intelligent answers powered by your knowledge base.
-          </p>
-        </div>
-
-        {/* KB + Doc Selectors */}
-        <div className="chat-selectors">
-          {/* Knowledge Base selector */}
-          <div className="selector-group">
-            <label className="selector-label">
-              <Database size={12} /> Knowledge Base
-            </label>
-            <div className="selector-wrap">
-              <select
-                value={selectedKbId}
-                onChange={e => handleKbChange(e.target.value)}
-                disabled={kbLoading || knowledgeBases.length === 0}
-                className="selector-control"
-              >
-                {kbLoading && <option>Loading…</option>}
-                {!kbLoading && knowledgeBases.length === 0 && <option>No knowledge bases</option>}
-                {knowledgeBases.map(kb => (
-                  <option key={kb.id} value={kb.id}>{kb.name}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="selector-chevron" />
-            </div>
-          </div>
-
-          {/* Document selector */}
-          <div className="selector-group">
-            <label className="selector-label">
-              <BookOpen size={12} /> Document (optional)
-            </label>
-            <div className="selector-wrap">
-              <select
-                value={selectedDocId}
-                onChange={e => setSelectedDocId(e.target.value)}
-                disabled={kbDocs.length === 0}
-                className="selector-control"
-              >
-                <option value="all">All Documents</option>
-                {kbDocs.map(doc => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.filename}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="selector-chevron" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Error Banner ── */}
-      {kbError && (
-        <div className="chat-error-banner">
-          <AlertTriangle size={16} />
-          <span>{kbError}</span>
-        </div>
-      )}
-
-      {/* ── Chat Window ── */}
-      <div className="chat-window">
-        {/* Chat Topbar */}
-        <div className="chat-topbar">
-          <div className="chat-agent-info">
-            <div className="agent-avatar">
-              <Bot size={18} />
-            </div>
-            <div>
-              <p className="agent-name">RAG Agent</p>
-              <p className="agent-status">
-                <span className="status-dot" />
-                {isReady ? 'Online & Ready' : kbLoading ? 'Loading…' : 'Not configured'}
-              </p>
-            </div>
-          </div>
-          <div className="chat-topbar-right">
-            {selectedKb && (
-              <div className="kb-badge">
-                <Database size={11} />
-                {selectedKb.name}
-                {selectedDocId !== 'all' && (
-                  <>
-                    <span className="kb-badge-sep">›</span>
-                    <FileText size={11} />
-                    {kbDocs.find(d => d.id === selectedDocId)?.filename?.split('.')[0]}
-                  </>
-                )}
-              </div>
-            )}
-            <button onClick={clearChat} className="clear-btn" title="Clear conversation">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="chat-messages">
-          {messages.map(msg => (
-            <div
-              key={msg.id}
-              className={`chat-message-row ${msg.role === 'user' ? 'user-row' : 'assistant-row'}`}
-            >
-              {/* Avatar */}
-              <div className={`msg-avatar ${msg.role === 'user' ? 'user-avatar' : 'bot-avatar'}`}>
-                {msg.role === 'user' ? <User size={15} /> : <Bot size={15} />}
-              </div>
-
-              {/* Bubble */}
-              <div className={`msg-bubble ${msg.role === 'user' ? 'user-bubble' : msg.isError ? 'error-bubble' : 'bot-bubble'}`}>
-                <p className="msg-text">{msg.content}</p>
-
-                {/* Sources */}
-                {msg.role === 'assistant' && msg.context && msg.context.length > 0 && (
-                  <div className="msg-sources">
-                    <span className="sources-label">
-                      <MessageSquare size={10} /> Sources
-                    </span>
-                    <div className="sources-list">
-                      {msg.context.slice(0, 3).map((ctx, i) => (
-                        <span key={i} className="source-chip">
-                          {ctx.file_type === 'url'
-                            ? <LinkIcon size={10} />
-                            : <FileText size={10} />}
-                          {ctx.filename || 'Document'}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Audio player */}
-                {msg.role === 'assistant' && msg.audioUrl && (
-                  <AudioPlayer url={msg.audioUrl} />
-                )}
-              </div>
-            </div>
-          ))}
-
-          {/* Typing indicator */}
-          {loading && (
-            <div className="chat-message-row assistant-row">
-              <div className="msg-avatar bot-avatar">
-                <Loader2 size={15} className="animate-spin" />
-              </div>
-              <div className="msg-bubble bot-bubble typing-bubble">
-                <TypingDots />
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Area */}
-        <div className="chat-input-area">
-          <div className={`input-container ${!isReady ? 'input-disabled' : ''}`}>
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                kbLoading
-                  ? 'Loading knowledge bases…'
-                  : !selectedKbId
-                  ? 'No knowledge base selected'
-                  : `Ask about ${selectedKb?.name || 'your documents'}… (Enter to send)`
-              }
-              disabled={!isReady || loading}
-              rows={1}
-              className="chat-textarea"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || !isReady || loading}
-              className="send-btn"
-              title="Send message"
-            >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-            </button>
-          </div>
-          <p className="input-hint">
-            Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line · AI can make mistakes, verify important info.
-          </p>
-        </div>
-      </div>
-
-      {/* ── Styles ── */}
+    <>
+      {/* ── Escape layout padding for full-height ── */}
       <style>{`
-        .chat-page {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-          max-width: 900px;
-          margin: 0 auto;
-          height: calc(100vh - 7rem);
+        /* Override parent <main> padding only on chat route */
+        .chat-fullscreen-escape {
+          margin: -2rem;
+          height: calc(100vh - 5rem); /* 5rem = header h-20 */
         }
-
-        /* Header */
-        .chat-header-section {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 1.5rem;
-          flex-wrap: wrap;
+        @media (max-width: 768px) {
+          .chat-fullscreen-escape { margin: -1rem; }
         }
-        .chat-title {
-          font-size: 1.875rem;
-          font-weight: 800;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          gap: 0.6rem;
-          margin-bottom: 0.25rem;
-          letter-spacing: -0.5px;
+        .chat-messages-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-messages-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-messages-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
+        .chat-messages-scroll { scrollbar-width: thin; scrollbar-color: #1e293b transparent; }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
-        .chat-title-icon { color: #818cf8; }
-        .chat-subtitle { color: #94a3b8; font-size: 0.875rem; }
-
-        /* Selectors */
-        .chat-selectors {
-          display: flex;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-          align-items: flex-end;
+        .msg-animate { animation: fadeUp 0.2s ease forwards; }
+        @keyframes shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
         }
-        .selector-group { display: flex; flex-direction: column; gap: 0.35rem; }
-        .selector-label {
-          display: flex;
-          align-items: center;
-          gap: 0.3rem;
-          font-size: 0.65rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #64748b;
+        .gradient-text {
+          background: linear-gradient(135deg, #a78bfa, #818cf8, #c084fc);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
-        .selector-wrap { position: relative; }
-        .selector-control {
-          appearance: none;
-          background: #0f172a;
-          border: 1px solid #1e293b;
-          border-radius: 10px;
-          color: #e2e8f0;
-          padding: 0.5rem 2.5rem 0.5rem 0.875rem;
-          font-size: 0.8rem;
-          min-width: 180px;
-          transition: border-color 0.2s;
-          cursor: pointer;
+        .glass-input {
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
         }
-        .selector-control:focus { outline: none; border-color: #6366f1; }
-        .selector-control:disabled { opacity: 0.5; cursor: not-allowed; }
-        .selector-chevron {
-          position: absolute;
-          right: 0.6rem;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #64748b;
-          pointer-events: none;
+        .glow-violet {
+          box-shadow: 0 0 0 1px rgba(139,92,246,0.3), 0 8px 32px rgba(139,92,246,0.15);
         }
-
-        /* Error banner */
-        .chat-error-banner {
-          display: flex;
-          align-items: center;
-          gap: 0.6rem;
-          background: rgba(245,158,11,0.08);
-          border: 1px solid rgba(245,158,11,0.2);
-          color: #fbbf24;
-          padding: 0.875rem 1rem;
-          border-radius: 12px;
-          font-size: 0.875rem;
-        }
-
-        /* Chat Window */
-        .chat-window {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          background: #0d1117;
-          border: 1px solid #1e293b;
-          border-radius: 20px;
-          overflow: hidden;
-          box-shadow: 0 25px 50px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.05);
-          min-height: 0;
-        }
-
-        /* Topbar */
-        .chat-topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0.875rem 1.25rem;
-          background: linear-gradient(135deg, #0b1120 0%, #0f172a 100%);
-          border-bottom: 1px solid #1e293b;
-        }
-        .chat-agent-info { display: flex; align-items: center; gap: 0.75rem; }
-        .agent-avatar {
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #4f46e5, #7c3aed);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #fff;
-          box-shadow: 0 0 12px rgba(99,102,241,0.3);
-        }
-        .agent-name { font-size: 0.9rem; font-weight: 600; color: #fff; }
-        .agent-status {
-          display: flex;
-          align-items: center;
-          gap: 0.35rem;
-          font-size: 0.7rem;
-          color: #34d399;
-          margin-top: 1px;
-        }
-        .status-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #34d399;
-          animation: pulse-green 2s infinite;
-        }
-        @keyframes pulse-green {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        .chat-topbar-right { display: flex; align-items: center; gap: 0.6rem; }
-        .kb-badge {
-          display: flex;
-          align-items: center;
-          gap: 0.3rem;
-          font-size: 0.7rem;
-          font-weight: 600;
-          color: #6366f1;
-          background: rgba(99,102,241,0.1);
-          border: 1px solid rgba(99,102,241,0.2);
-          border-radius: 20px;
-          padding: 0.3rem 0.75rem;
-          max-width: 240px;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-        }
-        .kb-badge-sep { color: #475569; }
-        .clear-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          border: 1px solid #1e293b;
-          background: transparent;
-          color: #475569;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .clear-btn:hover { background: rgba(239,68,68,0.1); color: #f87171; border-color: rgba(239,68,68,0.2); }
-
-        /* Messages area */
-        .chat-messages {
-          flex: 1;
-          overflow-y: auto;
-          padding: 1.5rem;
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
-          background: linear-gradient(180deg, #0d1117 0%, #0a0f1a 100%);
-          scrollbar-width: thin;
-          scrollbar-color: #1e293b transparent;
-        }
-        .chat-messages::-webkit-scrollbar { width: 5px; }
-        .chat-messages::-webkit-scrollbar-track { background: transparent; }
-        .chat-messages::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
-
-        .chat-message-row {
-          display: flex;
-          gap: 0.75rem;
-          align-items: flex-start;
-          animation: fadeSlideIn 0.25s ease;
-        }
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .user-row { flex-direction: row-reverse; }
-        .assistant-row { flex-direction: row; }
-
-        /* Avatars */
-        .msg-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          margin-top: 2px;
-        }
-        .user-avatar { background: #334155; color: #cbd5e1; }
-        .bot-avatar { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
-
-        /* Bubbles */
-        .msg-bubble {
-          max-width: 75%;
-          border-radius: 18px;
-          padding: 0.875rem 1.1rem;
-          font-size: 0.875rem;
-          line-height: 1.6;
-        }
-        .user-bubble {
-          background: linear-gradient(135deg, #4f46e5, #6d28d9);
-          color: #fff;
-          border-bottom-right-radius: 4px;
-          box-shadow: 0 4px 12px rgba(79,70,229,0.25);
-        }
-        .bot-bubble {
-          background: #131c2e;
-          border: 1px solid #1e293b;
-          color: #cbd5e1;
-          border-bottom-left-radius: 4px;
-        }
-        .error-bubble {
-          background: rgba(239,68,68,0.08);
-          border: 1px solid rgba(239,68,68,0.2);
-          color: #fca5a5;
-          border-bottom-left-radius: 4px;
-        }
-        .typing-bubble {
-          padding: 0.75rem 1rem;
-        }
-        .msg-text { white-space: pre-wrap; word-break: break-word; }
-
-        /* Sources */
-        .msg-sources {
-          margin-top: 0.75rem;
-          padding-top: 0.75rem;
-          border-top: 1px solid rgba(255,255,255,0.06);
-        }
-        .sources-label {
-          display: flex;
-          align-items: center;
-          gap: 0.3rem;
-          font-size: 0.65rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.07em;
-          color: #475569;
-          margin-bottom: 0.4rem;
-        }
-        .sources-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-        .source-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.3rem;
-          font-size: 0.68rem;
-          color: #6366f1;
-          background: rgba(99,102,241,0.08);
-          border: 1px solid rgba(99,102,241,0.15);
-          border-radius: 20px;
-          padding: 0.2rem 0.6rem;
-          max-width: 180px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        /* Input area */
-        .chat-input-area {
-          padding: 1rem 1.25rem;
-          background: linear-gradient(135deg, #0b1120 0%, #0f172a 100%);
-          border-top: 1px solid #1e293b;
-        }
-        .input-container {
-          display: flex;
-          align-items: flex-end;
-          gap: 0.75rem;
-          background: #0f172a;
-          border: 1px solid #1e293b;
-          border-radius: 16px;
-          padding: 0.75rem 0.75rem 0.75rem 1rem;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .input-container:focus-within {
-          border-color: #4f46e5;
-          box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
-        }
-        .input-disabled { opacity: 0.5; pointer-events: none; }
-        .chat-textarea {
-          flex: 1;
-          background: transparent;
-          border: none;
-          outline: none;
-          color: #e2e8f0;
-          font-size: 0.9rem;
-          line-height: 1.5;
-          resize: none;
-          min-height: 24px;
-          max-height: 160px;
-          font-family: inherit;
-        }
-        .chat-textarea::placeholder { color: #334155; }
-        .chat-textarea:disabled { cursor: not-allowed; }
-        .send-btn {
-          width: 38px;
-          height: 38px;
-          border-radius: 10px;
-          background: linear-gradient(135deg, #4f46e5, #7c3aed);
-          border: none;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-          flex-shrink: 0;
-          box-shadow: 0 4px 12px rgba(79,70,229,0.3);
-        }
-        .send-btn:hover:not(:disabled) {
-          transform: scale(1.05);
-          box-shadow: 0 6px 16px rgba(79,70,229,0.4);
-        }
-        .send-btn:disabled {
-          background: #1e293b;
-          color: #475569;
-          box-shadow: none;
-          cursor: not-allowed;
-        }
-        .input-hint {
-          text-align: center;
-          font-size: 0.7rem;
-          color: #334155;
-          margin-top: 0.6rem;
-        }
-        .input-hint kbd {
-          background: #1e293b;
-          border: 1px solid #334155;
-          border-radius: 4px;
-          padding: 0.1rem 0.35rem;
-          font-size: 0.65rem;
-          color: #64748b;
-          font-family: inherit;
+        .glow-violet:focus-within {
+          box-shadow: 0 0 0 2px rgba(139,92,246,0.5), 0 12px 40px rgba(139,92,246,0.2);
         }
       `}</style>
-    </div>
+
+      <div className="chat-fullscreen-escape flex flex-col bg-[#080e1a] overflow-hidden">
+
+        {/* ══════════════════════════════════════════
+            TOP BAR — compact identity + controls
+        ══════════════════════════════════════════ */}
+        <div className="flex-shrink-0 border-b border-[#1a2540] bg-[#0a1020]/95 glass-input">
+          {/* Title row */}
+          <div className="flex items-center justify-between px-4 pt-3 pb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-md shadow-violet-500/20">
+                <Sparkles size={13} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-sm font-bold gradient-text leading-none">AI Assistant</h1>
+                <p className="text-[10px] text-slate-500 leading-none mt-0.5">RAG-powered knowledge search</p>
+              </div>
+            </div>
+
+            {/* Status + clear */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/15">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-semibold text-emerald-400">Online</span>
+              </div>
+              {messages.length > 0 && (
+                <button
+                  onClick={clearChat}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#1e2d4a] text-slate-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 transition-all text-[10px]"
+                  title="Clear chat"
+                >
+                  <RotateCcw size={11} />
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Controls row — KB + Document selectors */}
+          <div className="flex items-center gap-2 px-4 pb-2.5 overflow-x-auto">
+            {/* KB selector */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Database size={11} className="text-slate-500 flex-shrink-0" />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex-shrink-0">KB</span>
+              <div className="relative">
+                <select
+                  value={selectedKbId}
+                  onChange={e => handleKbChange(e.target.value)}
+                  disabled={kbLoading || knowledgeBases.length === 0}
+                  className="appearance-none bg-[#0f1929] border border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[180px] truncate disabled:opacity-40"
+                >
+                  {kbLoading && <option>Loading…</option>}
+                  {!kbLoading && knowledgeBases.length === 0 && <option>No knowledge bases</option>}
+                  {knowledgeBases.map(kb => (
+                    <option key={kb.id} value={kb.id}>{kb.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="w-px h-4 bg-[#1e2d4a] flex-shrink-0" />
+
+            {/* Document selector */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <BookOpen size={11} className="text-slate-500 flex-shrink-0" />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex-shrink-0">Doc</span>
+              <div className="relative">
+                <select
+                  value={selectedDocId}
+                  onChange={e => setSelectedDocId(e.target.value)}
+                  disabled={kbDocs.length === 0}
+                  className="appearance-none bg-[#0f1929] border border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[220px] truncate disabled:opacity-40"
+                >
+                  <option value="all">All Documents</option>
+                  {kbDocs.map(doc => (
+                    <option key={doc.id} value={doc.id}>{doc.filename}</option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Active filter badge */}
+            {selectedDocId !== 'all' && selectedDoc && (
+              <>
+                <div className="w-px h-4 bg-[#1e2d4a] flex-shrink-0" />
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 flex-shrink-0">
+                  <FileText size={9} className="text-violet-400" />
+                  <span className="text-[10px] text-violet-300 max-w-[120px] truncate font-medium">
+                    {selectedDoc.filename?.split('.')[0]}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Error banner */}
+          {kbError && (
+            <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-2 bg-amber-500/5 border border-amber-500/15 rounded-lg">
+              <AlertTriangle size={12} className="text-amber-400 flex-shrink-0" />
+              <p className="text-xs text-amber-300">{kbError}</p>
+            </div>
+          )}
+        </div>
+
+        {/* ══════════════════════════════════════════
+            MESSAGES AREA — fills remaining height
+        ══════════════════════════════════════════ */}
+        <div
+          ref={chatBodyRef}
+          className="flex-1 overflow-y-auto chat-messages-scroll px-4 py-6 md:px-8"
+        >
+          {/* Welcome / empty state */}
+          {messages.length === 0 && !loading && (
+            <WelcomeScreen selectedKb={selectedKb} kbDocs={kbDocs} />
+          )}
+
+          {/* Message list */}
+          <div className="max-w-3xl mx-auto flex flex-col gap-5">
+            {messages.map(msg => (
+              <div key={msg.id} className="msg-animate">
+                <MessageBubble msg={msg} kbDocs={kbDocs} />
+              </div>
+            ))}
+
+            {/* Typing indicator */}
+            {loading && (
+              <div className="msg-animate flex gap-3 flex-row">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30 mt-0.5">
+                  <Loader2 size={14} className="text-white animate-spin" />
+                </div>
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[#141e33] border border-[#1e2d4a]">
+                  <TypingDots />
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════
+            INPUT BAR — sticky bottom
+        ══════════════════════════════════════════ */}
+        <div className="flex-shrink-0 px-4 pb-4 pt-2 md:px-8 bg-[#080e1a]/95 border-t border-[#1a2540] glass-input">
+          <div className="max-w-3xl mx-auto">
+            {/* Input container */}
+            <div className={`glow-violet flex items-end gap-3 bg-[#0d1624] border border-[#1e2d4a] rounded-2xl px-4 py-3 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  kbLoading ? 'Loading knowledge bases…'
+                  : !selectedKbId ? 'Select a knowledge base to start…'
+                  : selectedDocId !== 'all' && selectedDoc
+                    ? `Ask about "${selectedDoc.filename?.split('.')[0]}"…`
+                    : `Ask about ${selectedKb?.name || 'your documents'}…`
+                }
+                disabled={!isReady || loading}
+                rows={1}
+                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-200 text-sm leading-relaxed placeholder-slate-600 min-h-[24px] max-h-[140px] font-sans disabled:cursor-not-allowed"
+              />
+
+              {/* Send button */}
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || !isReady || loading}
+                className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed enabled:bg-gradient-to-br enabled:from-violet-600 enabled:to-indigo-600 enabled:hover:from-violet-500 enabled:hover:to-indigo-500 enabled:shadow-lg enabled:shadow-violet-500/25 enabled:hover:scale-105 enabled:active:scale-95"
+              >
+                {loading
+                  ? <Loader2 size={16} className="text-white animate-spin" />
+                  : <Send size={15} className="text-white" />
+                }
+              </button>
+            </div>
+
+            {/* Hint */}
+            <p className="text-center text-[10px] text-slate-600 mt-2">
+              <kbd className="bg-[#141e33] border border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Enter</kbd>
+              {' '}to send &middot;{' '}
+              <kbd className="bg-[#141e33] border border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Shift+Enter</kbd>
+              {' '}for new line &middot; AI may make mistakes
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </>
   );
 }

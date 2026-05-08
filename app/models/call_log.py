@@ -19,9 +19,17 @@ class CallLog(db.Model):
         db.ForeignKey("campaigns.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Twilio CallSid — links all recording turns of one call to a single log row
+    call_sid = db.Column(db.String(64), nullable=True, index=True, unique=True)
+
     phone_number = db.Column(db.String(40), nullable=False)
     status = db.Column(db.String(50), nullable=False, default="completed")  # completed, failed, missed
     duration_seconds = db.Column(db.Integer, nullable=False, default=0)
+
+    # Full turn-by-turn transcript: [{role, text, ts}, ...]
+    # role is either "customer" or "ai"
+    conversation = db.Column(db.JSON, nullable=True, default=list)
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -37,8 +45,10 @@ class CallLog(db.Model):
             "user_id": str(self.user_id),
             "campaign_id": str(self.campaign_id) if self.campaign_id else None,
             "campaign_name": self.campaign.name if self.campaign else None,
+            "call_sid": self.call_sid,
             "phone_number": self.phone_number,
             "status": self.status,
             "duration_seconds": self.duration_seconds,
+            "conversation": self.conversation or [],
             "created_at": self.created_at.isoformat(),
         }

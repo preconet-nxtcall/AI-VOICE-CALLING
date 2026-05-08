@@ -129,7 +129,7 @@ export default function Dashboard() {
           </div>
           <p className="text-slate-500 dark:text-slate-400 font-medium ml-1">Real-time monitoring for your AI infrastructure.</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-4 md:mt-0">
           <button 
             onClick={handleExportData}
             className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-[#1e293b]/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 font-semibold transition-all shadow-sm"
