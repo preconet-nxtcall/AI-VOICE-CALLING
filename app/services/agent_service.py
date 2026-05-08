@@ -16,12 +16,23 @@ def _get_openai_api_key() -> str:
 
 class AgentService:
     @staticmethod
-    def ask(knowledge_base_id: str, query: str) -> Dict[str, Any]:
+    def ask(knowledge_base_id: str, query: str, document_id: str = None, mode: str = "chat") -> Dict[str, Any]:
         """
         Answers a user query using RAG over the specified knowledge base.
+        :param knowledge_base_id: UUID of the knowledge base.
+        :param query: User's question.
+        :param document_id: Optional UUID of a specific document to restrict context to.
+        :param mode: 'chat' for text (respond in user's language) or 'voice' for Hindi voice calls.
         """
         # 1. Retrieve similar chunks
         chunks = EmbeddingService.similarity_search(knowledge_base_id, query, k=5)
+        
+        # Filter by document_id if provided
+        if document_id and chunks:
+            filtered = [c for c in chunks if str(c.get('document_id', '')) == str(document_id)]
+            if filtered:
+                chunks = filtered
+            # else keep all chunks (fallback) so we don't return empty
         
         if not chunks:
             return {
@@ -51,13 +62,21 @@ class AgentService:
             
         client = OpenAI(api_key=api_key)
         
-        system_prompt = (
-            "You are a helpful AI voice assistant. You answer user queries based primarily on the provided context. "
-            "IMPORTANT: Always respond in Hindi (Devanagari script) — this is a Hindi voice call. "
-            "Keep responses concise and natural for spoken conversation (2-3 sentences max). "
-            "If the answer is not contained within the context, politely say so in Hindi. "
-            "Do not make up information."
-        )
+        if mode == "voice":
+            system_prompt = (
+                "You are a helpful AI voice assistant. You answer user queries based primarily on the provided context. "
+                "IMPORTANT: Always respond in Hindi (Devanagari script) — this is a Hindi voice call. "
+                "Keep responses concise and natural for spoken conversation (2-3 sentences max). "
+                "If the answer is not contained within the context, politely say so in Hindi. "
+                "Do not make up information."
+            )
+        else:
+            system_prompt = (
+                "You are a helpful AI assistant. Answer user queries based on the provided context from their knowledge base documents. "
+                "Respond in the same language the user writes in. "
+                "Be clear, accurate, and helpful. If the answer is not in the context, say so honestly. "
+                "Do not make up information."
+            )
         
         user_message = f"Context Information:\n{combined_context}\n\nUser Query: {query}\n\nAnswer:"
         

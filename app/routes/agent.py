@@ -20,6 +20,7 @@ class AgentAskResource(Resource):
             
         knowledge_base_id = data.get("knowledge_base_id")
         query = data.get("query", "")
+        document_id = data.get("document_id")  # optional: restrict to a specific document
         
         if not isinstance(query, str) or not query.strip():
             return {"success": False, "error": "'query' must be a non-empty string."}, 400
@@ -32,6 +33,14 @@ class AgentAskResource(Resource):
             kb_uuid = uuid.UUID(str(knowledge_base_id))
         except ValueError:
             return {"success": False, "error": "Invalid knowledge base ID format."}, 400
+
+        # Validate optional document_id
+        doc_uuid_str = None
+        if document_id:
+            try:
+                doc_uuid_str = str(uuid.UUID(str(document_id)))
+            except ValueError:
+                return {"success": False, "error": "Invalid document_id format."}, 400
             
         user_id = get_jwt_identity()
         try:
@@ -45,13 +54,24 @@ class AgentAskResource(Resource):
             return {"success": False, "error": "Knowledge base not found or you do not have permission to access it."}, 404
             
         try:
-            result = AgentService.ask(knowledge_base_id, query)
+            result = AgentService.ask(
+                knowledge_base_id,
+                query,
+                document_id=doc_uuid_str,
+                mode="chat"
+            )
             answer_text = result.get("answer", "")
-            audio_file_path = None
+            audio_url = None
             if isinstance(answer_text, str) and answer_text.strip():
                 audio_file_path = TTSService.generate_audio(answer_text)
+                from pathlib import Path
+                filename = Path(audio_file_path).name
+                base_url = request.host_url.rstrip("/")
+                audio_url = f"{base_url}/voice/audio/{filename}"
 
-            result["audio_file_path"] = audio_file_path
+            result["audio_url"] = audio_url
+            # Remove audio_file_path if it exists
+            result.pop("audio_file_path", None)
             return {
                 "success": True,
                 "data": result
@@ -103,18 +123,22 @@ class AgentVoiceResource(Resource):
                 return {"success": False, "error": "Could not transcribe audio."}, 400
 
             # 2. Text -> RAG Response
-            rag_result = AgentService.ask(str(kb_uuid), transcription)
+            rag_result = AgentService.ask(str(kb_uuid), transcription, mode="voice")
             answer_text = rag_result['answer']
             
             # 3. Response text -> local MP3 (TTS)
             audio_file_path = TTSService.generate_audio(answer_text)
+            from pathlib import Path
+            filename = Path(audio_file_path).name
+            base_url = request.host_url.rstrip("/")
+            audio_url = f"{base_url}/voice/audio/{filename}"
             
             return {
                 "success": True,
                 "data": {
                     "transcription": transcription,
                     "answer": answer_text,
-                    "audio_file_path": audio_file_path,
+                    "audio_url": audio_url,
                     "context_used": rag_result.get("context_used", [])
                 }
             }, 200
