@@ -9,6 +9,7 @@ import Campaigns from './pages/Campaigns';
 import CallLogs from './pages/CallLogs';
 import Billing from './pages/Billing';
 import ForgotPassword from './pages/ForgotPassword';
+import ProfileSettings from './pages/ProfileSettings';
 
 const isTokenValid = () => {
   const token = localStorage.getItem('token');
@@ -60,6 +61,7 @@ function App() {
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="logs" element={<CallLogs />} />
           <Route path="billing" element={<Billing />} />
+          <Route path="profile" element={<ProfileSettings />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

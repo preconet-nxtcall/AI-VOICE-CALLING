@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Rocket, BookOpen, BarChart2, CreditCard, PhoneCall, Settings, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Rocket, BookOpen, BarChart2, CreditCard, PhoneCall, User, ChevronLeft } from 'lucide-react';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const location = useLocation();
@@ -13,7 +13,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { name: 'Campaigns', icon: BarChart2, path: '/campaigns' },
     { name: 'Call Logs', icon: PhoneCall, path: '/logs' },
     { name: 'Billing', icon: CreditCard, path: '/billing' },
-    { name: 'Settings', icon: Settings, path: '/settings' },
   ];
 
   // Auto collapse on mobile
@@ -41,8 +40,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         onMouseLeave={() => setIsHovered(false)}
         className={`relative flex items-center gap-3 px-4 py-3 mx-3 my-1 rounded-xl transition-all duration-300 group ${
           isActive 
-            ? 'bg-indigo-600/20 text-indigo-400 neon-glow border border-indigo-500/30' 
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            ? 'bg-indigo-600/10 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 neon-glow border border-indigo-500/30' 
+            : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
         }`}
       >
         {/* Active Indicator Glow */}
@@ -80,7 +79,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 20 }}
               exit={{ opacity: 0, x: 10 }}
-              className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-xs font-semibold text-slate-200 shadow-xl z-50 whitespace-nowrap"
+              className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-900 dark:text-slate-200 shadow-xl z-50 whitespace-nowrap"
             >
               {item.name}
             </motion.div>
@@ -95,7 +94,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       initial={false}
       animate={{ width: isCollapsed ? 80 : 260 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="h-screen bg-[#0b1120] border-r border-slate-800 flex flex-col fixed left-0 top-0 z-40 shadow-2xl"
+      className="h-screen bg-white dark:bg-[#0b1120] border-r border-slate-200 dark:border-slate-800 flex flex-col fixed left-0 top-0 z-40 shadow-xl dark:shadow-2xl"
     >
       <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center px-4' : 'justify-between'} transition-all duration-300 h-20`}>
         <div className={`flex items-center gap-3 overflow-hidden ${isCollapsed ? 'justify-center w-full' : ''}`}>
@@ -111,20 +110,18 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                 transition={{ duration: 0.2 }}
                 className="whitespace-nowrap"
               >
-                <h1 className="text-white font-bold text-lg tracking-tight">AINXT.call</h1>
+                <h1 className="text-slate-900 dark:text-white font-bold text-lg tracking-tight">AINXT.call</h1>
                 <p className="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Enterprise</p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        
-        {/* Toggle button on the top right inside sidebar (if expanded) or just below logo (if collapsed) - we can also have a floating toggle. Let's put a toggle button that sits on the edge. */}
       </div>
 
       {/* Floating Toggle Button */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3.5 top-24 w-7 h-7 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 hover:shadow-[0_0_10px_rgba(79,70,229,0.3)] transition-all z-50 focus:outline-none"
+        className="absolute -right-3.5 top-24 w-7 h-7 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 hover:shadow-lg transition-all z-50 focus:outline-none"
       >
         <motion.div
           animate={{ rotate: isCollapsed ? 180 : 0 }}
@@ -139,8 +136,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           <NavLink key={item.name} item={item} />
         ))}
       </div>
-      
-      {/* Bottom Profile/Settings preview area if needed, left blank for clean look */}
     </motion.div>
   );
 }
