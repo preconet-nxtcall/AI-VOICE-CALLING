@@ -19,13 +19,13 @@ const statusColors = {
   completed: 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30',
   failed: 'bg-red-500/15 text-red-400 ring-1 ring-red-500/30',
   in_progress: 'bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30',
-  missed: 'bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/30',
+  missed: 'bg-slate-500/15 text-slate-500 dark:text-slate-400 ring-1 ring-slate-500/30',
 };
 
 function ConversationPanel({ conversation }) {
   if (!conversation || conversation.length === 0) {
     return (
-      <div className="px-6 py-5 text-center text-slate-500 text-sm italic">
+      <div className="px-6 py-5 text-center text-slate-600 dark:text-slate-500 text-sm italic">
         No transcript available for this call.
       </div>
     );
@@ -42,7 +42,7 @@ function ConversationPanel({ conversation }) {
           >
             {/* Label */}
             <span className={`text-[10px] font-semibold uppercase tracking-widest ${
-              isAI ? 'text-indigo-400' : 'text-slate-400'
+              isAI ? 'text-indigo-400' : 'text-slate-500 dark:text-slate-400'
             }`}>
               {isAI ? '🤖 AI' : '📞 Customer'}
             </span>
@@ -110,7 +110,7 @@ function CallRow({ log }) {
             {log.status}
           </span>
         </td>
-        <td className="px-4 py-3 text-slate-400 text-sm">
+        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm">
           {formatDuration(log.duration_seconds)}
         </td>
         <td className="px-4 py-3">
@@ -151,11 +151,11 @@ function CallRow({ log }) {
             <div className="flex items-center justify-between px-6 pt-4 pb-2">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Conversation Transcript
                 </span>
-                <span className="text-xs text-slate-500">·</span>
-                <span className="text-xs text-slate-500">{log.phone_number}</span>
+                <span className="text-xs text-slate-600 dark:text-slate-500">·</span>
+                <span className="text-xs text-slate-600 dark:text-slate-500">{log.phone_number}</span>
               </div>
               <span className="text-xs text-slate-600">
                 {log.conversation.length} message{log.conversation.length !== 1 ? 's' : ''}
@@ -203,7 +203,7 @@ export default function CallLogs() {
           </p>
         </div>
         {!loading && logs.length > 0 && (
-          <div className="text-xs text-slate-500 bg-slate-800/50 px-3 py-1.5 rounded-full ring-1 ring-slate-700/50">
+          <div className="text-xs text-slate-600 dark:text-slate-500 bg-slate-800/50 px-3 py-1.5 rounded-full ring-1 ring-slate-700/50">
             {logs.length} record{logs.length !== 1 ? 's' : ''}
           </div>
         )}
@@ -222,7 +222,7 @@ export default function CallLogs() {
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Total Calls', value: summary.total_calls, icon: '📞', color: 'text-slate-300' },
+            { label: 'Total Calls', value: summary.total_calls, icon: '📞', color: 'text-slate-700 dark:text-slate-300' },
             { label: 'Completed', value: summary.completed_calls, icon: '✅', color: 'text-emerald-400' },
             { label: 'Failed', value: summary.failed_calls, icon: '❌', color: 'text-red-400' },
             { label: 'Last 24h', value: summary.calls_last_24h, icon: '🕐', color: 'text-indigo-400' },
@@ -233,7 +233,7 @@ export default function CallLogs() {
             >
               <span className="text-2xl">{icon}</span>
               <div>
-                <p className="text-slate-500 text-xs">{label}</p>
+                <p className="text-slate-600 dark:text-slate-500 text-xs">{label}</p>
                 <p className={`text-2xl font-bold ${color}`}>{value}</p>
               </div>
             </div>
@@ -242,7 +242,7 @@ export default function CallLogs() {
       )}
 
       {/* Transcript legend */}
-      <div className="flex items-center gap-4 text-xs text-slate-500">
+      <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-500">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-indigo-600/40 ring-1 ring-indigo-500/30" />
           AI reply
@@ -260,18 +260,18 @@ export default function CallLogs() {
         <table className="w-full text-left">
           <thead className="bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
             <tr>
-              <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Time</th>
-              <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Phone</th>
-              <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Campaign</th>
-              <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Duration</th>
-              <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Transcript</th>
+              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Time</th>
+              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Phone</th>
+              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Campaign</th>
+              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Duration</th>
+              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Transcript</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-4 py-10 text-slate-500 text-center" colSpan="6">
+                <td className="px-4 py-10 text-slate-600 dark:text-slate-500 text-center" colSpan="6">
                   <div className="flex items-center justify-center gap-2">
                     <svg className="w-4 h-4 animate-spin text-indigo-400" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -284,7 +284,7 @@ export default function CallLogs() {
             ) : logs.length === 0 ? (
               <tr>
                 <td className="px-4 py-12 text-center" colSpan="6">
-                  <div className="flex flex-col items-center gap-2 text-slate-500">
+                  <div className="flex flex-col items-center gap-2 text-slate-600 dark:text-slate-500">
                     <svg className="w-10 h-10 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                     </svg>

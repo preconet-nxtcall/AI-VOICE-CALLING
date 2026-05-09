@@ -24,7 +24,7 @@ export default function Billing() {
   }, []);
 
   if (loading) {
-    return <div className="text-slate-300 flex items-center gap-2"><Loader2 className="animate-spin" size={18} /> Loading billing...</div>;
+    return <div className="text-slate-700 dark:text-slate-300 flex items-center gap-2"><Loader2 className="animate-spin" size={18} /> Loading billing...</div>;
   }
 
   if (error) {
@@ -48,7 +48,7 @@ export default function Billing() {
             <p>Status: <span className="text-slate-900 dark:text-white">{billing?.subscription?.status || 'N/A'}</span></p>
             <p>Price: <span className="text-slate-900 dark:text-white">{billing?.subscription?.plan?.currency} {billing?.subscription?.plan?.price}</span></p>
             <p className="flex items-center gap-2">
-              <CalendarDays size={16} className="text-slate-400" />
+              <CalendarDays size={16} className="text-slate-500 dark:text-slate-400" />
               Days left: <span className="text-slate-900 dark:text-white">{billing?.days_left_in_cycle ?? 0}</span>
             </p>
           </div>

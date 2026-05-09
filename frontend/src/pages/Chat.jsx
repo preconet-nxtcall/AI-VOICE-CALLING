@@ -64,7 +64,7 @@ function CopyButton({ text }) {
   return (
     <button
       onClick={copy}
-      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-slate-300 transition-all"
+      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-600 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-all"
       title="Copy"
     >
       {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -83,8 +83,8 @@ function MessageBubble({ msg, kbDocs }) {
       <div className={`
         flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mt-0.5
         ${isUser
-          ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20'
-          : 'bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30'
+          ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-slate-900 dark:text-white shadow-lg shadow-violet-500/20'
+          : 'bg-gradient-to-br from-indigo-600 to-violet-600 text-slate-900 dark:text-white shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30'
         }
       `}>
         {isUser ? <User size={14} /> : <Bot size={14} />}
@@ -95,7 +95,7 @@ function MessageBubble({ msg, kbDocs }) {
         <div className={`
           relative px-4 py-3 rounded-2xl text-sm leading-relaxed
           ${isUser
-            ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
+            ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-slate-900 dark:text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
             : msg.isError
               ? 'bg-red-50 dark:bg-red-500/8 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 rounded-tl-sm'
               : 'bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-800 dark:text-slate-200 rounded-tl-sm shadow-sm'
@@ -106,7 +106,7 @@ function MessageBubble({ msg, kbDocs }) {
           {/* Sources */}
           {!isUser && msg.context && msg.context.length > 0 && (
             <div className="mt-3 pt-3 border-t border-white/5">
-              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500 mb-2">
                 <MessageSquare size={9} /> Sources used
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -150,10 +150,10 @@ function WelcomeScreen({ selectedKb, kbDocs }) {
       {/* Logo */}
       <div className="relative">
         <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-600 via-indigo-600 to-fuchsia-600 flex items-center justify-center shadow-2xl shadow-violet-500/30 ring-1 ring-violet-400/20">
-          <Sparkles size={36} className="text-white" />
+          <Sparkles size={36} className="text-slate-900 dark:text-white" />
         </div>
         <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-[#0d1117] flex items-center justify-center">
-          <Zap size={10} className="text-white" />
+          <Zap size={10} className="text-slate-900 dark:text-white" />
         </div>
       </div>
 
@@ -161,7 +161,7 @@ function WelcomeScreen({ selectedKb, kbDocs }) {
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
           How can I help you today?
         </h2>
-        <p className="text-slate-400 text-sm max-w-md">
+        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md">
           {selectedKb
             ? <>Searching through <span className="text-violet-400 font-medium">{selectedKb.name}</span>
               {kbDocs.length > 0 && <> · {kbDocs.length} document{kbDocs.length !== 1 ? 's' : ''}</>}</>
@@ -357,11 +357,11 @@ export default function Chat() {
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-md shadow-violet-500/20">
-                <Sparkles size={13} className="text-white" />
+                <Sparkles size={13} className="text-slate-900 dark:text-white" />
               </div>
               <div>
                 <h1 className="text-sm font-bold gradient-text leading-none">AI Assistant</h1>
-                <p className="text-[10px] text-slate-500 leading-none mt-0.5">RAG-powered knowledge search</p>
+                <p className="text-[10px] text-slate-600 dark:text-slate-500 leading-none mt-0.5">RAG-powered knowledge search</p>
               </div>
             </div>
 
@@ -374,7 +374,7 @@ export default function Chat() {
               {messages.length > 0 && (
                 <button
                   onClick={clearChat}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px]"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-600 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px]"
                   title="Clear chat"
                 >
                   <RotateCcw size={11} />
@@ -388,8 +388,8 @@ export default function Chat() {
           <div className="flex items-center gap-2 px-4 pb-2.5 overflow-x-auto">
             {/* KB selector */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <Database size={11} className="text-slate-500 flex-shrink-0" />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex-shrink-0">KB</span>
+              <Database size={11} className="text-slate-600 dark:text-slate-500 flex-shrink-0" />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500 flex-shrink-0">KB</span>
               <div className="relative">
                 <select
                   value={selectedKbId}
@@ -403,7 +403,7 @@ export default function Chat() {
                     <option key={kb.id} value={kb.id}>{kb.name}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-500 pointer-events-none" />
               </div>
             </div>
 
@@ -411,8 +411,8 @@ export default function Chat() {
 
             {/* Document selector */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <BookOpen size={11} className="text-slate-500 flex-shrink-0" />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex-shrink-0">Doc</span>
+              <BookOpen size={11} className="text-slate-600 dark:text-slate-500 flex-shrink-0" />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500 flex-shrink-0">Doc</span>
               <div className="relative">
                 <select
                   value={selectedDocId}
@@ -425,7 +425,7 @@ export default function Chat() {
                     <option key={doc.id} value={doc.id}>{doc.filename}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-500 pointer-events-none" />
               </div>
             </div>
 
@@ -476,7 +476,7 @@ export default function Chat() {
             {loading && (
               <div className="msg-animate flex gap-3 flex-row">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30 mt-0.5">
-                  <Loader2 size={14} className="text-white animate-spin" />
+                  <Loader2 size={14} className="text-slate-900 dark:text-white animate-spin" />
                 </div>
                 <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a]">
                   <TypingDots />
@@ -519,17 +519,17 @@ export default function Chat() {
                 className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed enabled:bg-gradient-to-br enabled:from-violet-600 enabled:to-indigo-600 enabled:hover:from-violet-500 enabled:hover:to-indigo-500 enabled:shadow-lg enabled:shadow-violet-500/25 enabled:hover:scale-105 enabled:active:scale-95"
               >
                 {loading
-                  ? <Loader2 size={16} className="text-white animate-spin" />
-                  : <Send size={15} className="text-white" />
+                  ? <Loader2 size={16} className="text-slate-900 dark:text-white animate-spin" />
+                  : <Send size={15} className="text-slate-900 dark:text-white" />
                 }
               </button>
             </div>
 
             {/* Hint */}
             <p className="text-center text-[10px] text-slate-600 mt-2">
-              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Enter</kbd>
+              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-500 font-sans">Enter</kbd>
               {' '}to send &middot;{' '}
-              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Shift+Enter</kbd>
+              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-500 font-sans">Shift+Enter</kbd>
               {' '}for new line &middot; AI may make mistakes
             </p>
           </div>

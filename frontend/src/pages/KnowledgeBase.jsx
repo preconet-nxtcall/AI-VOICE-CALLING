@@ -196,13 +196,13 @@ export default function KnowledgeBase() {
             <button
               onClick={createKb}
               disabled={creatingKb || !newKbName.trim()}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors"
             >
               {creatingKb ? '...' : 'Create'}
             </button>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Folder for Uploads</label>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-wider">Target Folder for Uploads</label>
             <select
               value={selectedKbId}
               onChange={(e) => setSelectedKbId(e.target.value)}
@@ -219,11 +219,11 @@ export default function KnowledgeBase() {
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Ingestion Queue</h2>
           <div className="space-y-3 max-h-[160px] overflow-y-auto pr-2">
             {jobs.length === 0 ? (
-              <p className="text-slate-500 text-sm">No ingestion jobs yet.</p>
+              <p className="text-slate-600 dark:text-slate-500 text-sm">No ingestion jobs yet.</p>
             ) : jobs.slice(0, 10).map((job) => (
               <div key={job.id} className="border border-[#E2E8F0] dark:border-slate-700/50 rounded-lg p-2.5 flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/30">
                 <div className="min-w-0">
-                  <p className="text-slate-300 text-xs font-medium truncate">{job.source_name}</p>
+                  <p className="text-slate-700 dark:text-slate-300 text-xs font-medium truncate">{job.source_name}</p>
                   {job.error_message && <p className="text-red-400 text-[10px] truncate">{job.error_message}</p>}
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -258,10 +258,10 @@ export default function KnowledgeBase() {
             className={`border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer group'}`}
           >
             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              {uploading ? <Loader2 size={32} className="text-indigo-500 dark:text-indigo-400 animate-spin" /> : <FileText size={32} className="text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400" />}
+              {uploading ? <Loader2 size={32} className="text-indigo-500 dark:text-indigo-400 animate-spin" /> : <FileText size={32} className="text-slate-500 dark:text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400" />}
             </div>
             <p className="text-slate-700 dark:text-slate-300 font-medium mb-1">{uploading ? 'Uploading...' : 'Click to upload or drag and drop'}</p>
-            <p className="text-sm text-slate-500 mb-6">PDF, DOCX, TXT (Max 10MB)</p>
+            <p className="text-sm text-slate-600 dark:text-slate-500 mb-6">PDF, DOCX, TXT (Max 10MB)</p>
             <button disabled={uploading} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors">
               Select File
             </button>
@@ -290,7 +290,7 @@ export default function KnowledgeBase() {
             <button
               onClick={handleAddUrl}
               disabled={processingUrl || !urlInput.trim()}
-              className="px-4 py-3 flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-lg text-sm font-medium transition-colors w-full mt-2"
+              className="px-4 py-3 flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 dark:text-slate-400 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors w-full mt-2"
             >
               {processingUrl ? <><Loader2 size={16} className="animate-spin" /> Processing...</> : 'Scrape & Index URL'}
             </button>
@@ -319,7 +319,7 @@ export default function KnowledgeBase() {
             <button
               onClick={handleTestCall}
               disabled={calling || !testPhoneNumber.trim()}
-              className="px-4 py-3 flex justify-center items-center gap-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-lg text-sm font-medium transition-colors w-full mt-2"
+              className="px-4 py-3 flex justify-center items-center gap-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 dark:text-slate-400 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors w-full mt-2"
             >
               {calling ? <><Loader2 size={16} className="animate-spin" /> Calling...</> : 'Call Me Now'}
             </button>
@@ -345,17 +345,17 @@ export default function KnowledgeBase() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Name / URL</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Date Added</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Name / URL</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date Added</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="5" className="px-6 py-12 text-center text-slate-600 dark:text-slate-500">
                     <Loader2 size={24} className="animate-spin mx-auto mb-2 text-indigo-400" />
                     Loading documents...
                   </td>
@@ -365,7 +365,7 @@ export default function KnowledgeBase() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {doc.file_type === 'url' ? <LinkIcon size={16} className="text-emerald-400" /> : <FileText size={16} className="text-indigo-400" />}
-                      <span className="font-medium text-slate-200 truncate max-w-xs block" title={doc.filename}>{doc.filename}</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-xs block" title={doc.filename}>{doc.filename}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -377,9 +377,9 @@ export default function KnowledgeBase() {
                       <span className="text-sm text-slate-700 dark:text-slate-300">Active</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-400">{new Date(doc.created_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{new Date(doc.created_at).toLocaleDateString()}</td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => handleDelete(doc.id)} className="text-slate-500 hover:text-red-400 transition-colors p-2 hover:bg-slate-800 rounded-lg">
+                    <button onClick={() => handleDelete(doc.id)} className="text-slate-600 dark:text-slate-500 hover:text-red-400 transition-colors p-2 hover:bg-slate-800 rounded-lg">
                       <Trash2 size={18} />
                     </button>
                   </td>
@@ -387,7 +387,7 @@ export default function KnowledgeBase() {
               ))}
               {!loading && documents.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="5" className="px-6 py-12 text-center text-slate-600 dark:text-slate-500">
                     No documents found. Upload a file or add a URL to get started.
                   </td>
                 </tr>

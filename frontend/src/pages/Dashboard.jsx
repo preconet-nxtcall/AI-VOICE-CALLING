@@ -139,7 +139,7 @@ export default function Dashboard() {
           </button>
           <button 
             onClick={() => navigate('/campaigns')}
-            className="group relative flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-white font-semibold transition-all shadow-lg dark:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-xl dark:hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] overflow-hidden"
+            className="group relative flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-slate-900 dark:text-white font-semibold transition-all shadow-lg dark:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-xl dark:hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] overflow-hidden"
           >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
             <Plus size={18} className="relative z-10" />
@@ -215,7 +215,7 @@ export default function Dashboard() {
                   className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
                     timeRange === range 
                       ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-md border border-[#E2E8F0] dark:border-slate-700' 
-                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'
+                      : 'text-slate-600 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   {range}
@@ -364,7 +364,7 @@ export default function Dashboard() {
                  <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
                </div>
             ) : logs.length === 0 ? (
-               <div className="text-slate-500 text-sm font-medium flex items-center justify-center h-full">No recent activity found.</div>
+               <div className="text-slate-600 dark:text-slate-500 text-sm font-medium flex items-center justify-center h-full">No recent activity found.</div>
             ) : (
               logs.slice(0, 5).map((log, index) => {
                 const isCompleted = log.status === 'completed';
@@ -403,7 +403,7 @@ export default function Dashboard() {
                           {isCompleted ? `Duration: ${Math.round((log.duration_seconds || 0)/60)}m` : 'Connection dropped'}
                         </span>
                         <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                        <span className="text-xs text-slate-500 font-bold">{timeString}</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-500 font-bold">{timeString}</span>
                       </div>
                     </div>
                   </motion.div>

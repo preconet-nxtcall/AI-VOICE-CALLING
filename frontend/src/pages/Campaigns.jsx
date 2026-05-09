@@ -155,8 +155,8 @@ export default function Campaigns() {
     switch (status) {
       case 'active': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
       case 'paused': return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
-      case 'draft': return 'text-slate-400 bg-slate-500/10 border-slate-500/30';
-      default: return 'text-slate-400 bg-slate-500/10 border-slate-500/30';
+      case 'draft': return 'text-slate-500 dark:text-slate-400 bg-slate-500/10 border-slate-500/30';
+      default: return 'text-slate-500 dark:text-slate-400 bg-slate-500/10 border-slate-500/30';
     }
   };
 
@@ -165,8 +165,8 @@ export default function Campaigns() {
       case 'completed': return 'text-emerald-400';
       case 'failed': return 'text-red-400';
       case 'calling': return 'text-amber-400';
-      case 'pending': return 'text-slate-400';
-      default: return 'text-slate-400';
+      case 'pending': return 'text-slate-500 dark:text-slate-400';
+      default: return 'text-slate-500 dark:text-slate-400';
     }
   };
 
@@ -211,7 +211,7 @@ export default function Campaigns() {
           <button
             type="submit"
             disabled={creating}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 font-medium transition-colors"
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 font-medium transition-colors"
           >
             {creating ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
             Create Campaign
@@ -244,7 +244,7 @@ export default function Campaigns() {
                     {c.status}
                   </span>
                 </div>
-                <p className="text-slate-500 text-xs">
+                <p className="text-slate-600 dark:text-slate-500 text-xs">
                   Daily limit: {c.daily_limit} • Created {new Date(c.created_at).toLocaleDateString()}
                 </p>
               </div>
@@ -253,7 +253,7 @@ export default function Campaigns() {
               {c.lead_stats && c.lead_stats.total > 0 && (
                 <div className="flex items-center gap-4 text-xs">
                   <div className="text-center">
-                    <p className="text-slate-500">Total</p>
+                    <p className="text-slate-600 dark:text-slate-500">Total</p>
                     <p className="text-slate-900 dark:text-white font-bold text-lg">{c.lead_stats.total}</p>
                   </div>
                   <div className="text-center">
@@ -269,7 +269,7 @@ export default function Campaigns() {
                     <p className="text-red-500 dark:text-red-400 font-bold text-lg">{c.lead_stats.failed}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-slate-500">Pending</p>
+                    <p className="text-slate-600 dark:text-slate-500">Pending</p>
                     <p className="text-slate-700 dark:text-slate-300 font-bold text-lg">{c.lead_stats.pending}</p>
                   </div>
                   {/* Progress bar */}
@@ -280,7 +280,7 @@ export default function Campaigns() {
                         style={{ width: `${Math.round(((c.lead_stats.completed + c.lead_stats.failed) / c.lead_stats.total) * 100)}%` }}
                       />
                     </div>
-                    <p className="text-slate-500 text-[10px] mt-1 text-center">
+                    <p className="text-slate-600 dark:text-slate-500 text-[10px] mt-1 text-center">
                       {Math.round(((c.lead_stats.completed + c.lead_stats.failed) / c.lead_stats.total) * 100)}% done
                     </p>
                   </div>
@@ -333,25 +333,25 @@ export default function Campaigns() {
                 {leadsLoading ? (
                   <div className="p-4 text-slate-500 dark:text-slate-400 text-sm"><Loader2 className="animate-spin inline mr-2" size={14} /> Loading leads...</div>
                 ) : leads.length === 0 ? (
-                  <div className="p-4 text-slate-500 text-sm">No leads uploaded yet. Upload a CSV to get started.</div>
+                  <div className="p-4 text-slate-600 dark:text-slate-500 text-sm">No leads uploaded yet. Upload a CSV to get started.</div>
                 ) : (
                   <div className="max-h-64 overflow-y-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-slate-50/80 dark:bg-slate-900/80 sticky top-0 backdrop-blur-sm">
                         <tr>
-                          <th className="px-4 py-2 text-slate-500 text-xs font-medium">#</th>
-                          <th className="px-4 py-2 text-slate-500 text-xs font-medium">Phone Number</th>
-                          <th className="px-4 py-2 text-slate-500 text-xs font-medium">Status</th>
-                          <th className="px-4 py-2 text-slate-500 text-xs font-medium">Call SID</th>
+                          <th className="px-4 py-2 text-slate-600 dark:text-slate-500 text-xs font-medium">#</th>
+                          <th className="px-4 py-2 text-slate-600 dark:text-slate-500 text-xs font-medium">Phone Number</th>
+                          <th className="px-4 py-2 text-slate-600 dark:text-slate-500 text-xs font-medium">Status</th>
+                          <th className="px-4 py-2 text-slate-600 dark:text-slate-500 text-xs font-medium">Call SID</th>
                         </tr>
                       </thead>
                       <tbody>
                         {leads.map((lead, idx) => (
                           <tr key={lead.id} className="border-t border-slate-200/50 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
-                            <td className="px-4 py-2 text-slate-500">{idx + 1}</td>
+                            <td className="px-4 py-2 text-slate-600 dark:text-slate-500">{idx + 1}</td>
                             <td className="px-4 py-2 text-slate-900 dark:text-slate-200 font-mono">{lead.phone_number}</td>
                             <td className={`px-4 py-2 font-semibold uppercase text-xs ${getLeadStatusColor(lead.status)}`}>{lead.status}</td>
-                            <td className="px-4 py-2 text-slate-500 text-xs font-mono truncate max-w-[200px]">{lead.call_sid || '—'}</td>
+                            <td className="px-4 py-2 text-slate-600 dark:text-slate-500 text-xs font-mono truncate max-w-[200px]">{lead.call_sid || '—'}</td>
                           </tr>
                         ))}
                       </tbody>

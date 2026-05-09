@@ -72,7 +72,7 @@ export default function ProfileSettings() {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate('/dashboard')}
-            className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
           >
             <ChevronLeft size={24} />
           </button>
@@ -96,9 +96,9 @@ export default function ProfileSettings() {
             <form onSubmit={handleProfileUpdate} className="flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
                   <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
                     <input 
                       type="text" 
                       value={profile.name}
@@ -108,9 +108,9 @@ export default function ProfileSettings() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
                   <div className="relative">
-                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
                     <input 
                       type="text" 
                       value={profile.phone}
@@ -121,14 +121,14 @@ export default function ProfileSettings() {
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
                   <input 
                     type="email" 
                     value={profile.email}
                     disabled
-                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-400 cursor-not-allowed outline-none"
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none"
                   />
                 </div>
               </div>
@@ -136,7 +136,7 @@ export default function ProfileSettings() {
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white font-bold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                  className="flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-slate-900 dark:text-white font-bold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
                 >
                   {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Save size={18} />}
                   Save Changes
@@ -153,9 +153,9 @@ export default function ProfileSettings() {
             </h3>
             <form onSubmit={handlePasswordUpdate} className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Current Password</label>
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-500 uppercase tracking-widest ml-1">Current Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
                   <input 
                     type="password" 
                     placeholder="••••••••"
@@ -167,9 +167,9 @@ export default function ProfileSettings() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">New Password</label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-500 uppercase tracking-widest ml-1">New Password</label>
                   <div className="relative">
-                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
                     <input 
                       type="password" 
                       placeholder="••••••••"
@@ -180,9 +180,9 @@ export default function ProfileSettings() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Confirm New Password</label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-500 uppercase tracking-widest ml-1">Confirm New Password</label>
                   <div className="relative">
-                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
                     <input 
                       type="password" 
                       placeholder="••••••••"
@@ -197,7 +197,7 @@ export default function ProfileSettings() {
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="flex items-center gap-2 px-8 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl text-white font-bold transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50"
+                  className="flex items-center gap-2 px-8 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl text-slate-900 dark:text-white font-bold transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50"
                 >
                   {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Save size={18} />}
                   Update Password
@@ -215,7 +215,7 @@ export default function ProfileSettings() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-8 right-8 bg-emerald-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 z-50 border border-emerald-400"
+            className="fixed bottom-8 right-8 bg-emerald-500 text-slate-900 dark:text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 z-50 border border-emerald-400"
           >
             <CheckCircle size={24} />
             <span className="font-bold">Settings updated successfully!</span>

@@ -37,24 +37,24 @@ export default function Register() {
         <div className="bg-[#111827] border border-slate-800 rounded-3xl shadow-2xl p-8 relative z-10">
           <div className="flex flex-col items-center mb-8">
             <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
-              <BarChart2 className="text-white" size={24} />
+              <BarChart2 className="text-slate-900 dark:text-white" size={24} />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Create an account</h1>
-            <p className="text-slate-400 text-sm mt-2">Start your 7-day free trial.</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Create an account</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">Start your 7-day free trial.</p>
           </div>
 
           <form onSubmit={handleRegister} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Full Name</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User size={18} className="text-slate-500" />
+                  <User size={18} className="text-slate-600 dark:text-slate-500" />
                 </div>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                   placeholder="John Doe"
                   required
                 />
@@ -62,16 +62,16 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Email address</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail size={18} className="text-slate-500" />
+                  <Mail size={18} className="text-slate-600 dark:text-slate-500" />
                 </div>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                   placeholder="admin@enterprise.com"
                   required
                 />
@@ -79,16 +79,16 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} className="text-slate-500" />
+                  <Lock size={18} className="text-slate-600 dark:text-slate-500" />
                 </div>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                   placeholder="••••••••"
                   required
                 />
@@ -97,14 +97,14 @@ export default function Register() {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 font-semibold transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 group mt-6"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-xl py-3 font-semibold transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 group mt-6"
             >
               Sign Up
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-400 mt-8">
+          <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">
             Already have an account?{' '}
             <Link to="/login" className="font-semibold text-indigo-400 hover:text-indigo-300">
               Sign in
