@@ -174,24 +174,24 @@ export default function KnowledgeBase() {
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Knowledge Base</h1>
-        <p className="text-slate-400">Manage the data sources your AI agent uses to answer questions.</p>
+        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Knowledge Base</h1>
+        <p className="text-slate-500 dark:text-slate-400">Manage the data sources your AI agent uses to answer questions.</p>
       </div>
-      {error && <div className="text-red-400 text-sm">{error}</div>}
+      {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Database className="text-amber-400" /> Knowledge Folders
+        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Database className="text-amber-500 dark:text-amber-400" /> Knowledge Folders
           </h2>
-          <p className="text-slate-400 text-sm mb-6">Create folders to organize your documents. Each folder can be used for different campaigns.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Create folders to organize your documents. Each folder can be used for different campaigns.</p>
           <div className="flex gap-2 mb-6">
             <input
               type="text"
               value={newKbName}
               onChange={(e) => setNewKbName(e.target.value)}
               placeholder="Folder name (e.g. Real Estate FAQ)"
-              className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
             />
             <button
               onClick={createKb}
@@ -206,7 +206,7 @@ export default function KnowledgeBase() {
             <select
               value={selectedKbId}
               onChange={(e) => setSelectedKbId(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
             >
               {knowledgeBases.map((kb) => (
                 <option key={kb.id} value={kb.id}>{kb.name}</option>
@@ -215,13 +215,13 @@ export default function KnowledgeBase() {
           </div>
         </div>
 
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Ingestion Queue</h2>
+        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Ingestion Queue</h2>
           <div className="space-y-3 max-h-[160px] overflow-y-auto pr-2">
             {jobs.length === 0 ? (
               <p className="text-slate-500 text-sm">No ingestion jobs yet.</p>
             ) : jobs.slice(0, 10).map((job) => (
-              <div key={job.id} className="border border-slate-700/50 rounded-lg p-2.5 flex items-center justify-between gap-3 bg-slate-900/30">
+              <div key={job.id} className="border border-slate-200 dark:border-slate-700/50 rounded-lg p-2.5 flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/30">
                 <div className="min-w-0">
                   <p className="text-slate-300 text-xs font-medium truncate">{job.source_name}</p>
                   {job.error_message && <p className="text-red-400 text-[10px] truncate">{job.error_message}</p>}
@@ -242,9 +242,9 @@ export default function KnowledgeBase() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Upload File Section */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Upload className="text-indigo-400" /> Upload File
+        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Upload className="text-indigo-500 dark:text-indigo-400" /> Upload File
           </h2>
           <input
             type="file"
@@ -255,36 +255,36 @@ export default function KnowledgeBase() {
           />
           <div
             onClick={() => !uploading && fileInputRef.current?.click()}
-            className={`border-2 border-dashed border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-indigo-500/50 hover:bg-slate-800/30 cursor-pointer group'}`}
+            className={`border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer group'}`}
           >
-            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              {uploading ? <Loader2 size={32} className="text-indigo-400 animate-spin" /> : <FileText size={32} className="text-slate-400 group-hover:text-indigo-400" />}
+            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              {uploading ? <Loader2 size={32} className="text-indigo-500 dark:text-indigo-400 animate-spin" /> : <FileText size={32} className="text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400" />}
             </div>
-            <p className="text-slate-300 font-medium mb-1">{uploading ? 'Uploading...' : 'Click to upload or drag and drop'}</p>
+            <p className="text-slate-700 dark:text-slate-300 font-medium mb-1">{uploading ? 'Uploading...' : 'Click to upload or drag and drop'}</p>
             <p className="text-sm text-slate-500 mb-6">PDF, DOCX, TXT (Max 10MB)</p>
-            <button disabled={uploading} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <button disabled={uploading} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors">
               Select File
             </button>
           </div>
         </div>
 
         {/* Add URL Section */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <LinkIcon className="text-emerald-400" /> Add Website URL
+        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <LinkIcon className="text-emerald-500 dark:text-emerald-400" /> Add Website URL
           </h2>
-          <p className="text-slate-400 text-sm mb-6">
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
             Provide a URL for the AI to scrape and index content. This works best for documentation or FAQ pages.
           </p>
           <div className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Website URL</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Website URL</label>
               <input
                 type="url"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="https://example.com/docs"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
             <button
@@ -298,22 +298,22 @@ export default function KnowledgeBase() {
         </div>
 
         {/* Test Outbound Call Section */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <span role="img" aria-label="phone" className="text-amber-400 text-2xl">📞</span> Test AI Agent
+        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <span role="img" aria-label="phone" className="text-amber-500 dark:text-amber-400 text-2xl">📞</span> Test AI Agent
           </h2>
-          <p className="text-slate-400 text-sm mb-6">
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
             Enter your phone number to receive a test call from your AI Agent. Ensure you've uploaded knowledge first.
           </p>
           <div className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Phone Number</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Phone Number</label>
               <input
                 type="tel"
                 value={testPhoneNumber}
                 onChange={(e) => setTestPhoneNumber(e.target.value)}
                 placeholder="+1234567890"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 dark:focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
               />
             </div>
             <button
@@ -333,18 +333,18 @@ export default function KnowledgeBase() {
       </div>
 
       {/* Document List */}
-      <div className="bg-[#111827] border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-[#0b1120]/50">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Database className="text-amber-400" /> Indexed Data Sources
+      <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-[#0b1120]/50">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Database className="text-amber-500 dark:text-amber-400" /> Indexed Data Sources
           </h2>
-          <span className="text-sm text-slate-400 bg-slate-800 px-3 py-1 rounded-full">{documents.length} Items</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700/50">{documents.length} Items</span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-900/50 border-b border-slate-800">
+              <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Name / URL</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
@@ -369,12 +369,12 @@ export default function KnowledgeBase() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded uppercase">{doc.file_type}</span>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 px-2 py-1 rounded uppercase">{doc.file_type}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span className="text-sm text-slate-300">Active</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">Active</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-400">{new Date(doc.created_at).toLocaleDateString()}</td>

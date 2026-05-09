@@ -175,7 +175,7 @@ export default function Layout() {
 
         {/* Main Content */}
         {/* Flush layout for routes that manage their own height (e.g. Chat) */}
-        <main className={`flex-1 min-h-0 bg-slate-50 dark:bg-gradient-to-br dark:from-[#0b1120] dark:via-[#0f172a] dark:to-[#0b1120] transition-colors duration-300 ${
+        <main className={`flex-1 min-h-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-white to-slate-50 dark:bg-none dark:bg-gradient-to-br dark:from-[#0b1120] dark:via-[#0f172a] dark:to-[#0b1120] transition-colors duration-300 ${
           FLUSH_ROUTES.includes(location.pathname)
             ? 'overflow-hidden flex flex-col p-0'
             : 'overflow-y-auto p-8 custom-scrollbar'

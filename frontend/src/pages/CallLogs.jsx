@@ -51,8 +51,8 @@ function ConversationPanel({ conversation }) {
             <div
               className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed max-w-[85%] shadow-sm ${
                 isAI
-                  ? 'bg-indigo-600/30 text-indigo-100 rounded-tr-sm ring-1 ring-indigo-500/30'
-                  : 'bg-slate-700/60 text-slate-200 rounded-tl-sm ring-1 ring-slate-600/40'
+                  ? 'bg-indigo-600/10 dark:bg-indigo-600/30 text-indigo-900 dark:text-indigo-100 rounded-tr-sm ring-1 ring-indigo-500/30'
+                  : 'bg-white dark:bg-slate-700/60 text-slate-900 dark:text-slate-200 rounded-tl-sm ring-1 ring-slate-200 dark:ring-slate-600/40'
               }`}
             >
               {turn.text}
@@ -79,11 +79,11 @@ function CallRow({ log }) {
   return (
     <>
       <tr
-        className={`border-t border-slate-800 transition-colors duration-150 ${
-          expanded ? 'bg-slate-800/40' : 'hover:bg-slate-800/20'
+        className={`border-t border-slate-200 dark:border-slate-800 transition-colors duration-150 ${
+          expanded ? 'bg-slate-100 dark:bg-slate-800/40' : 'hover:bg-slate-100/50 dark:hover:bg-slate-800/20'
         }`}
       >
-        <td className="px-4 py-3 text-slate-400 text-sm whitespace-nowrap">
+        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap">
           {new Date(log.created_at).toLocaleString('en-IN', {
             day: '2-digit',
             month: 'short',
@@ -93,10 +93,10 @@ function CallRow({ log }) {
           })}
         </td>
         <td className="px-4 py-3">
-          <span className="text-slate-100 font-mono text-sm">{log.phone_number}</span>
+          <span className="text-slate-900 dark:text-slate-100 font-mono text-sm">{log.phone_number}</span>
         </td>
-        <td className="px-4 py-3 text-slate-400 text-sm">
-          {log.campaign_name || <span className="text-slate-600 italic">—</span>}
+        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm">
+          {log.campaign_name || <span className="text-slate-400 dark:text-slate-600 italic">—</span>}
         </td>
         <td className="px-4 py-3">
           <span
@@ -145,8 +145,8 @@ function CallRow({ log }) {
 
       {/* Transcript expansion row */}
       {expanded && hasConversation && (
-        <tr className="border-t border-slate-800/60">
-          <td colSpan="6" className="bg-slate-900/60">
+        <tr className="border-t border-slate-200 dark:border-slate-800/60">
+          <td colSpan="6" className="bg-slate-50/50 dark:bg-slate-900/60">
             {/* Header bar */}
             <div className="flex items-center justify-between px-6 pt-4 pb-2">
               <div className="flex items-center gap-2">
@@ -197,8 +197,8 @@ export default function CallLogs() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Call Logs</h1>
-          <p className="text-slate-400 mt-1 text-sm">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Call Logs</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
             AI vs Customer conversation history from your Twilio calls.
           </p>
         </div>
@@ -229,7 +229,7 @@ export default function CallLogs() {
           ].map(({ label, value, icon, color }) => (
             <div
               key={label}
-              className="bg-[#111827] border border-slate-800 rounded-xl p-4 flex items-center gap-3"
+              className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl p-4 flex items-center gap-3"
             >
               <span className="text-2xl">{icon}</span>
               <div>
@@ -256,9 +256,9 @@ export default function CallLogs() {
       </div>
 
       {/* Table */}
-      <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-slate-900/60 border-b border-slate-800">
+          <thead className="bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
             <tr>
               <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Time</th>
               <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Phone</th>

@@ -97,8 +97,8 @@ function MessageBubble({ msg, kbDocs }) {
           ${isUser
             ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
             : msg.isError
-              ? 'bg-red-500/8 border border-red-500/20 text-red-300 rounded-tl-sm'
-              : 'bg-[#141e33] border border-[#1e2d4a] text-slate-200 rounded-tl-sm shadow-sm'
+              ? 'bg-red-50 dark:bg-red-500/8 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 rounded-tl-sm'
+              : 'bg-white dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a] text-slate-800 dark:text-slate-200 rounded-tl-sm shadow-sm'
           }
         `}>
           <p className="whitespace-pre-wrap break-words leading-7">{msg.content}</p>
@@ -158,7 +158,7 @@ function WelcomeScreen({ selectedKb, kbDocs }) {
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
           How can I help you today?
         </h2>
         <p className="text-slate-400 text-sm max-w-md">
@@ -176,7 +176,7 @@ function WelcomeScreen({ selectedKb, kbDocs }) {
           {suggestions.map((s, i) => (
             <button
               key={i}
-              className="text-left px-4 py-3 rounded-xl border border-[#1e2d4a] bg-[#0d1624]/60 hover:bg-[#141e33] hover:border-violet-500/40 text-slate-300 text-xs leading-relaxed transition-all group"
+              className="text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-[#1e2d4a] bg-white/60 dark:bg-[#0d1624]/60 hover:bg-slate-50 dark:hover:bg-[#141e33] hover:border-violet-500/40 text-slate-600 dark:text-slate-300 text-xs leading-relaxed transition-all group"
             >
               <span className="group-hover:text-violet-300 transition-colors">{s}</span>
             </button>
@@ -347,12 +347,12 @@ export default function Chat() {
         }
       `}</style>
 
-      <div className="chat-fullscreen-escape flex flex-col bg-[#080e1a] overflow-hidden">
+      <div className="chat-fullscreen-escape flex flex-col bg-slate-50/50 dark:bg-[#080e1a] overflow-hidden">
 
         {/* ══════════════════════════════════════════
             TOP BAR — compact identity + controls
         ══════════════════════════════════════════ */}
-        <div className="flex-shrink-0 border-b border-[#1a2540] bg-[#0a1020]/95 glass-input">
+        <div className="flex-shrink-0 border-b border-slate-200 dark:border-[#1a2540] bg-white/95 dark:bg-[#0a1020]/95 glass-input">
           {/* Title row */}
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
             <div className="flex items-center gap-2.5">
@@ -374,7 +374,7 @@ export default function Chat() {
               {messages.length > 0 && (
                 <button
                   onClick={clearChat}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#1e2d4a] text-slate-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 transition-all text-[10px]"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 dark:border-[#1e2d4a] text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px]"
                   title="Clear chat"
                 >
                   <RotateCcw size={11} />
@@ -395,7 +395,7 @@ export default function Chat() {
                   value={selectedKbId}
                   onChange={e => handleKbChange(e.target.value)}
                   disabled={kbLoading || knowledgeBases.length === 0}
-                  className="appearance-none bg-[#0f1929] border border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[180px] truncate disabled:opacity-40"
+                  className="appearance-none bg-white dark:bg-[#0f1929] border border-slate-200 dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[180px] truncate disabled:opacity-40"
                 >
                   {kbLoading && <option>Loading…</option>}
                   {!kbLoading && knowledgeBases.length === 0 && <option>No knowledge bases</option>}
@@ -407,7 +407,7 @@ export default function Chat() {
               </div>
             </div>
 
-            <div className="w-px h-4 bg-[#1e2d4a] flex-shrink-0" />
+            <div className="w-px h-4 bg-slate-200 dark:bg-[#1e2d4a] flex-shrink-0" />
 
             {/* Document selector */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -418,7 +418,7 @@ export default function Chat() {
                   value={selectedDocId}
                   onChange={e => setSelectedDocId(e.target.value)}
                   disabled={kbDocs.length === 0}
-                  className="appearance-none bg-[#0f1929] border border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[220px] truncate disabled:opacity-40"
+                  className="appearance-none bg-white dark:bg-[#0f1929] border border-slate-200 dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[220px] truncate disabled:opacity-40"
                 >
                   <option value="all">All Documents</option>
                   {kbDocs.map(doc => (
@@ -432,7 +432,7 @@ export default function Chat() {
             {/* Active filter badge */}
             {selectedDocId !== 'all' && selectedDoc && (
               <>
-                <div className="w-px h-4 bg-[#1e2d4a] flex-shrink-0" />
+                <div className="w-px h-4 bg-slate-200 dark:bg-[#1e2d4a] flex-shrink-0" />
                 <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 flex-shrink-0">
                   <FileText size={9} className="text-violet-400" />
                   <span className="text-[10px] text-violet-300 max-w-[120px] truncate font-medium">
@@ -478,7 +478,7 @@ export default function Chat() {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30 mt-0.5">
                   <Loader2 size={14} className="text-white animate-spin" />
                 </div>
-                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[#141e33] border border-[#1e2d4a]">
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a]">
                   <TypingDots />
                 </div>
               </div>
@@ -491,10 +491,10 @@ export default function Chat() {
         {/* ══════════════════════════════════════════
             INPUT BAR — sticky bottom
         ══════════════════════════════════════════ */}
-        <div className="flex-shrink-0 px-4 pb-4 pt-2 md:px-8 bg-[#080e1a]/95 border-t border-[#1a2540] glass-input">
+        <div className="flex-shrink-0 px-4 pb-4 pt-2 md:px-8 bg-white/95 dark:bg-[#080e1a]/95 border-t border-slate-200 dark:border-[#1a2540] glass-input">
           <div className="max-w-3xl mx-auto">
             {/* Input container */}
-            <div className={`glow-violet flex items-end gap-3 bg-[#0d1624] border border-[#1e2d4a] rounded-2xl px-4 py-3 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`glow-violet flex items-end gap-3 bg-white dark:bg-[#0d1624] border border-slate-200 dark:border-[#1e2d4a] rounded-2xl px-4 py-3 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -509,7 +509,7 @@ export default function Chat() {
                 }
                 disabled={!isReady || loading}
                 rows={1}
-                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-200 text-sm leading-relaxed placeholder-slate-600 min-h-[24px] max-h-[140px] font-sans disabled:cursor-not-allowed"
+                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-slate-200 text-sm leading-relaxed placeholder-slate-400 dark:placeholder-slate-600 min-h-[24px] max-h-[140px] font-sans disabled:cursor-not-allowed"
               />
 
               {/* Send button */}
@@ -527,9 +527,9 @@ export default function Chat() {
 
             {/* Hint */}
             <p className="text-center text-[10px] text-slate-600 mt-2">
-              <kbd className="bg-[#141e33] border border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Enter</kbd>
+              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Enter</kbd>
               {' '}to send &middot;{' '}
-              <kbd className="bg-[#141e33] border border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Shift+Enter</kbd>
+              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Shift+Enter</kbd>
               {' '}for new line &middot; AI may make mistakes
             </p>
           </div>

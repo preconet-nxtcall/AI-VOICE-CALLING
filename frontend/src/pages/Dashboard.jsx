@@ -157,7 +157,7 @@ export default function Dashboard() {
       >
         
         {/* Active Channels Card */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-7 relative overflow-hidden group flex flex-col justify-between shadow-xl dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 relative overflow-hidden group flex flex-col justify-between shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
           <div>
             <div className="flex justify-between items-start mb-6 relative z-10">
@@ -197,7 +197,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Minutes Consumed Chart */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-8 bg-white dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500 relative overflow-hidden">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-8 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500 relative overflow-hidden">
           <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-indigo-900/5 to-transparent pointer-events-none"></div>
           <div className="flex justify-between items-start mb-8 relative z-10">
             <div>
@@ -259,7 +259,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Performance Rings */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl dark:shadow-2xl relative overflow-hidden">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl"></div>
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">
             <Zap size={16} className="text-cyan-600 dark:text-cyan-400" />
@@ -313,7 +313,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Quick Actions */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl dark:shadow-2xl">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">
             <LayoutDashboard size={16} className="text-purple-600 dark:text-purple-400" />
             OPERATIONS
@@ -344,7 +344,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Recent Activity */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl dark:shadow-2xl flex flex-col">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <div>
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">

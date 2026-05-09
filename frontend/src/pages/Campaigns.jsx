@@ -173,27 +173,27 @@ export default function Campaigns() {
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">Campaigns</h1>
-        <p className="text-slate-400">Create bulk outbound voice campaigns with CSV lead uploads.</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Campaigns</h1>
+        <p className="text-slate-500 dark:text-slate-400">Create bulk outbound voice campaigns with CSV lead uploads.</p>
       </div>
       {error && <div className="text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-sm">{error}</div>}
 
       {/* Create Campaign Form */}
-      <form onSubmit={createCampaign} className="bg-[#111827] border border-slate-800 rounded-xl p-5 flex flex-col gap-4">
-        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-          <Plus size={18} className="text-indigo-400" /> New Campaign
+      <form onSubmit={createCampaign} className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl p-5 flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+          <Plus size={18} className="text-indigo-500 dark:text-indigo-400" /> New Campaign
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Campaign name"
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500"
+            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
           />
           <select
             value={selectedKb}
             onChange={(e) => setSelectedKb(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500"
+            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
           >
             <option value="">Select Knowledge Base</option>
             {knowledgeBases.map((kb) => (
@@ -206,7 +206,7 @@ export default function Campaigns() {
             value={dailyLimit}
             onChange={(e) => setDailyLimit(e.target.value)}
             placeholder="Daily limit"
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500"
+            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
           />
           <button
             type="submit"
@@ -228,18 +228,18 @@ export default function Campaigns() {
       {/* Campaign List */}
       <div className="flex flex-col gap-4">
         {loading ? (
-          <div className="text-slate-400 text-center py-8"><Loader2 className="animate-spin inline mr-2" size={16} /> Loading campaigns...</div>
+          <div className="text-slate-500 dark:text-slate-400 text-center py-8"><Loader2 className="animate-spin inline mr-2" size={16} /> Loading campaigns...</div>
         ) : campaigns.length === 0 ? (
-          <div className="bg-[#111827] border border-slate-800 rounded-xl p-8 text-center text-slate-400">
+          <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
             No campaigns yet. Create your first campaign above.
           </div>
         ) : campaigns.map((c) => (
-          <div key={c.id} className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden">
+          <div key={c.id} className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl overflow-hidden">
             {/* Campaign Header */}
             <div className="p-4 flex flex-col md:flex-row items-start md:items-center gap-3 justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
-                  <h3 className="text-lg font-semibold text-white truncate">{c.name}</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white truncate">{c.name}</h3>
                   <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full border ${getStatusColor(c.status)}`}>
                     {c.status}
                   </span>
@@ -254,27 +254,27 @@ export default function Campaigns() {
                 <div className="flex items-center gap-4 text-xs">
                   <div className="text-center">
                     <p className="text-slate-500">Total</p>
-                    <p className="text-white font-bold text-lg">{c.lead_stats.total}</p>
+                    <p className="text-slate-900 dark:text-white font-bold text-lg">{c.lead_stats.total}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-emerald-500">Done</p>
-                    <p className="text-emerald-400 font-bold text-lg">{c.lead_stats.completed}</p>
+                    <p className="text-emerald-600 dark:text-emerald-500">Done</p>
+                    <p className="text-emerald-500 dark:text-emerald-400 font-bold text-lg">{c.lead_stats.completed}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-amber-500">Calling</p>
-                    <p className="text-amber-400 font-bold text-lg">{c.lead_stats.calling}</p>
+                    <p className="text-amber-600 dark:text-amber-500">Calling</p>
+                    <p className="text-amber-500 dark:text-amber-400 font-bold text-lg">{c.lead_stats.calling}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-red-500">Failed</p>
-                    <p className="text-red-400 font-bold text-lg">{c.lead_stats.failed}</p>
+                    <p className="text-red-600 dark:text-red-500">Failed</p>
+                    <p className="text-red-500 dark:text-red-400 font-bold text-lg">{c.lead_stats.failed}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-slate-500">Pending</p>
-                    <p className="text-slate-300 font-bold text-lg">{c.lead_stats.pending}</p>
+                    <p className="text-slate-700 dark:text-slate-300 font-bold text-lg">{c.lead_stats.pending}</p>
                   </div>
                   {/* Progress bar */}
                   <div className="w-32">
-                    <div className="w-full bg-slate-800 rounded-full h-2">
+                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
                       <div
                         className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${Math.round(((c.lead_stats.completed + c.lead_stats.failed) / c.lead_stats.total) * 100)}%` }}
@@ -319,7 +319,7 @@ export default function Campaigns() {
                 </label>
                 <button
                   onClick={() => toggleExpand(c.id)}
-                  className="text-xs px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-600/30 flex items-center gap-1 transition-colors"
+                  className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300/50 dark:border-slate-600/30 flex items-center gap-1 transition-colors"
                 >
                   {expandedCampaign === c.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                   Leads
@@ -329,15 +329,15 @@ export default function Campaigns() {
 
             {/* Expanded Leads Section */}
             {expandedCampaign === c.id && (
-              <div className="border-t border-slate-800">
+              <div className="border-t border-slate-200 dark:border-slate-800">
                 {leadsLoading ? (
-                  <div className="p-4 text-slate-400 text-sm"><Loader2 className="animate-spin inline mr-2" size={14} /> Loading leads...</div>
+                  <div className="p-4 text-slate-500 dark:text-slate-400 text-sm"><Loader2 className="animate-spin inline mr-2" size={14} /> Loading leads...</div>
                 ) : leads.length === 0 ? (
                   <div className="p-4 text-slate-500 text-sm">No leads uploaded yet. Upload a CSV to get started.</div>
                 ) : (
                   <div className="max-h-64 overflow-y-auto">
                     <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-900/80 sticky top-0">
+                      <thead className="bg-slate-50/80 dark:bg-slate-900/80 sticky top-0 backdrop-blur-sm">
                         <tr>
                           <th className="px-4 py-2 text-slate-500 text-xs font-medium">#</th>
                           <th className="px-4 py-2 text-slate-500 text-xs font-medium">Phone Number</th>
@@ -347,9 +347,9 @@ export default function Campaigns() {
                       </thead>
                       <tbody>
                         {leads.map((lead, idx) => (
-                          <tr key={lead.id} className="border-t border-slate-800/50 hover:bg-slate-800/30">
+                          <tr key={lead.id} className="border-t border-slate-200/50 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
                             <td className="px-4 py-2 text-slate-500">{idx + 1}</td>
-                            <td className="px-4 py-2 text-slate-200 font-mono">{lead.phone_number}</td>
+                            <td className="px-4 py-2 text-slate-900 dark:text-slate-200 font-mono">{lead.phone_number}</td>
                             <td className={`px-4 py-2 font-semibold uppercase text-xs ${getLeadStatusColor(lead.status)}`}>{lead.status}</td>
                             <td className="px-4 py-2 text-slate-500 text-xs font-mono truncate max-w-[200px]">{lead.call_sid || '—'}</td>
                           </tr>
