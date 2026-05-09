@@ -98,7 +98,7 @@ function MessageBubble({ msg, kbDocs }) {
             ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
             : msg.isError
               ? 'bg-red-50 dark:bg-red-500/8 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 rounded-tl-sm'
-              : 'bg-white dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a] text-slate-800 dark:text-slate-200 rounded-tl-sm shadow-sm'
+              : 'bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-800 dark:text-slate-200 rounded-tl-sm shadow-sm'
           }
         `}>
           <p className="whitespace-pre-wrap break-words leading-7">{msg.content}</p>
@@ -176,7 +176,7 @@ function WelcomeScreen({ selectedKb, kbDocs }) {
           {suggestions.map((s, i) => (
             <button
               key={i}
-              className="text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-[#1e2d4a] bg-white/60 dark:bg-[#0d1624]/60 hover:bg-slate-50 dark:hover:bg-[#141e33] hover:border-violet-500/40 text-slate-600 dark:text-slate-300 text-xs leading-relaxed transition-all group"
+              className="text-left px-4 py-3 rounded-xl border border-[#E2E8F0] dark:border-[#1e2d4a] bg-white/60 dark:bg-[#0d1624]/60 hover:bg-slate-50 dark:hover:bg-[#141e33] hover:border-violet-500/40 text-slate-600 dark:text-slate-300 text-xs leading-relaxed transition-all group"
             >
               <span className="group-hover:text-violet-300 transition-colors">{s}</span>
             </button>
@@ -374,7 +374,7 @@ export default function Chat() {
               {messages.length > 0 && (
                 <button
                   onClick={clearChat}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 dark:border-[#1e2d4a] text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px]"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px]"
                   title="Clear chat"
                 >
                   <RotateCcw size={11} />
@@ -395,7 +395,7 @@ export default function Chat() {
                   value={selectedKbId}
                   onChange={e => handleKbChange(e.target.value)}
                   disabled={kbLoading || knowledgeBases.length === 0}
-                  className="appearance-none bg-white dark:bg-[#0f1929] border border-slate-200 dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[180px] truncate disabled:opacity-40"
+                  className="appearance-none bg-white dark:bg-[#0f1929] border border-[#E2E8F0] dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[180px] truncate disabled:opacity-40"
                 >
                   {kbLoading && <option>Loading…</option>}
                   {!kbLoading && knowledgeBases.length === 0 && <option>No knowledge bases</option>}
@@ -418,7 +418,7 @@ export default function Chat() {
                   value={selectedDocId}
                   onChange={e => setSelectedDocId(e.target.value)}
                   disabled={kbDocs.length === 0}
-                  className="appearance-none bg-white dark:bg-[#0f1929] border border-slate-200 dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[220px] truncate disabled:opacity-40"
+                  className="appearance-none bg-white dark:bg-[#0f1929] border border-[#E2E8F0] dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[220px] truncate disabled:opacity-40"
                 >
                   <option value="all">All Documents</option>
                   {kbDocs.map(doc => (
@@ -478,7 +478,7 @@ export default function Chat() {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30 mt-0.5">
                   <Loader2 size={14} className="text-white animate-spin" />
                 </div>
-                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a]">
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a]">
                   <TypingDots />
                 </div>
               </div>
@@ -494,7 +494,7 @@ export default function Chat() {
         <div className="flex-shrink-0 px-4 pb-4 pt-2 md:px-8 bg-white/95 dark:bg-[#080e1a]/95 border-t border-slate-200 dark:border-[#1a2540] glass-input">
           <div className="max-w-3xl mx-auto">
             {/* Input container */}
-            <div className={`glow-violet flex items-end gap-3 bg-white dark:bg-[#0d1624] border border-slate-200 dark:border-[#1e2d4a] rounded-2xl px-4 py-3 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`glow-violet flex items-end gap-3 bg-white dark:bg-[#0d1624] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded-2xl px-4 py-3 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -527,9 +527,9 @@ export default function Chat() {
 
             {/* Hint */}
             <p className="text-center text-[10px] text-slate-600 mt-2">
-              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Enter</kbd>
+              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Enter</kbd>
               {' '}to send &middot;{' '}
-              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-slate-200 dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Shift+Enter</kbd>
+              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-500 font-sans">Shift+Enter</kbd>
               {' '}for new line &middot; AI may make mistakes
             </p>
           </div>

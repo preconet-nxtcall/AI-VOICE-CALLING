@@ -179,7 +179,7 @@ export default function Campaigns() {
       {error && <div className="text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-sm">{error}</div>}
 
       {/* Create Campaign Form */}
-      <form onSubmit={createCampaign} className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl p-5 flex flex-col gap-4">
+      <form onSubmit={createCampaign} className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-5 flex flex-col gap-4">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
           <Plus size={18} className="text-indigo-500 dark:text-indigo-400" /> New Campaign
         </h2>
@@ -188,12 +188,12 @@ export default function Campaigns() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Campaign name"
-            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
+            className="bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
           />
           <select
             value={selectedKb}
             onChange={(e) => setSelectedKb(e.target.value)}
-            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
+            className="bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
           >
             <option value="">Select Knowledge Base</option>
             {knowledgeBases.map((kb) => (
@@ -206,7 +206,7 @@ export default function Campaigns() {
             value={dailyLimit}
             onChange={(e) => setDailyLimit(e.target.value)}
             placeholder="Daily limit"
-            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
+            className="bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
           />
           <button
             type="submit"
@@ -230,11 +230,11 @@ export default function Campaigns() {
         {loading ? (
           <div className="text-slate-500 dark:text-slate-400 text-center py-8"><Loader2 className="animate-spin inline mr-2" size={16} /> Loading campaigns...</div>
         ) : campaigns.length === 0 ? (
-          <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
+          <div className="bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
             No campaigns yet. Create your first campaign above.
           </div>
         ) : campaigns.map((c) => (
-          <div key={c.id} className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl overflow-hidden">
+          <div key={c.id} className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl overflow-hidden">
             {/* Campaign Header */}
             <div className="p-4 flex flex-col md:flex-row items-start md:items-center gap-3 justify-between">
               <div className="flex-1 min-w-0">

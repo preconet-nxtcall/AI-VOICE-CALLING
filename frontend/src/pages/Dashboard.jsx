@@ -132,7 +132,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-4 md:mt-0">
           <button 
             onClick={handleExportData}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-[#1e293b]/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 font-semibold transition-all shadow-sm"
+            className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-[#1e293b]/80 border border-[#E2E8F0] dark:border-slate-700 hover:border-indigo-500/50 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 font-semibold transition-all shadow-sm"
           >
             <Download size={18} />
             Export Data
@@ -157,7 +157,7 @@ export default function Dashboard() {
       >
         
         {/* Active Channels Card */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 relative overflow-hidden group flex flex-col justify-between shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 relative overflow-hidden group flex flex-col justify-between shadow-sm dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
           <div>
             <div className="flex justify-between items-start mb-6 relative z-10">
@@ -197,7 +197,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Minutes Consumed Chart */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-8 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500 relative overflow-hidden">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-8 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500 relative overflow-hidden">
           <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-indigo-900/5 to-transparent pointer-events-none"></div>
           <div className="flex justify-between items-start mb-8 relative z-10">
             <div>
@@ -207,14 +207,14 @@ export default function Dashboard() {
               </span>
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Minutes Consumed</h2>
             </div>
-            <div className="flex bg-slate-100 dark:bg-[#0f172a] rounded-xl p-1.5 border border-slate-200 dark:border-slate-800 shadow-inner">
+            <div className="flex bg-slate-100 dark:bg-[#0f172a] rounded-xl p-1.5 border border-[#E2E8F0] dark:border-slate-800 shadow-inner">
               {['24H', '7D', '30D'].map((range) => (
                 <button 
                   key={range}
                   onClick={() => setTimeRange(range)}
                   className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
                     timeRange === range 
-                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-md border border-slate-200 dark:border-slate-700' 
+                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-md border border-[#E2E8F0] dark:border-slate-700' 
                       : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
@@ -259,7 +259,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Performance Rings */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl relative overflow-hidden">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl"></div>
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">
             <Zap size={16} className="text-cyan-600 dark:text-cyan-400" />
@@ -286,7 +286,7 @@ export default function Dashboard() {
                   <span className="text-2xl font-black text-slate-900 dark:text-white">{connectRate}%</span>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-widest bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 uppercase">CONNECT</span>
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-widest bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-full border border-[#E2E8F0] dark:border-slate-800 uppercase">CONNECT</span>
             </div>
             
             {/* Convert Ring */}
@@ -307,13 +307,13 @@ export default function Dashboard() {
                   <span className="text-2xl font-black text-slate-900 dark:text-white">{convertRate}%</span>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-widest bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 uppercase">CONVERT</span>
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-widest bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-full border border-[#E2E8F0] dark:border-slate-800 uppercase">CONVERT</span>
             </div>
           </div>
         </motion.div>
 
         {/* Quick Actions */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">
             <LayoutDashboard size={16} className="text-purple-600 dark:text-purple-400" />
             OPERATIONS
@@ -332,7 +332,7 @@ export default function Dashboard() {
                 whileTap={{ scale: 0.95 }}
                 key={i}
                 onClick={() => navigate(action.route)} 
-                className={`flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-[#0f172a] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 rounded-2xl transition-all shadow-inner group`}
+                className={`flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-[#0f172a] hover:bg-slate-100 dark:hover:bg-slate-800 border border-[#E2E8F0] dark:border-slate-800 hover:border-indigo-500/50 rounded-2xl transition-all shadow-inner group`}
               >
                 <div className={`p-3 rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors`}>
                   <action.icon size={22} className={`text-indigo-600 dark:text-indigo-400 group-hover:drop-shadow-[0_0_8px_currentColor]`} />
@@ -344,7 +344,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Recent Activity */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl flex flex-col">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <div>
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">

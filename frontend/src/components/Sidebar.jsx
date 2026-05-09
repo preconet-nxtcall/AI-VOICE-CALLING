@@ -102,7 +102,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         x: isCollapsed && window.innerWidth < 768 ? -80 : 0
       }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="h-screen bg-white dark:bg-[#0b1120] border-r border-slate-200 dark:border-slate-800 flex flex-col fixed left-0 top-0 z-40 shadow-xl dark:shadow-2xl overflow-hidden"
+      className="h-screen dark:bg-[#0b1120] dark:border-slate-800 flex flex-col fixed left-0 top-0 z-40 shadow-sm dark:shadow-2xl overflow-hidden border-r" style={{backgroundColor: '#FFFFFF', borderColor: '#E2E8F0'}}
     >
       <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center px-4' : 'justify-between'} transition-all duration-300 h-20`}>
         <div className={`flex items-center gap-3 overflow-hidden ${isCollapsed ? 'justify-center w-full' : ''}`}>

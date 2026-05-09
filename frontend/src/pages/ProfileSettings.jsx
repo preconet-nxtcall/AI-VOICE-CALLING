@@ -88,7 +88,7 @@ export default function ProfileSettings() {
         <motion.div variants={itemVariants} className="flex flex-col gap-8">
           
           {/* Personal Information */}
-          <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
+          <div className="bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-8 shadow-sm dark:shadow-2xl">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
               <User size={20} className="text-indigo-500" />
               Personal Information
@@ -103,7 +103,7 @@ export default function ProfileSettings() {
                       type="text" 
                       value={profile.name}
                       onChange={(e) => setProfile({...profile, name: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
                 </div>
@@ -115,7 +115,7 @@ export default function ProfileSettings() {
                       type="text" 
                       value={profile.phone}
                       onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
                 </div>
@@ -128,7 +128,7 @@ export default function ProfileSettings() {
                     type="email" 
                     value={profile.email}
                     disabled
-                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-400 cursor-not-allowed outline-none"
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-400 cursor-not-allowed outline-none"
                   />
                 </div>
               </div>
@@ -146,7 +146,7 @@ export default function ProfileSettings() {
           </div>
 
           {/* Security / Password */}
-          <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
+          <div className="bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-8 shadow-sm dark:shadow-2xl">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
               <Lock size={20} className="text-purple-500" />
               Security & Password
@@ -161,7 +161,7 @@ export default function ProfileSettings() {
                     placeholder="••••••••"
                     value={passwords.current}
                     onChange={(e) => setPasswords({...passwords, current: e.target.value})}
-                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
                   />
                 </div>
               </div>
@@ -175,7 +175,7 @@ export default function ProfileSettings() {
                       placeholder="••••••••"
                       value={passwords.new}
                       onChange={(e) => setPasswords({...passwords, new: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
                 </div>
@@ -188,7 +188,7 @@ export default function ProfileSettings() {
                       placeholder="••••••••"
                       value={passwords.confirm}
                       onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
                 </div>

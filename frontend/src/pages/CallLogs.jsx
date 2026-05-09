@@ -229,7 +229,7 @@ export default function CallLogs() {
           ].map(({ label, value, icon, color }) => (
             <div
               key={label}
-              className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl p-4 flex items-center gap-3"
+              className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-4 flex items-center gap-3"
             >
               <span className="text-2xl">{icon}</span>
               <div>
@@ -256,7 +256,7 @@ export default function CallLogs() {
       </div>
 
       {/* Table */}
-      <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl overflow-hidden">
+      <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
             <tr>

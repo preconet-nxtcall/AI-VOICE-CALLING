@@ -180,7 +180,7 @@ export default function KnowledgeBase() {
       {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <Database className="text-amber-500 dark:text-amber-400" /> Knowledge Folders
           </h2>
@@ -191,7 +191,7 @@ export default function KnowledgeBase() {
               value={newKbName}
               onChange={(e) => setNewKbName(e.target.value)}
               placeholder="Folder name (e.g. Real Estate FAQ)"
-              className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
+              className="flex-1 bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
             />
             <button
               onClick={createKb}
@@ -206,7 +206,7 @@ export default function KnowledgeBase() {
             <select
               value={selectedKbId}
               onChange={(e) => setSelectedKbId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
             >
               {knowledgeBases.map((kb) => (
                 <option key={kb.id} value={kb.id}>{kb.name}</option>
@@ -215,13 +215,13 @@ export default function KnowledgeBase() {
           </div>
         </div>
 
-        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Ingestion Queue</h2>
           <div className="space-y-3 max-h-[160px] overflow-y-auto pr-2">
             {jobs.length === 0 ? (
               <p className="text-slate-500 text-sm">No ingestion jobs yet.</p>
             ) : jobs.slice(0, 10).map((job) => (
-              <div key={job.id} className="border border-slate-200 dark:border-slate-700/50 rounded-lg p-2.5 flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/30">
+              <div key={job.id} className="border border-[#E2E8F0] dark:border-slate-700/50 rounded-lg p-2.5 flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/30">
                 <div className="min-w-0">
                   <p className="text-slate-300 text-xs font-medium truncate">{job.source_name}</p>
                   {job.error_message && <p className="text-red-400 text-[10px] truncate">{job.error_message}</p>}
@@ -242,7 +242,7 @@ export default function KnowledgeBase() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Upload File Section */}
-        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <Upload className="text-indigo-500 dark:text-indigo-400" /> Upload File
           </h2>
@@ -269,7 +269,7 @@ export default function KnowledgeBase() {
         </div>
 
         {/* Add URL Section */}
-        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <LinkIcon className="text-emerald-500 dark:text-emerald-400" /> Add Website URL
           </h2>
@@ -284,7 +284,7 @@ export default function KnowledgeBase() {
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="https://example.com/docs"
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
             <button
@@ -298,7 +298,7 @@ export default function KnowledgeBase() {
         </div>
 
         {/* Test Outbound Call Section */}
-        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <span role="img" aria-label="phone" className="text-amber-500 dark:text-amber-400 text-2xl">📞</span> Test AI Agent
           </h2>
@@ -313,7 +313,7 @@ export default function KnowledgeBase() {
                 value={testPhoneNumber}
                 onChange={(e) => setTestPhoneNumber(e.target.value)}
                 placeholder="+1234567890"
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 dark:focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-amber-500 dark:focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
               />
             </div>
             <button
@@ -333,12 +333,12 @@ export default function KnowledgeBase() {
       </div>
 
       {/* Document List */}
-      <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-2xl overflow-hidden flex flex-col">
+      <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl overflow-hidden flex flex-col">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-[#0b1120]/50">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Database className="text-amber-500 dark:text-amber-400" /> Indexed Data Sources
           </h2>
-          <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700/50">{documents.length} Items</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-[#E2E8F0] dark:border-slate-700/50">{documents.length} Items</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -369,7 +369,7 @@ export default function KnowledgeBase() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 px-2 py-1 rounded uppercase">{doc.file_type}</span>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700/50 px-2 py-1 rounded uppercase">{doc.file_type}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">

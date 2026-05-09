@@ -39,7 +39,7 @@ export default function Billing() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl p-6">
+        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-6">
           <h2 className="text-slate-900 dark:text-white text-xl font-semibold mb-4 flex items-center gap-2">
             <CreditCard size={18} className="text-indigo-500 dark:text-indigo-400" /> Current Subscription
           </h2>
@@ -54,11 +54,11 @@ export default function Billing() {
           </div>
         </div>
 
-        <div className="bg-white/70 dark:bg-[#111827]/80 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl rounded-xl p-6">
+        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-6">
           <h2 className="text-slate-900 dark:text-white text-xl font-semibold mb-4">Available Plans</h2>
           <div className="space-y-3">
             {(billing?.available_plans || []).map((plan) => (
-              <div key={plan.id} className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 rounded-lg p-3">
+              <div key={plan.id} className="border border-[#E2E8F0] dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 rounded-lg p-3">
                 <p className="text-slate-900 dark:text-white font-medium">{plan.name}</p>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">{plan.description || 'No description'}</p>
                 <p className="text-indigo-600 dark:text-indigo-400 text-sm mt-1">{plan.currency} {plan.price} / {plan.interval}</p>

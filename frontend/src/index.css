@@ -101,7 +101,14 @@ body {
 
 @layer utilities {
   .glass-panel {
-    @apply bg-white/70 dark:bg-[#1e293b]/80 backdrop-blur-md border border-slate-200 dark:border-[#334155]/50;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    @apply dark:bg-[#1e293b]/80 dark:border-[#334155]/50;
+  }
+  .card-panel {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    @apply dark:bg-[#1e293b] dark:border-[#334155]/60;
   }
   .neon-glow {
     box-shadow: 0 0 15px rgba(79, 70, 229, 0.4), 0 0 30px rgba(79, 70, 229, 0.2);

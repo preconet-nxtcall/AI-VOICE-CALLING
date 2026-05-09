@@ -91,7 +91,7 @@ export default function Layout() {
         className="flex-1 flex flex-col min-w-0"
       >
         {/* Top Navbar */}
-        <header className="h-20 border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-xl z-30 flex items-center justify-between px-4 md:px-8 sticky top-0 transition-colors duration-300">
+        <header className="h-20 border-b bg-[#ffffff] dark:bg-[#0b1120]/80 backdrop-blur-xl z-30 flex items-center justify-between px-4 md:px-8 sticky top-0 transition-colors duration-300" style={{borderColor: '#E2E8F0'}}>
           <div className="flex items-center gap-3 w-full max-w-xs md:max-w-md">
             {isMobile && !isProfilePage && (
               <button 
@@ -175,11 +175,11 @@ export default function Layout() {
 
         {/* Main Content */}
         {/* Flush layout for routes that manage their own height (e.g. Chat) */}
-        <main className={`flex-1 min-h-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-white to-slate-50 dark:bg-none dark:bg-gradient-to-br dark:from-[#0b1120] dark:via-[#0f172a] dark:to-[#0b1120] transition-colors duration-300 ${
+        <main className={`flex-1 min-h-0 transition-colors duration-300 ${
           FLUSH_ROUTES.includes(location.pathname)
             ? 'overflow-hidden flex flex-col p-0'
             : 'overflow-y-auto p-8 custom-scrollbar'
-        }`}>
+        }`} style={{backgroundColor: 'var(--background)'}}>
           <Outlet />
         </main>
       </motion.div>
