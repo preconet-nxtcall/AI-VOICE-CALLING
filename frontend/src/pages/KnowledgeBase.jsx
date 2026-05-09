@@ -180,7 +180,7 @@ export default function KnowledgeBase() {
       {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <Database className="text-amber-500 dark:text-amber-400" /> Knowledge Folders
           </h2>
@@ -242,7 +242,7 @@ export default function KnowledgeBase() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Upload File Section */}
-        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <Upload className="text-indigo-500 dark:text-indigo-400" /> Upload File
           </h2>
@@ -298,7 +298,7 @@ export default function KnowledgeBase() {
         </div>
 
         {/* Test Outbound Call Section */}
-        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
+        <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl p-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <span role="img" aria-label="phone" className="text-amber-500 dark:text-amber-400 text-2xl">📞</span> Test AI Agent
           </h2>
@@ -333,7 +333,7 @@ export default function KnowledgeBase() {
       </div>
 
       {/* Document List */}
-      <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl overflow-hidden flex flex-col">
+      <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl overflow-hidden flex flex-col">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-[#0b1120]/50">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Database className="text-amber-500 dark:text-amber-400" /> Indexed Data Sources

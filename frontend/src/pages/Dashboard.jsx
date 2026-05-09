@@ -157,13 +157,13 @@ export default function Dashboard() {
       >
         
         {/* Active Channels Card */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 relative overflow-hidden group flex flex-col justify-between shadow-sm dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 relative overflow-hidden group flex flex-col justify-between shadow-sm dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
           <div>
             <div className="flex justify-between items-start mb-6 relative z-10">
               <div className="flex items-center gap-2">
                 <Activity size={18} className="text-indigo-600 dark:text-indigo-400" />
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest">LIVE STATUS</span>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400 tracking-widest">LIVE STATUS</span>
               </div>
               <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 dark:border-emerald-500/30">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -172,14 +172,14 @@ export default function Dashboard() {
             </div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2 relative z-10">24H Call Volume</h2>
             <div className="flex items-baseline gap-2 mb-8 relative z-10">
-              <span className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 tracking-tighter">
+              <span className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-700 dark:from-white dark:to-slate-400 tracking-tighter">
                 {activeChannelsApprox}
               </span>
-              <span className="text-slate-500 dark:text-slate-400 font-semibold tracking-wide">calls</span>
+              <span className="text-slate-600 dark:text-slate-400 font-semibold tracking-wide">calls</span>
             </div>
           </div>
-          <div className="relative z-10 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-3 font-semibold">
+          <div className="relative z-10 bg-slate-100 dark:bg-slate-900/50 p-4 rounded-2xl border border-[#E2E8F0] dark:border-slate-800">
+            <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400 mb-3 font-semibold">
               <span>System Capacity</span>
               <span className="text-indigo-600 dark:text-indigo-300">74%</span>
             </div>
@@ -197,7 +197,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Minutes Consumed Chart */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-8 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500 relative overflow-hidden">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-8 bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl hover:border-indigo-500/50 transition-colors duration-500 relative overflow-hidden">
           <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-indigo-900/5 to-transparent pointer-events-none"></div>
           <div className="flex justify-between items-start mb-8 relative z-10">
             <div>
@@ -259,7 +259,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Performance Rings */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl relative overflow-hidden">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl"></div>
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">
             <Zap size={16} className="text-cyan-600 dark:text-cyan-400" />
@@ -313,7 +313,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Quick Actions */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">
             <LayoutDashboard size={16} className="text-purple-600 dark:text-purple-400" />
             OPERATIONS
@@ -344,7 +344,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Recent Activity */}
-        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl flex flex-col">
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-4 bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <div>
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">

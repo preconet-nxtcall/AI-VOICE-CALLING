@@ -39,7 +39,7 @@ export default function Billing() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-6">
+        <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-6">
           <h2 className="text-slate-900 dark:text-white text-xl font-semibold mb-4 flex items-center gap-2">
             <CreditCard size={18} className="text-indigo-500 dark:text-indigo-400" /> Current Subscription
           </h2>
@@ -54,7 +54,7 @@ export default function Billing() {
           </div>
         </div>
 
-        <div className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-6">
+        <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-6">
           <h2 className="text-slate-900 dark:text-white text-xl font-semibold mb-4">Available Plans</h2>
           <div className="space-y-3">
             {(billing?.available_plans || []).map((plan) => (

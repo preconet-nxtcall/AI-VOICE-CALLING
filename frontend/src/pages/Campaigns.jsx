@@ -230,11 +230,11 @@ export default function Campaigns() {
         {loading ? (
           <div className="text-slate-500 dark:text-slate-400 text-center py-8"><Loader2 className="animate-spin inline mr-2" size={16} /> Loading campaigns...</div>
         ) : campaigns.length === 0 ? (
-          <div className="bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
+          <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl">
             No campaigns yet. Create your first campaign above.
           </div>
         ) : campaigns.map((c) => (
-          <div key={c.id} className="bg-[#ffffff] dark:bg-[#111827]/80 border dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl overflow-hidden">
+          <div key={c.id} className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl overflow-hidden">
             {/* Campaign Header */}
             <div className="p-4 flex flex-col md:flex-row items-start md:items-center gap-3 justify-between">
               <div className="flex-1 min-w-0">

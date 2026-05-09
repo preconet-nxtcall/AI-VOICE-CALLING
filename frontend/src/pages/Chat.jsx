@@ -223,8 +223,10 @@ export default function Chat() {
         const kbs = res.data.knowledge_bases || [];
         setKnowledgeBases(kbs);
         if (kbs.length > 0) {
-          setSelectedKbId(kbs[0].id);
-          setKbDocs(kbs[0].documents || []);
+          // If no KB is selected yet, pick the first one
+          if (!selectedKbId) {
+            setSelectedKbId(kbs[0].id);
+          }
         } else {
           setKbError('No knowledge base found. Upload documents first.');
         }
@@ -238,11 +240,24 @@ export default function Chat() {
     fetchKbs();
   }, []);
 
+  // Sync documents when selected KB changes
+  useEffect(() => {
+    if (selectedKbId && knowledgeBases.length > 0) {
+      const kb = knowledgeBases.find(k => k.id == selectedKbId);
+      setKbDocs(kb?.documents || []);
+      // If the current selected doc is not in the new KB, reset to 'all'
+      if (selectedDocId !== 'all') {
+        const docExists = kb?.documents?.some(d => d.id == selectedDocId);
+        if (!docExists) setSelectedDocId('all');
+      }
+    } else {
+      setKbDocs([]);
+    }
+  }, [selectedKbId, knowledgeBases, selectedDocId]);
+
   const handleKbChange = (kbId) => {
     setSelectedKbId(kbId);
     setSelectedDocId('all');
-    const kb = knowledgeBases.find(k => k.id === kbId);
-    setKbDocs(kb?.documents || []);
   };
 
   const handleInputChange = (e) => {
@@ -301,8 +316,8 @@ export default function Chat() {
   const clearChat = () => setMessages([]);
 
   const isReady = !kbLoading && !!selectedKbId && !kbError;
-  const selectedKb = knowledgeBases.find(k => k.id === selectedKbId);
-  const selectedDoc = kbDocs.find(d => d.id === selectedDocId);
+  const selectedKb = knowledgeBases.find(k => k.id == selectedKbId);
+  const selectedDoc = kbDocs.find(d => d.id == selectedDocId);
 
   return (
     <>
@@ -347,12 +362,12 @@ export default function Chat() {
         }
       `}</style>
 
-      <div className="chat-fullscreen-escape flex flex-col bg-slate-50/50 dark:bg-[#080e1a] overflow-hidden">
+      <div className="chat-fullscreen-escape flex flex-col bg-[#F8FAFC] dark:bg-[#080e1a] overflow-hidden">
 
         {/* ══════════════════════════════════════════
             TOP BAR — compact identity + controls
         ══════════════════════════════════════════ */}
-        <div className="flex-shrink-0 border-b border-slate-200 dark:border-[#1a2540] bg-white/95 dark:bg-[#0a1020]/95 glass-input">
+        <div className="flex-shrink-0 border-b border-[#E2E8F0] dark:border-[#1a2540] bg-[#FFFFFF] dark:bg-[#0a1020]/95 glass-input">
           {/* Title row */}
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
             <div className="flex items-center gap-2.5">
@@ -491,7 +506,7 @@ export default function Chat() {
         {/* ══════════════════════════════════════════
             INPUT BAR — sticky bottom
         ══════════════════════════════════════════ */}
-        <div className="flex-shrink-0 px-4 pb-4 pt-2 md:px-8 bg-white/95 dark:bg-[#080e1a]/95 border-t border-slate-200 dark:border-[#1a2540] glass-input">
+        <div className="flex-shrink-0 px-4 pb-4 pt-2 md:px-8 bg-[#FFFFFF] dark:bg-[#080e1a]/95 border-t border-[#E2E8F0] dark:border-[#1a2540] glass-input">
           <div className="max-w-3xl mx-auto">
             {/* Input container */}
             <div className={`glow-violet flex items-end gap-3 bg-white dark:bg-[#0d1624] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded-2xl px-4 py-3 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>

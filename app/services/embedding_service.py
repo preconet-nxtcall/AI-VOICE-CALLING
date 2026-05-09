@@ -200,13 +200,24 @@ class EmbeddingService:
             return []
 
         if filter:
-            # Use native FAISS filtering for reliability and performance.
-            # This ensures we only search within the specific document(s) if a filter is provided.
-            try:
-                results = store.similarity_search_with_score(query, k=k, filter=filter)
-            except Exception as e:
-                logger.error(f"Native FAISS filter failed: {e}. Falling back to global search.")
-                results = store.similarity_search_with_score(query, k=k)
+            # FAISS native metadata filtering can be unreliable for string/UUID comparisons in some versions.
+            # We fetch a larger candidate pool (e.g. 50 chunks) and filter in Python to ensure 
+            # we don't miss matching chunks, then take the top k.
+            raw_results = store.similarity_search_with_score(query, k=50)
+            
+            # Apply filter
+            filtered_results = []
+            for doc, score in raw_results:
+                match = True
+                for key, val in filter.items():
+                    if str(doc.metadata.get(key)) != str(val):
+                        match = False
+                        break
+                if match:
+                    filtered_results.append((doc, score))
+            
+            # Take top k
+            results = filtered_results[:k]
         else:
             results = store.similarity_search_with_score(query, k=k)
 

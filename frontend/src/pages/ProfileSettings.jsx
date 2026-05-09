@@ -88,7 +88,7 @@ export default function ProfileSettings() {
         <motion.div variants={itemVariants} className="flex flex-col gap-8">
           
           {/* Personal Information */}
-          <div className="bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-8 shadow-sm dark:shadow-2xl">
+          <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-8 shadow-sm dark:shadow-2xl">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
               <User size={20} className="text-indigo-500" />
               Personal Information
@@ -146,7 +146,7 @@ export default function ProfileSettings() {
           </div>
 
           {/* Security / Password */}
-          <div className="bg-white/70 dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-8 shadow-sm dark:shadow-2xl">
+          <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-8 shadow-sm dark:shadow-2xl">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
               <Lock size={20} className="text-purple-500" />
               Security & Password
