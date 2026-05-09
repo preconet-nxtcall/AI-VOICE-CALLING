@@ -91,7 +91,7 @@ export default function Layout() {
         className="flex-1 flex flex-col min-w-0"
       >
         {/* Top Navbar */}
-        <header className="h-20 border-b bg-[#ffffff] dark:bg-[#0b1120]/80 backdrop-blur-xl z-30 flex items-center justify-between px-4 md:px-8 sticky top-0 transition-colors duration-300" style={{borderColor: '#E2E8F0'}}>
+        <header className="h-20 border-b border-[#E2E8F0] dark:border-slate-800/60 bg-white dark:bg-[#0b1120]/80 backdrop-blur-xl z-30 flex items-center justify-between px-4 md:px-8 sticky top-0 transition-colors duration-300">
           <div className="flex items-center gap-3 w-full max-w-xs md:max-w-md">
             {isMobile && !isProfilePage && (
               <button 
