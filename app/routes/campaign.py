@@ -5,16 +5,38 @@ import uuid
 import csv
 import io
 import re
+from datetime import datetime
 
 from app.models import db
 from app.models.campaign import Campaign
 from app.models.lead import Lead
 from app.models.knowledge_base import KnowledgeBase
+from app.models.script import Script
 from app.utils.responses import success, error
 
 
 # Simple E.164-ish phone number validation
 _PHONE_RE = re.compile(r"^\+?[1-9]\d{6,14}$")
+
+
+def _parse_iso_datetime(value):
+    if not value:
+        return None
+    try:
+        value = str(value).strip()
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        return datetime.fromisoformat(value)
+    except Exception:
+        return None
+
+def _parse_time(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value).strip(), "%H:%M").time()
+    except Exception:
+        return None
 
 
 class CampaignListResource(Resource):
@@ -86,6 +108,43 @@ class CampaignListResource(Resource):
         if not kb:
             return error("Knowledge base not found or access denied.", 404)
 
+        script_uuid = None
+        script_id = body.get("script_id")
+        if script_id:
+            try:
+                script_uuid = uuid.UUID(str(script_id))
+            except ValueError:
+                return error("Invalid script_id format.", 400)
+            script = Script.query.filter_by(id=script_uuid, user_id=user_uuid).first()
+            if not script:
+                return error("Script not found or access denied.", 404)
+
+        caller_id = (body.get("caller_id") or "").strip() or None
+        if caller_id and not _PHONE_RE.match(caller_id):
+            return error("caller_id must be a valid E.164 phone number.", 400)
+
+        schedule_start_at = _parse_iso_datetime(body.get("schedule_start_at"))
+        if body.get("schedule_start_at") and not schedule_start_at:
+            return error("Invalid schedule_start_at. Use ISO datetime.", 400)
+        schedule_end_at = _parse_iso_datetime(body.get("schedule_end_at"))
+        if body.get("schedule_end_at") and not schedule_end_at:
+            return error("Invalid schedule_end_at. Use ISO datetime.", 400)
+        if schedule_start_at and schedule_end_at and schedule_end_at <= schedule_start_at:
+            return error("schedule_end_at must be after schedule_start_at.", 400)
+
+        retry_attempts = body.get("retry_attempts", 0)
+        retry_interval_seconds = body.get("retry_interval_seconds", 300)
+        if not isinstance(retry_attempts, int) or retry_attempts < 0:
+            return error("retry_attempts must be a non-negative integer.", 400)
+        if not isinstance(retry_interval_seconds, int) or retry_interval_seconds < 30:
+            return error("retry_interval_seconds must be an integer >= 30.", 400)
+
+        daily_start_time = _parse_time(body.get("daily_start_time"))
+        daily_end_time = _parse_time(body.get("daily_end_time"))
+        dialing_speed = (body.get("dialing_speed") or "normal").strip().lower()
+        if dialing_speed not in {"normal", "fast", "aggressive"}:
+            dialing_speed = "normal"
+
         campaign = Campaign(
             user_id=user_uuid,
             name=name,
@@ -93,6 +152,15 @@ class CampaignListResource(Resource):
             channel="voice",
             daily_limit=daily_limit,
             knowledge_base_id=kb_uuid,
+            script_id=script_uuid,
+            caller_id=caller_id,
+            schedule_start_at=schedule_start_at,
+            schedule_end_at=schedule_end_at,
+            daily_start_time=daily_start_time,
+            daily_end_time=daily_end_time,
+            dialing_speed=dialing_speed,
+            retry_attempts=retry_attempts,
+            retry_interval_seconds=retry_interval_seconds,
         )
         db.session.add(campaign)
         db.session.commit()

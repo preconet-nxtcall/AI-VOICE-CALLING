@@ -1,49 +1,78 @@
-import smtplib
 import os
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
+import json
 
 logger = logging.getLogger(__name__)
 
 class EmailService:
     @staticmethod
-    def send_email(to_email, subject, body):
-        smtp_server = os.environ.get("SMTP_SERVER")
-        smtp_port = os.environ.get("SMTP_PORT")
-        smtp_username = os.environ.get("SMTP_USERNAME")
-        smtp_password = os.environ.get("SMTP_PASSWORD")
-        sender_email = os.environ.get("MAIL_DEFAULT_SENDER", smtp_username)
+    def send_email(to_email, subject, body, html_body=None):
+        api_token = os.environ.get("ZEPTOMAIL_API_TOKEN")
+        sender_email = os.environ.get("ZEPTOMAIL_USER", os.environ.get("MAIL_DEFAULT_SENDER"))
+        
+        # ZeptoMail endpoint for .in region (assuming based on email domain)
+        url = "https://api.zeptomail.in/v1.1/email"
 
-        if not all([smtp_server, smtp_port, smtp_username, smtp_password]):
-            logger.warning("SMTP configuration missing. Logging email content instead.")
+        if not api_token or not sender_email:
+            logger.warning("ZeptoMail configuration missing. Logging email content instead.")
             print("\n" + "="*50)
-            print(f"EMAIL SIMULATION")
+            print(f"EMAIL SIMULATION (ZEPTOMAIL)")
             print(f"To: {to_email}")
             print(f"Subject: {subject}")
             print(f"Body: {body}")
             print("="*50 + "\n")
             return True
 
-        try:
-            msg = MIMEMultipart()
-            msg['From'] = sender_email
-            msg['To'] = to_email
-            msg['Subject'] = subject
-            msg.attach(MIMEText(body, 'plain'))
+        payload = {
+            "from": {
+                "address": sender_email,
+                "name": "AINxt.call"
+            },
+            "to": [
+                {
+                    "email_address": {
+                        "address": to_email
+                    }
+                }
+            ],
+            "subject": subject,
+            "htmlbody": html_body if html_body else f"<div>{body.replace('\\n', '<br>')}</div>"
+        }
 
-            server = smtplib.SMTP(smtp_server, int(smtp_port))
-            server.starttls()
-            server.login(smtp_username, smtp_password)
-            server.send_message(msg)
-            server.quit()
-            return True
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "authorization": api_token
+        }
+
+        try:
+            response = requests.post(url, data=json.dumps(payload), headers=headers)
+            response_json = response.json()
+            
+            if response.status_code == 200 or response.status_code == 201:
+                logger.info(f"Email sent successfully to {to_email}")
+                return True
+            else:
+                logger.error(f"Failed to send email via ZeptoMail: {response.status_code} - {response.text}")
+                return False
         except Exception as e:
-            logger.error(f"Failed to send email: {e}")
+            logger.error(f"Exception while sending email via ZeptoMail: {e}")
             return False
 
     @staticmethod
     def send_password_reset(email, new_password):
         subject = "Your New Password - AINxt.call"
         body = f"Hello,\n\nAs requested, your password has been reset. Your new temporary password is:\n\n{new_password}\n\nPlease log in and change your password immediately for security.\n\nBest regards,\nThe AINxt.call Team"
-        return EmailService.send_email(email, subject, body)
+        
+        html_body = f"""
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2>Password Reset Successful</h2>
+            <p>Hello,</p>
+            <p>As requested, your password has been reset. Your new temporary password is:</p>
+            <p style="font-size: 1.2em; font-weight: bold; background: #f4f4f4; padding: 10px; display: inline-block;">{new_password}</p>
+            <p>Please log in and change your password immediately for security.</p>
+            <p>Best regards,<br>The AINxt.call Team</p>
+        </div>
+        """
+        return EmailService.send_email(email, subject, body, html_body=html_body)

@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 from openai import OpenAI
 from gtts import gTTS
 import requests
+from twilio.twiml.voice_response import VoiceResponse
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,21 @@ def _get_api_key(key_name: str) -> str:
     return key or os.environ.get(key_name, "")
 
 class VoiceService:
+    @staticmethod
+    def build_handoff_twiml(handoff_number: str, preface: Optional[str] = None) -> str:
+        """
+        Build TwiML that optionally informs the caller, then forwards to a human.
+        """
+        number = (handoff_number or "").strip()
+        if not number:
+            raise ValueError("handoff_number is required for call forwarding.")
+
+        twiml = VoiceResponse()
+        if preface:
+            twiml.say(preface, voice="alice", language="hi-IN")
+        twiml.dial(number)
+        return str(twiml)
+
     @staticmethod
     def transcribe(audio_file) -> str:
         """
@@ -109,14 +125,14 @@ class VoiceService:
             raise e
 
     @staticmethod
-    def make_outbound_call(to_number: str, kb_id: str) -> str:
+    def make_outbound_call(to_number: str, kb_id: str, from_number_override: Optional[str] = None) -> str:
         """
         Initiates an outbound Twilio call.
         Returns the Call SID.
         """
         account_sid = _get_api_key("TWILIO_ACCOUNT_SID")
         auth_token = _get_api_key("TWILIO_AUTH_TOKEN")
-        from_number = _get_api_key("TWILIO_PHONE_NUMBER")
+        from_number = (from_number_override or "").strip() or _get_api_key("TWILIO_PHONE_NUMBER")
         
         try:
             from flask import current_app, request

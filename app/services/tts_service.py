@@ -22,7 +22,7 @@ def _get_config(key: str) -> str:
 
 class TTSService:
     @staticmethod
-    def generate_audio(text: str, output_dir: Optional[str] = None) -> str:
+    def generate_audio(text: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None, output_dir: Optional[str] = None) -> str:
         """Convert text to speech, save as MP3, and return the absolute file path."""
         if not text or not text.strip():
             raise ValueError("Text cannot be empty")
@@ -38,7 +38,7 @@ class TTSService:
         eleven_key = _get_config("ELEVENLABS_API_KEY")
         if eleven_key:
             try:
-                audio_bytes = TTSService._elevenlabs(text, eleven_key)
+                audio_bytes = TTSService._elevenlabs(text, eleven_key, voice_id=voice_id, language=language, gender=gender)
                 file_path.write_bytes(audio_bytes)
                 logger.info("TTS (ElevenLabs) saved: %s", file_path)
                 return str(file_path)
@@ -55,9 +55,28 @@ class TTSService:
             raise
 
     @staticmethod
-    def _elevenlabs(text: str, api_key: str) -> bytes:
-        voice_id = _get_config("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM"
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    def _elevenlabs(text: str, api_key: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None) -> bytes:
+        v_id = voice_id
+        
+        if not v_id and language:
+            lang_upper = str(language).strip().upper()
+            gender_upper = str(gender or "FEMALE").strip().upper()
+            
+            if lang_upper == "HINDI":
+                if gender_upper == "MALE":
+                    v_id = _get_config("ELEVENLABS_VOICE_ID_HINDI_MALE")
+                else:
+                    v_id = _get_config("ELEVENLABS_VOICE_ID_HINDI_FEMALE")
+            elif lang_upper == "ENGLISH":
+                if gender_upper == "MALE":
+                    v_id = _get_config("ELEVENLABS_VOICE_ID_ENGLISH_MALE")
+                else:
+                    v_id = _get_config("ELEVENLABS_VOICE_ID_ENGLISH_FEMALE")
+
+        if not v_id:
+            v_id = _get_config("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM"
+            
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{v_id}"
         headers = {
             "Accept": "audio/mpeg",
             "Content-Type": "application/json",

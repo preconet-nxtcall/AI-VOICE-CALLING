@@ -57,9 +57,13 @@ function AudioPlayer({ url }) {
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+    }
   };
   return (
     <button
@@ -81,7 +85,7 @@ function MessageBubble({ msg, kbDocs }) {
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} group`}>
       {/* Avatar */}
       <div className={`
-        flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mt-0.5
+        flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
         ${isUser
           ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-slate-900 dark:text-white shadow-lg shadow-violet-500/20'
           : 'bg-gradient-to-br from-indigo-600 to-violet-600 text-slate-900 dark:text-white shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30'
@@ -138,7 +142,7 @@ function MessageBubble({ msg, kbDocs }) {
 // ─────────────────────────────────────────────────────────────
 //  Welcome Screen
 // ─────────────────────────────────────────────────────────────
-function WelcomeScreen({ selectedKb, kbDocs }) {
+function WelcomeScreen({ selectedKb, kbDocs, onSuggestionClick }) {
   const suggestions = [
     'Summarize the key points in this document',
     'What are the main topics covered?',
@@ -176,6 +180,7 @@ function WelcomeScreen({ selectedKb, kbDocs }) {
           {suggestions.map((s, i) => (
             <button
               key={i}
+              onClick={() => onSuggestionClick(s)}
               className="text-left px-4 py-3 rounded-xl border border-[#E2E8F0] dark:border-[#1e2d4a] bg-white/60 dark:bg-[#0d1624]/60 hover:bg-slate-50 dark:hover:bg-[#141e33] hover:border-violet-500/40 text-slate-600 dark:text-slate-300 text-xs leading-relaxed transition-all group"
             >
               <span className="group-hover:text-violet-300 transition-colors">{s}</span>
@@ -243,17 +248,17 @@ export default function Chat() {
   // Sync documents when selected KB changes
   useEffect(() => {
     if (selectedKbId && knowledgeBases.length > 0) {
-      const kb = knowledgeBases.find(k => k.id == selectedKbId);
+      const kb = knowledgeBases.find(k => String(k.id) === String(selectedKbId));
       setKbDocs(kb?.documents || []);
       // If the current selected doc is not in the new KB, reset to 'all'
       if (selectedDocId !== 'all') {
-        const docExists = kb?.documents?.some(d => d.id == selectedDocId);
+        const docExists = kb?.documents?.some(d => String(d.id) === String(selectedDocId));
         if (!docExists) setSelectedDocId('all');
       }
     } else {
       setKbDocs([]);
     }
-  }, [selectedKbId, knowledgeBases, selectedDocId]);
+  }, [selectedKbId, knowledgeBases]);
 
   const handleKbChange = (kbId) => {
     setSelectedKbId(kbId);
@@ -270,6 +275,7 @@ export default function Chat() {
   };
 
   const handleKeyDown = (e) => {
+    if (e.nativeEvent?.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -291,12 +297,16 @@ export default function Chat() {
       if (selectedDocId && selectedDocId !== 'all') payload.document_id = selectedDocId;
 
       const res = await api.post('/agent/ask', payload);
-      const data = res.data.data;
+      const data = res.data?.data || res.data || {};
+      const answer = data.answer || '';
+      if (!answer.trim()) {
+        throw new Error('Empty answer from assistant');
+      }
 
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: 'assistant',
-        content: data.answer,
+        content: answer,
         context: data.context_used || [],
         audioUrl: data.audio_url || null,
       }]);
@@ -314,10 +324,22 @@ export default function Chat() {
   };
 
   const clearChat = () => setMessages([]);
+  
+  const handleSuggestionClick = (suggestion) => {
+    setInput(suggestion);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      // Adjust height
+      setTimeout(() => {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 140) + 'px';
+      }, 0);
+    }
+  };
 
   const isReady = !kbLoading && !!selectedKbId && !kbError;
-  const selectedKb = knowledgeBases.find(k => k.id == selectedKbId);
-  const selectedDoc = kbDocs.find(d => d.id == selectedDocId);
+  const selectedKb = knowledgeBases.find(k => String(k.id) === String(selectedKbId));
+  const selectedDoc = kbDocs.find(d => String(d.id) === String(selectedDocId));
 
   return (
     <>
@@ -389,7 +411,7 @@ export default function Chat() {
               {messages.length > 0 && (
                 <button
                   onClick={clearChat}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-600 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px]"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-600 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px] font-medium"
                   title="Clear chat"
                 >
                   <RotateCcw size={11} />
@@ -476,7 +498,11 @@ export default function Chat() {
         >
           {/* Welcome / empty state */}
           {messages.length === 0 && !loading && (
-            <WelcomeScreen selectedKb={selectedKb} kbDocs={kbDocs} />
+            <WelcomeScreen 
+              selectedKb={selectedKb} 
+              kbDocs={kbDocs} 
+              onSuggestionClick={handleSuggestionClick} 
+            />
           )}
 
           {/* Message list */}
@@ -524,7 +550,7 @@ export default function Chat() {
                 }
                 disabled={!isReady || loading}
                 rows={1}
-                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-slate-200 text-sm leading-relaxed placeholder-slate-400 dark:placeholder-slate-600 min-h-[24px] max-h-[140px] font-sans disabled:cursor-not-allowed"
+                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-slate-200 text-sm leading-relaxed placeholder-slate-400 dark:placeholder-slate-600 min-h-[24px] max-h-[140px] font-sans"
               />
 
               {/* Send button */}

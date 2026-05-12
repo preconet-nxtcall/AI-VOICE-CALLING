@@ -39,6 +39,7 @@ def create_app(config_override=None):
     from app.models import user  # noqa: F401
     from app.models import knowledge_base  # noqa: F401
     from app.models import subscription  # noqa: F401
+    from app.models import script  # noqa: F401
     from app.models import campaign  # noqa: F401
     from app.models import call_log  # noqa: F401
     from app.models import ingestion_job  # noqa: F401

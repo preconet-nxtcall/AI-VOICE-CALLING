@@ -12,8 +12,21 @@ export default function Layout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [user, setUser] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const menuRef = useRef(null);
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/auth/me');
+        setUser(res.data.user);
+      } catch (err) {
+        console.error('Failed to fetch user', err);
+      }
+    };
+    fetchUser();
+  }, []);
   
   // Persist sidebar state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -137,8 +150,12 @@ export default function Layout() {
                   <img src="https://i.pravatar.cc/150?img=11" alt="User" className="w-full h-full object-cover rounded-full border-2 border-white dark:border-slate-900" />
                 </div>
                 <div className="hidden md:flex flex-col items-start text-left">
-                  <span className="text-sm font-semibold text-slate-900 dark:text-white leading-none mb-1">Admin</span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-none">admin@preconet.in</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white leading-none mb-1">
+                    {user?.full_name || 'User'}
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-none">
+                    {user?.email || 'Loading...'}
+                  </span>
                 </div>
               </button>
               

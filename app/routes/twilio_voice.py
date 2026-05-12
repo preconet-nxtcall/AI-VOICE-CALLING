@@ -4,13 +4,14 @@ import logging
 import functools
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 from flask import Blueprint, request, Response, current_app, send_file
 import requests as http_client
 from twilio.twiml.voice_response import VoiceResponse
 from twilio.request_validator import RequestValidator
+from app.services.voice_service import VoiceService
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +211,70 @@ def _get_context(speech_text: str, kb_id: str) -> str:
         return ""
 
 
+def _parse_script_config(raw_content: Optional[str]) -> dict[str, Any]:
+    content = (raw_content or "").strip()
+    if not content:
+        return {}
+    try:
+        parsed = json.loads(content)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+    return {}
+
+
+def _get_campaign_and_script_config(call_sid: Optional[str]) -> tuple[Optional[Any], dict[str, Any]]:
+    if not call_sid:
+        return None, {}
+    try:
+        from app.models.lead import Lead
+        from app.models.campaign import Campaign
+
+        lead = Lead.query.filter_by(call_sid=call_sid).first()
+        if not lead:
+            return None, {}
+        campaign = Campaign.query.get(lead.campaign_id)
+        if not campaign:
+            return None, {}
+        script = getattr(campaign, "script", None)
+        return campaign, _parse_script_config(getattr(script, "content", None))
+    except Exception:
+        logger.exception("Failed to load campaign/script config for call_sid=%s", call_sid)
+        return None, {}
+
+
+def _conversation_to_plain_text(conversation: list[dict[str, Any]]) -> str:
+    lines = []
+    for turn in conversation or []:
+        role = str(turn.get("role") or "unknown").strip()
+        text = str(turn.get("text") or "").strip()
+        if text:
+            lines.append(f"{role}: {text}")
+    return "\n".join(lines).strip()
+
+
+def _save_tags_and_forwarding(call_sid: Optional[str], tags: dict[str, Any], is_forwarded: bool) -> None:
+    if not call_sid:
+        return
+    try:
+        from app.models import db
+        from app.models.call_log import CallLog
+        from sqlalchemy.orm.attributes import flag_modified
+
+        log = CallLog.query.filter_by(call_sid=call_sid).first()
+        if not log:
+            return
+        merged_tags = dict(log.tags or {})
+        merged_tags.update(tags or {})
+        log.tags = merged_tags
+        log.is_forwarded = bool(is_forwarded)
+        flag_modified(log, "tags")
+        db.session.commit()
+    except Exception:
+        logger.exception("Failed to update tags/forwarding for call_sid=%s", call_sid)
+
+
 def _log_voice_call_event(
     kb_id: str,
     phone_number: str,
@@ -348,11 +413,23 @@ def _update_lead_status_obj(lead, status: str) -> None:
     """Update a Lead record object."""
     try:
         from app.models import db
+        from app.models.campaign import Campaign
+        retry_match = re.search(r"retry_attempts=(\d+)", lead.error_message or "")
+        prior_attempts = int(retry_match.group(1)) if retry_match else 0
+
         if status == "completed":
             lead.status = "completed"
+            lead.error_message = None
         else:
-            lead.status = "failed"
-            lead.error_message = f"Call status: {status}"
+            campaign = db.session.get(Campaign, lead.campaign_id) if lead.campaign_id else None
+            retry_limit = max(int(getattr(campaign, "retry_attempts", 0) or 0), 0)
+            attempts = prior_attempts + 1
+            if attempts <= retry_limit:
+                lead.status = "pending"
+                lead.error_message = f"retry_attempts={attempts}; last_error=Call status: {status}"
+            else:
+                lead.status = "failed"
+                lead.error_message = f"retry_attempts={attempts}; final_error=Call status: {status}"
         db.session.commit()
         logger.info("Lead %s updated to '%s'", lead.id, lead.status)
     except Exception:
@@ -372,12 +449,12 @@ def _update_lead_status_by_sid(call_sid: str, status: str) -> None:
         logger.exception("Failed to update lead for call_sid=%s", call_sid)
 
 
-def _tts_url(text: str) -> Optional[str]:
+def _tts_url(text: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None) -> Optional[str]:
     """Generate a TTS MP3 for text and return its public URL."""
     try:
         from app.services.tts_service import TTSService
 
-        audio_path = TTSService.generate_audio(text)
+        audio_path = TTSService.generate_audio(text, voice_id=voice_id, language=language, gender=gender)
         filename = Path(audio_path).name
         return f"{_public_base_url()}/voice/audio/{filename}"
     except Exception:
@@ -385,10 +462,10 @@ def _tts_url(text: str) -> Optional[str]:
         return None
 
 
-def _append_record_step(response: VoiceResponse, prompt: Optional[str] = None, kb_id: Optional[str] = None) -> None:
+def _append_record_step(response: VoiceResponse, prompt: Optional[str] = None, kb_id: Optional[str] = None, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None) -> None:
     """Append optional prompt playback and then start recording."""
     if prompt:
-        audio_url = _tts_url(prompt)
+        audio_url = _tts_url(prompt, voice_id=voice_id, language=language, gender=gender)
         if audio_url:
             response.play(audio_url)
         else:
@@ -474,10 +551,25 @@ def voice() -> Response:
         return Response(str(_unavailable_and_hangup_twiml()), mimetype="text/xml")
 
     twiml = VoiceResponse()
+    _, script_config = _get_campaign_and_script_config(request.form.get("CallSid"))
+    voice_id = str(script_config.get("voice_id") or "").strip() or None
+    primary_lang = script_config.get("primary_language", "Hindi")
+    gender = script_config.get("voice_style", "female")
+    
+    welcome_msg = script_config.get("welcome_message")
+    if not welcome_msg:
+        if primary_lang.upper() == "HINDI":
+            welcome_msg = "नमस्ते, मैं आपका एआई वॉइस सहायक हूँ। कृपया बीप के बाद बोलिए।"
+        else:
+            welcome_msg = "Hello, I am your AI voice assistant. Please speak after the beep."
+
     _append_record_step(
         twiml,
-        prompt="नमस्ते, मैं आपका एआई वॉइस सहायक हूँ। कृपया बीप के बाद बोलिए।",
+        prompt=welcome_msg,
         kb_id=kb_id,
+        voice_id=voice_id,
+        language=primary_lang,
+        gender=gender
     )
     return Response(str(twiml), mimetype="text/xml")
 
@@ -522,6 +614,7 @@ def process_recording() -> Response:
     except ValueError:
         recording_duration = 0
     kb_id = _resolve_kb_id()
+    campaign, script_config = _get_campaign_and_script_config(call_sid)
     logger.info(
         "VOICE_PIPELINE_START call_sid=%s recording_sid=%s to=%s",
         call_sid,
@@ -589,8 +682,9 @@ def process_recording() -> Response:
     try:
         logger.info("STEP_2_STT_START call_sid=%s", call_sid)
         from app.services.stt_service import STTService
-
-        transcription = STTService.transcribe_file(dest_path)
+        
+        primary_lang = script_config.get("primary_language", "Hindi")
+        transcription = STTService.transcribe_file(dest_path, language=primary_lang)
         logger.info("STEP_2_STT_OK call_sid=%s text=%.200s", call_sid, transcription)
     except Exception:
         logger.exception("Transcription failed for recording %s", recording_sid)
@@ -607,11 +701,18 @@ def process_recording() -> Response:
 
         try:
             logger.info("STEP_4_AI_GENERATE call_sid=%s", call_sid)
+            primary_lang = script_config.get("primary_language", "English")
+            secondary_lang = script_config.get("secondary_language")
+            
             from app.services.ai_service import AIService
+            script_prompt = str(script_config.get("prompt") or "").strip() or None
             ai_reply = AIService.generate_reply(
                 user_text=transcription,
                 conversation_id=call_sid,
                 knowledge_context=raw_context,
+                primary_language=primary_lang,
+                secondary_language=secondary_lang,
+                script_prompt=script_prompt,
             )
             logger.info("STEP_4_AI_OK call_sid=%s", call_sid)
         except Exception:
@@ -620,16 +721,21 @@ def process_recording() -> Response:
             ai_reply = "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
 
     twiml = VoiceResponse()
+    transcript_analysis = {"tags": {}, "should_handoff": False, "handoff_reason": ""}
+    voice_id = str(script_config.get("voice_id") or "").strip() or None
+    primary_lang = script_config.get("primary_language", "Hindi")
+    gender = script_config.get("voice_style", "female")
+    
     if ai_reply:
         logger.info("STEP_5_TTS_PLAY_START call_sid=%s", call_sid)
-        audio_url = _tts_url(ai_reply)
+        audio_url = _tts_url(ai_reply, voice_id=voice_id, language=primary_lang, gender=gender)
         if audio_url:
             twiml.play(audio_url)
             logger.info("STEP_5_TTS_PLAY_OK call_sid=%s url=%s", call_sid, audio_url)
         else:
             twiml.say(ai_reply, voice="alice", language="hi-IN")
             logger.warning("STEP_5_TTS_PLAY_FALLBACK_SAY call_sid=%s", call_sid)
-        _append_record_step(twiml, kb_id=kb_id)
+        _append_record_step(twiml, kb_id=kb_id, voice_id=voice_id, language=primary_lang, gender=gender)
         # ── Save this turn's transcript ──────────────────────────────────────
         _save_conversation_turn(
             call_sid=call_sid,
@@ -641,8 +747,16 @@ def process_recording() -> Response:
             duration_seconds=recording_duration,
         )
         logger.info("STEP_6_TRANSCRIPT_SAVED call_sid=%s", call_sid)
+        try:
+            from app.services.ai_service import AIService
+            transcript_analysis = AIService.analyze_transcript_for_tags(
+                transcript=transcription,
+                script_config=script_config,
+            )
+        except Exception:
+            logger.exception("Transcript tagging failed for call_sid=%s", call_sid)
     elif transcription_failed:
-        _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id)
+        _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id, voice_id=voice_id, language=primary_lang, gender=gender)
         # Still save what we captured (empty ai side) so the row exists
         _save_conversation_turn(
             call_sid=call_sid,
@@ -654,7 +768,7 @@ def process_recording() -> Response:
             duration_seconds=recording_duration,
         )
     else:
-        _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id)
+        _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id, voice_id=voice_id, language=primary_lang, gender=gender)
         _save_conversation_turn(
             call_sid=call_sid,
             kb_id=kb_id,
@@ -663,6 +777,21 @@ def process_recording() -> Response:
             ai_text=None,
             status="in_progress",
             duration_seconds=recording_duration,
+        )
+
+    handoff_number = str(script_config.get("handoff_number") or "").strip()
+    should_handoff = bool(transcript_analysis.get("should_handoff")) and bool(handoff_number)
+    _save_tags_and_forwarding(
+        call_sid=call_sid,
+        tags=transcript_analysis.get("tags") or {},
+        is_forwarded=should_handoff,
+    )
+    if should_handoff:
+        logger.info("HANDOFF_TRIGGERED call_sid=%s number=%s", call_sid, handoff_number)
+        handoff_preface = "मैं आपको हमारे मानव विशेषज्ञ से जोड़ रहा हूँ। कृपया लाइन पर रहें।"
+        return Response(
+            VoiceService.build_handoff_twiml(handoff_number=handoff_number, preface=handoff_preface),
+            mimetype="text/xml",
         )
 
     logger.info("VOICE_PIPELINE_END call_sid=%s", call_sid)
@@ -717,5 +846,27 @@ def voice_status_callback() -> Response:
         duration_seconds=int(duration) if duration.isdigit() else 0,
         call_sid=call_sid or None,
     )
+
+    # Final transcript-level lead tagging on call completion.
+    if call_sid:
+        try:
+            from app.models.call_log import CallLog
+            from app.services.ai_service import AIService
+
+            call_log = CallLog.query.filter_by(call_sid=call_sid).first()
+            if call_log:
+                _, script_config = _get_campaign_and_script_config(call_sid)
+                transcript_text = _conversation_to_plain_text(call_log.conversation or [])
+                analysis = AIService.analyze_transcript_for_tags(
+                    transcript=transcript_text,
+                    script_config=script_config,
+                )
+                _save_tags_and_forwarding(
+                    call_sid=call_sid,
+                    tags=analysis.get("tags") or {},
+                    is_forwarded=bool(call_log.is_forwarded),
+                )
+        except Exception:
+            logger.exception("Post-call transcript tagging failed for call_sid=%s", call_sid)
 
     return Response("", status=200)

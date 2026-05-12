@@ -10,6 +10,9 @@ import CallLogs from './pages/CallLogs';
 import Billing from './pages/Billing';
 import ForgotPassword from './pages/ForgotPassword';
 import ProfileSettings from './pages/ProfileSettings';
+import Scripts from './pages/Scripts';
+import ForwardedCalls from './pages/ForwardedCalls';
+import Leads from './pages/Leads';
 
 const isTokenValid = () => {
   const token = localStorage.getItem('token');
@@ -59,6 +62,9 @@ function App() {
           <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="chat" element={<Chat />} />
           <Route path="campaigns" element={<Campaigns />} />
+          <Route path="scripts" element={<Scripts />} />
+          <Route path="forwarded-calls" element={<ForwardedCalls />} />
+          <Route path="leads" element={<Leads />} />
           <Route path="logs" element={<CallLogs />} />
           <Route path="billing" element={<Billing />} />
           <Route path="profile" element={<ProfileSettings />} />

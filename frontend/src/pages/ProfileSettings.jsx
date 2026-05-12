@@ -22,9 +22,9 @@ export default function ProfileSettings() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [profile, setProfile] = useState({
-    name: 'Admin User',
-    email: 'admin@preconet.in',
-    phone: '+91 9876543210'
+    name: '',
+    email: '',
+    phone: ''
   });
 
   const [passwords, setPasswords] = useState({
@@ -32,6 +32,26 @@ export default function ProfileSettings() {
     new: '',
     confirm: ''
   });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/auth/me');
+        const user = res.data.user;
+        setProfile({
+          name: user.full_name || '',
+          email: user.email || '',
+          phone: user.phone || ''
+        });
+      } catch (err) {
+        console.error('Failed to fetch profile', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();

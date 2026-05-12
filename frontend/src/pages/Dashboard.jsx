@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { Download, Plus, Rocket, CreditCard, Users, Clock, AlertTriangle, PhoneCall, Activity, Zap, LayoutDashboard, BarChart2 } from 'lucide-react';
+import { Download, Plus, Rocket, CreditCard, Users, Clock, AlertTriangle, PhoneCall, Activity, Zap, LayoutDashboard, BarChart2, Radio } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 
@@ -25,13 +25,25 @@ export default function Dashboard() {
   const [logs, setLogs] = useState([]);
   const [summary, setSummary] = useState(null);
   const [timeRange, setTimeRange] = useState('24H');
+  const [liveConversation, setLiveConversation] = useState([]);
+  const [liveCall, setLiveCall] = useState(null);
   
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
       const logRes = await api.get('/call-logs');
-      setLogs(logRes.data.data?.call_logs || []);
-      setSummary(logRes.data.data?.summary || null);
+      const nextLogs = logRes.data?.call_logs || [];
+      const nextSummary = logRes.data?.summary || null;
+      setLogs(nextLogs);
+      setSummary(nextSummary);
+
+      const active = nextLogs.find((l) => l.status === 'in_progress');
+      if (active) {
+        setLiveCall(active);
+        setLiveConversation(active.conversation || []);
+      } else {
+        setLiveCall(null);
+        setLiveConversation(nextLogs[0]?.conversation || []);
+      }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -41,6 +53,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const getChartData = () => {
@@ -88,11 +102,13 @@ export default function Dashboard() {
 
   const chartData = getChartData();
 
-  const totalCalls = summary?.total_calls || 1250;
-  const completedCalls = summary?.completed_calls || 980;
-  const connectRate = Math.round((completedCalls / totalCalls) * 100) || 78;
-  const convertRate = Math.round(connectRate * 0.75) || 58;
-  const activeChannelsApprox = summary?.calls_last_24h || 124;
+  const totalCalls = summary?.total_calls || 0;
+  const completedCalls = summary?.completed_calls || 0;
+  const connectRate = totalCalls > 0 ? Math.round((completedCalls / totalCalls) * 100) : 0;
+  const convertRate = connectRate > 0 ? Math.round(connectRate * 0.75) : 0;
+  const activeChannelsApprox = summary?.calls_last_24h || 0;
+  const successRate = totalCalls > 0 ? Math.round((completedCalls / totalCalls) * 100) : 0;
+  const activeLive = Boolean(liveCall);
 
   const handleExportData = () => {
     if (!logs.length) return alert('No data to export');
@@ -128,6 +144,16 @@ export default function Dashboard() {
             </h1>
           </div>
           <p className="text-slate-500 dark:text-slate-400 font-medium ml-1">Real-time monitoring for your AI infrastructure.</p>
+          <div className="mt-3">
+            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+              activeLive
+                ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+            }`}>
+              <Radio size={12} className={activeLive ? 'animate-pulse' : ''} />
+              {activeLive ? 'Live Call Active' : 'No Live Call'}
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-4 md:mt-0">
           <button 
@@ -407,6 +433,48 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </motion.div>
+                );
+              })
+            )}
+          </div>
+        </motion.div>
+
+        {/* Live Conversation */}
+        <motion.div variants={itemVariants} className="col-span-1 md:col-span-8 bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-7 shadow-sm dark:shadow-2xl flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2 mb-1">
+                <PhoneCall size={16} className="text-indigo-600 dark:text-indigo-400" />
+                LIVE CONVERSATION
+              </span>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                {activeLive ? `Call ${liveCall?.phone_number || ''}` : 'Latest Transcript Feed'}
+              </h2>
+            </div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              {liveConversation.length} message{liveConversation.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+
+          <div className="min-h-[220px] max-h-[280px] overflow-y-auto bg-slate-50 dark:bg-slate-900/40 border border-[#E2E8F0] dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-3 custom-scrollbar">
+            {liveConversation.length === 0 ? (
+              <div className="text-sm text-slate-500 dark:text-slate-400 m-auto">No active transcript yet.</div>
+            ) : (
+              liveConversation.map((turn, idx) => {
+                const isAI = turn.role === 'ai';
+                return (
+                  <div key={`${turn.ts || idx}-${idx}`} className={`flex ${isAI ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm shadow-sm ${
+                      isAI
+                        ? 'bg-indigo-600/15 dark:bg-indigo-500/20 border border-indigo-500/30 text-slate-900 dark:text-indigo-100 rounded-tr-sm'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tl-sm'
+                    }`}>
+                      <div className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">
+                        {isAI ? 'AI' : 'Customer'}
+                      </div>
+                      <div>{turn.text}</div>
+                    </div>
+                  </div>
                 );
               })
             )}

@@ -1,6 +1,7 @@
 import os
 import logging
 from pathlib import Path
+from typing import Optional
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -17,19 +18,16 @@ def _get_openai_key() -> str:
 
 class STTService:
     @staticmethod
-    def transcribe_file(audio_path: Path) -> str:
+    def transcribe_file(audio_path: Path, language: Optional[str] = None) -> str:
         """
         Transcribe a saved audio file using OpenAI Whisper.
 
         Args:
             audio_path: Absolute path to the audio file on disk.
+            language: Language hint (e.g. 'Hindi', 'English').
 
         Returns:
             Transcribed text string.
-
-        Raises:
-            ValueError: If OPENAI_API_KEY is not configured.
-            FileNotFoundError: If the audio file does not exist.
         """
         api_key = _get_openai_key()
         if not api_key:
@@ -40,12 +38,21 @@ class STTService:
 
         client = OpenAI(api_key=api_key)
 
+        # Map display name to ISO code
+        lang_code = "hi"  # default
+        if language:
+            l_up = language.upper()
+            if "ENGLISH" in l_up:
+                lang_code = "en"
+            elif "HINDI" in l_up:
+                lang_code = "hi"
+
         try:
             with audio_path.open("rb") as fh:
                 response = client.audio.transcriptions.create(
                     model="whisper-1",
                     file=(audio_path.name, fh),
-                    language="hi"  # Hint for Hindi transcription
+                    language=lang_code
                 )
             text = (response.text or "").strip()
             logger.info("Transcription [%s]: %.200s", audio_path.name, text)

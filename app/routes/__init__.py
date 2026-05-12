@@ -13,6 +13,7 @@ from app.routes.subscription import PlanListResource, SubscriptionResource
 from app.routes.campaign import CampaignListResource, CampaignStatusResource, CampaignLeadUploadResource, CampaignLeadListResource
 from app.routes.call_log import CallLogListResource
 from app.routes.billing import BillingSummaryResource
+from app.routes.script import ScriptListResource
 
 
 def register_routes(api):
@@ -46,6 +47,7 @@ def register_routes(api):
     api.add_resource(CampaignStatusResource, "/campaigns/<string:campaign_id>/status")
     api.add_resource(CampaignLeadUploadResource, "/campaigns/<string:campaign_id>/upload")
     api.add_resource(CampaignLeadListResource, "/campaigns/<string:campaign_id>/leads")
+    api.add_resource(ScriptListResource, "/scripts")
 
     # Call log routes
     api.add_resource(CallLogListResource, "/call-logs")
