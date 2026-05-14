@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bot, Languages, Mic, PhoneForwarded, Tags, Plus, X, Save, Play, User, UserCheck } from 'lucide-react';
 import api from '../services/api';
 
-const PRIMARY_LANGUAGES = ['Hindi', 'English'];
-const SECONDARY_LANGUAGES = ['None', 'Hindi', 'English'];
+const PRIMARY_LANGUAGES = ['English', 'Hindi', 'Bengali', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Arabic', 'Russian', 'Portuguese', 'Auto-Detect'];
+const SECONDARY_LANGUAGES = ['None', 'English', 'Hindi', 'Bengali', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Arabic', 'Russian', 'Portuguese'];
 const E164_RE = /^\+?[1-9]\d{6,14}$/;
 
 export default function Scripts() {

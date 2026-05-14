@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Rocket, BookOpen, BarChart2, CreditCard, PhoneCall, ScrollText, PhoneForwarded, Users, User, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Rocket, BookOpen, BarChart2, CreditCard, PhoneCall, ScrollText, PhoneForwarded, Users, User, ChevronLeft, Activity } from 'lucide-react';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const location = useLocation();
@@ -14,6 +14,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { name: 'Scripts', icon: ScrollText, path: '/scripts' },
     { name: 'Forwarded Calls', icon: PhoneForwarded, path: '/forwarded-calls' },
     { name: 'Leads', icon: Users, path: '/leads' },
+    { name: 'Live Monitoring', icon: Activity, path: '/live' },
     { name: 'Call Logs', icon: PhoneCall, path: '/logs' },
     { name: 'Billing', icon: CreditCard, path: '/billing' },
   ];

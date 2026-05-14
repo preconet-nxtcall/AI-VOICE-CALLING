@@ -1,6 +1,9 @@
 import logging
 import os
 import shutil
+import math
+import re
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -8,11 +11,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document as LCDocument
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CHUNK_SIZE = 500
 _DEFAULT_CHUNK_OVERLAP = 50
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 
 
 def _get_openai_api_key() -> str:
@@ -41,6 +46,17 @@ def _embeddings() -> OpenAIEmbeddings:
             "Set it in your .env file or environment."
         )
     return OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=api_key)
+
+
+def _openai_client() -> OpenAI:
+    api_key = _get_openai_api_key()
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is not configured.")
+    return OpenAI(api_key=api_key)
+
+
+def _tokenize(text: str) -> list[str]:
+    return [tok.lower() for tok in _TOKEN_RE.findall(text or "")]
 
 
 def _index_path(knowledge_base_id: str) -> Path:
@@ -231,6 +247,188 @@ class EmbeddingService:
             }
             for doc, score in results
         ]
+
+    @staticmethod
+    def _keyword_scores(query: str, candidate_texts: list[str]) -> list[float]:
+        """
+        Lightweight BM25-style keyword scoring over candidate chunks.
+        """
+        q_tokens = _tokenize(query)
+        if not q_tokens or not candidate_texts:
+            return [0.0 for _ in candidate_texts]
+
+        docs_tokens = [_tokenize(t) for t in candidate_texts]
+        doc_lens = [len(toks) for toks in docs_tokens]
+        avgdl = (sum(doc_lens) / len(doc_lens)) if doc_lens else 1.0
+        avgdl = max(avgdl, 1.0)
+        n_docs = len(docs_tokens)
+
+        df: dict[str, int] = {}
+        for toks in docs_tokens:
+            seen = set(toks)
+            for tok in seen:
+                df[tok] = df.get(tok, 0) + 1
+
+        # BM25 params
+        k1 = 1.5
+        b = 0.75
+        scores = [0.0] * n_docs
+        for i, toks in enumerate(docs_tokens):
+            if not toks:
+                continue
+            tf: dict[str, int] = {}
+            for tok in toks:
+                tf[tok] = tf.get(tok, 0) + 1
+            dl = max(doc_lens[i], 1)
+            for qt in q_tokens:
+                term_df = df.get(qt, 0)
+                if term_df <= 0:
+                    continue
+                idf = math.log(1 + ((n_docs - term_df + 0.5) / (term_df + 0.5)))
+                freq = tf.get(qt, 0)
+                if freq <= 0:
+                    continue
+                denom = freq + k1 * (1 - b + b * (dl / avgdl))
+                scores[i] += idf * ((freq * (k1 + 1)) / max(denom, 1e-9))
+        return scores
+
+    @staticmethod
+    def _rerank_candidates(
+        query: str,
+        candidates: list[dict],
+        top_n: int,
+    ) -> list[dict]:
+        """
+        Use a smaller LLM as reranker to pick best chunks from retrieved candidates.
+        """
+        if not candidates or top_n <= 0:
+            return []
+        if len(candidates) <= top_n:
+            return candidates
+
+        payload = {
+            "query": query,
+            "chunks": [
+                {"id": i, "text": c.get("text", "")[:1600], "filename": c.get("filename")}
+                for i, c in enumerate(candidates)
+            ],
+            "top_n": top_n,
+        }
+        prompt = (
+            "You are a retrieval reranker. Choose the most relevant chunk IDs for the query. "
+            "Prioritize exact product names, technical terms, and direct answerability. "
+            "Return strict JSON with key 'top_ids' as integer list in best-first order."
+        )
+        try:
+            client = _openai_client()
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": json.dumps(payload)},
+                ],
+                temperature=0,
+                response_format={"type": "json_object"},
+                max_tokens=180,
+            )
+            content = (resp.choices[0].message.content or "").strip() if resp.choices else ""
+            parsed = json.loads(content) if content else {}
+            ids = parsed.get("top_ids") if isinstance(parsed, dict) else None
+            if not isinstance(ids, list):
+                return candidates[:top_n]
+            selected = []
+            for idx in ids:
+                if isinstance(idx, int) and 0 <= idx < len(candidates):
+                    selected.append(candidates[idx])
+                if len(selected) >= top_n:
+                    break
+            return selected or candidates[:top_n]
+        except Exception:
+            logger.exception("Reranker failed; using pre-rerank order fallback.")
+            return candidates[:top_n]
+
+    @staticmethod
+    def hybrid_search(
+        knowledge_base_id: str,
+        query: str,
+        k: int = 5,
+        filter: Optional[dict] = None,
+        vector_k: int = 40,
+        keyword_weight: float = 0.45,
+        use_reranker: bool = True,
+        rerank_pool: int = 10,
+    ) -> list[dict]:
+        """
+        Hybrid retrieval:
+        1) vector retrieval candidate pool
+        2) BM25-style keyword scoring
+        3) weighted fusion
+        4) optional LLM reranking over top rerank_pool
+        """
+        store = EmbeddingService.load_index(knowledge_base_id)
+        if store is None:
+            return []
+
+        # Candidate pool from vector search.
+        raw_results = store.similarity_search_with_score(query, k=max(vector_k, k))
+        if not raw_results:
+            return []
+
+        # Apply metadata filter.
+        filtered: list[tuple[LCDocument, float]] = []
+        for doc, score in raw_results:
+            if filter:
+                matched = True
+                for key, val in filter.items():
+                    if str(doc.metadata.get(key)) != str(val):
+                        matched = False
+                        break
+                if not matched:
+                    continue
+            filtered.append((doc, float(score)))
+        if not filtered:
+            return []
+
+        docs = [d for d, _ in filtered]
+        vec_scores = [s for _, s in filtered]
+        texts = [d.page_content for d in docs]
+        kw_scores = EmbeddingService._keyword_scores(query, texts)
+
+        # Normalize and fuse scores.
+        min_vec, max_vec = min(vec_scores), max(vec_scores)
+        vec_span = max(max_vec - min_vec, 1e-9)
+        # For FAISS distance: lower is better -> invert post-normalization
+        norm_vec_relevance = [1.0 - ((s - min_vec) / vec_span) for s in vec_scores]
+
+        min_kw, max_kw = min(kw_scores), max(kw_scores)
+        kw_span = max(max_kw - min_kw, 1e-9)
+        norm_kw = [(s - min_kw) / kw_span for s in kw_scores]
+
+        kw_w = min(max(keyword_weight, 0.0), 1.0)
+        vec_w = 1.0 - kw_w
+
+        merged = []
+        for i, doc in enumerate(docs):
+            fused = vec_w * norm_vec_relevance[i] + kw_w * norm_kw[i]
+            merged.append(
+                {
+                    "text": doc.page_content,
+                    "score": vec_scores[i],
+                    "hybrid_score": fused,
+                    "keyword_score": kw_scores[i],
+                    "document_id": doc.metadata.get("document_id"),
+                    "filename": doc.metadata.get("filename"),
+                    "chunk_index": doc.metadata.get("chunk_index"),
+                }
+            )
+        merged.sort(key=lambda x: x["hybrid_score"], reverse=True)
+
+        if use_reranker:
+            rerank_input = merged[: max(rerank_pool, k)]
+            reranked = EmbeddingService._rerank_candidates(query, rerank_input, top_n=k)
+            return reranked
+
+        return merged[:k]
 
     @staticmethod
     def delete_document_chunks(knowledge_base_id: str, document_id: str) -> bool:

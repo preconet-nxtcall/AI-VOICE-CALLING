@@ -1,4 +1,4 @@
-import os
+﻿import os
 import logging
 import io
 import base64
@@ -86,7 +86,18 @@ class VoiceService:
         Returns a tuple of (audio_bytes, content_type).
         """
         eleven_key = _get_api_key("ELEVENLABS_API_KEY")
-        voice_id = _get_api_key("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM" # Default: Rachel
+        
+        # Language-specific voice ID selection
+        voice_id = _get_api_key("ELEVENLABS_VOICE_ID")
+        if not voice_id:
+            # Simple character detection for voice ID selection
+            if any('\u0900' <= char <= '\u097f' for char in text):
+                voice_id = _get_api_key("ELEVENLABS_VOICE_ID_HINDI_FEMALE") or _get_api_key("ELEVENLABS_VOICE_ID_HINDI_MALE")
+            else:
+                voice_id = _get_api_key("ELEVENLABS_VOICE_ID_ENGLISH_FEMALE") or _get_api_key("ELEVENLABS_VOICE_ID_ENGLISH_MALE")
+        
+        if not voice_id:
+            voice_id = "21m00Tcm4TlvDq8ikWAM" # Default: Rachel
         
         if eleven_key:
             try:
@@ -98,7 +109,7 @@ class VoiceService:
                 }
                 data = {
                     "text": text,
-                    "model_id": "eleven_multilingual_v2", # Required for Hindi voice IDs
+                    "model_id": "eleven_multilingual_v2",
                     "voice_settings": {
                         "stability": 0.5,
                         "similarity_boost": 0.75
@@ -109,13 +120,16 @@ class VoiceService:
                     return response.content, "audio/mpeg"
                 else:
                     logger.error(f"ElevenLabs API failed with status {response.status_code}: {response.text}")
-                    # Fallback to gTTS
             except Exception as e:
                 logger.exception("ElevenLabs synthesis failed, falling back to gTTS")
         
         # Fallback to gTTS
         try:
-            tts = gTTS(text=text, lang='hi')
+            # Simple language detection
+            detected_lang = 'en'
+            if any('\u0900' <= char <= '\u097f' for char in text):
+                detected_lang = 'hi'
+            tts = gTTS(text=text, lang=detected_lang)
             fp = io.BytesIO()
             tts.write_to_fp(fp)
             fp.seek(0)
@@ -168,4 +182,3 @@ class VoiceService:
         except Exception as e:
             logger.exception("Failed to initiate outbound call to %s: %s", to_number, str(e))
             raise e
-

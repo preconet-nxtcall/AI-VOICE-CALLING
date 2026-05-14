@@ -13,6 +13,7 @@ import ProfileSettings from './pages/ProfileSettings';
 import Scripts from './pages/Scripts';
 import ForwardedCalls from './pages/ForwardedCalls';
 import Leads from './pages/Leads';
+import LiveDashboard from './pages/LiveDashboard';
 
 const isTokenValid = () => {
   const token = localStorage.getItem('token');
@@ -66,6 +67,7 @@ function App() {
           <Route path="forwarded-calls" element={<ForwardedCalls />} />
           <Route path="leads" element={<Leads />} />
           <Route path="logs" element={<CallLogs />} />
+          <Route path="live" element={<LiveDashboard />} />
           <Route path="billing" element={<Billing />} />
           <Route path="profile" element={<ProfileSettings />} />
         </Route>

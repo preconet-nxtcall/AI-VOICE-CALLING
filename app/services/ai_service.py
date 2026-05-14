@@ -11,10 +11,11 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
-    "You are a helpful AI voice assistant. "
-    "Use the conversation history to keep replies contextual and natural. "
-    "Keep replies very short and conversational (1-3 sentences max) suitable for a phone call. "
-    "Do not use markdown or complex formatting."
+    "You are a professional AI voice assistant. "
+    "Use the provided 'Knowledge context' and 'Conversation history' to keep replies accurate and contextual. "
+    "If the answer is in the context, use it. If not, politely state you don't have that information. "
+    "Keep replies very short and conversational (1-2 sentences max) suitable for a phone call. "
+    "Do not use markdown, bullet points, or complex formatting."
 )
 _MAX_TOKENS = 120  # headroom for 2 complete sentences without mid-sentence cut-off
 _MAX_MEMORY_MESSAGES = 6  # 3 turns: User, AI, User, AI, User, AI
@@ -73,10 +74,14 @@ class AIService:
         # Filter out 'None' string from frontend
         s_lang = secondary_language if secondary_language and secondary_language.lower() != "none" else None
         
-        lang_instruction = f"Primary language is {primary_language}. "
+        if primary_language == "Auto-Detect":
+            lang_instruction = "Respond in the same language the user speaks in (Auto-Detect mode). "
+        else:
+            lang_instruction = f"Primary language is {primary_language}. "
+            
         if s_lang:
             lang_instruction += f"Secondary language is {s_lang}. Understand and respond in both naturally. "
-        else:
+        elif primary_language != "Auto-Detect":
             lang_instruction += f"Always respond in {primary_language}. "
             
         if "HINDI" in [primary_language.upper(), (s_lang or "").upper()]:
@@ -94,8 +99,9 @@ class AIService:
             full_system_prompt = f"{_SYSTEM_PROMPT}\n\n{lang_instruction}"
 
         try:
+            # For voice calls, we still want short replies, but gpt-4o is better at nuances
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": full_system_prompt},
                     {"role": "user", "content": "\n\n".join(prompt_parts)},
@@ -224,7 +230,7 @@ class AIService:
         )
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You classify phone call outcomes for CRM tagging."},
                 {"role": "user", "content": prompt},
@@ -316,3 +322,94 @@ class AIService:
             return parsed if isinstance(parsed, dict) else None
         except Exception:
             return None
+
+    @staticmethod
+    def analyze_post_call(transcript: str) -> Dict[str, str]:
+        """
+        Post-call analytics for CRM:
+        - sentiment: Positive | Angry | Neutral
+        - lead_intent: Highly Interested | Interested | Not Interested | Neutral
+        - call_summary: one-sentence summary
+        """
+        text = (transcript or "").strip()
+        if not text:
+            return {
+                "sentiment": "Neutral",
+                "lead_intent": "Neutral",
+                "call_summary": "No meaningful transcript was captured.",
+            }
+
+        api_key = _get_openai_key()
+        if api_key:
+            try:
+                client = OpenAI(api_key=api_key)
+                prompt = (
+                    "Analyze this phone call transcript for sales lead scoring.\n"
+                    "Return strict JSON with keys:\n"
+                    "- sentiment: one of [Positive, Angry, Neutral]\n"
+                    "- lead_intent: one of [Highly Interested, Interested, Not Interested, Neutral]\n"
+                    "- call_summary: exactly one sentence, concise.\n\n"
+                    "Rules:\n"
+                    "1) If customer asks about pricing/cost/plan/availability/stock/delivery timeline, "
+                    "lead_intent should be Highly Interested unless clearly rejecting.\n"
+                    "2) Keep outputs business-friendly and factual.\n\n"
+                    f"Transcript:\n{text}"
+                )
+                resp = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "You are a precise call analytics engine."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.1,
+                    response_format={"type": "json_object"},
+                    max_tokens=220,
+                )
+                content = (resp.choices[0].message.content or "").strip() if resp.choices else ""
+                parsed = AIService._parse_json_object(content) if content else None
+                if isinstance(parsed, dict):
+                    sentiment = str(parsed.get("sentiment") or "Neutral").strip().title()
+                    if sentiment not in {"Positive", "Angry", "Neutral"}:
+                        sentiment = "Neutral"
+
+                    lead_intent = str(parsed.get("lead_intent") or "Neutral").strip()
+                    if lead_intent not in {"Highly Interested", "Interested", "Not Interested", "Neutral"}:
+                        lead_intent = "Neutral"
+
+                    summary = str(parsed.get("call_summary") or "").strip()
+                    if not summary:
+                        summary = "Customer and assistant discussed the inquiry with no clear final outcome."
+                    return {
+                        "sentiment": sentiment,
+                        "lead_intent": lead_intent,
+                        "call_summary": summary,
+                    }
+            except Exception:
+                logger.exception("Post-call LLM analytics failed; using keyword fallback")
+
+        lowered = text.lower()
+        if any(w in lowered for w in ["angry", "upset", "frustrated", "stop calling", "annoyed"]):
+            sentiment = "Angry"
+        elif any(w in lowered for w in ["thank", "great", "good", "interested", "yes"]):
+            sentiment = "Positive"
+        else:
+            sentiment = "Neutral"
+
+        highly_interested_terms = [
+            "price", "pricing", "cost", "plan", "availability", "available", "stock", "delivery",
+            "quote", "discount", "when can", "how soon",
+        ]
+        if any(w in lowered for w in ["not interested", "no thanks", "don't call", "do not call"]):
+            lead_intent = "Not Interested"
+        elif any(w in lowered for w in highly_interested_terms):
+            lead_intent = "Highly Interested"
+        elif any(w in lowered for w in ["interested", "tell me more", "follow up", "callback"]):
+            lead_intent = "Interested"
+        else:
+            lead_intent = "Neutral"
+
+        return {
+            "sentiment": sentiment,
+            "lead_intent": lead_intent,
+            "call_summary": "Customer and assistant discussed the request; review transcript for full context.",
+        }

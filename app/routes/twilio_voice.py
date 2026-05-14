@@ -1,7 +1,13 @@
 import re
 import json
+import base64
+import numpy as np
 import logging
 import functools
+import tempfile
+import wave
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -11,11 +17,79 @@ from flask import Blueprint, request, Response, current_app, send_file
 import requests as http_client
 from twilio.twiml.voice_response import VoiceResponse
 from twilio.request_validator import RequestValidator
+from app.extensions import sock
 from app.services.voice_service import VoiceService
 
 logger = logging.getLogger(__name__)
 
 twilio_voice_bp = Blueprint("twilio_voice", __name__)
+LIVE_CLIENTS = set()
+
+def broadcast_live_event(data: dict[str, Any]) -> None:
+    """Broadcast a live event to all connected dashboard clients."""
+    payload = json.dumps(data)
+    to_remove = []
+    for client in LIVE_CLIENTS:
+        try:
+            client.send(payload)
+        except Exception:
+            to_remove.append(client)
+    for client in to_remove:
+        LIVE_CLIENTS.discard(client)
+
+# Precompute G.711 mu-law to linear table at module level for performance
+_MU2LIN_TABLE = np.zeros(256, dtype=np.int16)
+for i in range(256):
+    v = ~i & 0xFF
+    sign = v & 0x80
+    exponent = (v & 0x70) >> 4
+    mantissa = v & 0x0F
+    sample = (mantissa << 3) + 132
+    sample <<= exponent
+    sample -= 132
+    _MU2LIN_TABLE[i] = -sample if sign else sample
+
+def _ulaw2lin(data: bytes) -> bytes:
+    """Convert mu-law audio to 16-bit linear PCM using precomputed table."""
+    indices = np.frombuffer(data, dtype=np.uint8)
+    return _MU2LIN_TABLE[indices].tobytes()
+
+def _lin2ulaw(data: bytes) -> bytes:
+    """Convert 16-bit linear PCM to mu-law audio."""
+    pcm = np.frombuffer(data, dtype=np.int16).astype(np.int32)
+    sign = (pcm < 0)
+    pcm = np.abs(pcm)
+    pcm = np.clip(pcm + 132, 132, 32767)
+    
+    exponent = np.zeros_like(pcm, dtype=np.uint8)
+    # Find highest set bit in pcm[7:14]
+    for i in range(7):
+        mask = 1 << (14 - i)
+        exponent[np.logical_and(exponent == 0, (pcm & mask) != 0)] = 7 - i
+        
+    mantissa = (pcm >> (exponent + 3)) & 0x0F
+    ulaw = ~( (sign << 7) | (exponent << 4) | mantissa )
+    return (ulaw & 0xFF).astype(np.uint8).tobytes()
+
+def _pcm_rms(data: bytes) -> int:
+    """Calculate RMS of 16-bit PCM audio."""
+    samples = np.frombuffer(data, dtype=np.int16)
+    if len(samples) == 0:
+        return 0
+    return int(np.sqrt(np.mean(samples.astype(np.float64)**2)))
+
+@sock.route("/api/v1/live-events")
+def live_events_stream(ws):
+    """WebSocket endpoint for the live dashboard to receive real-time call events."""
+    LIVE_CLIENTS.add(ws)
+    try:
+        while True:
+            # Keep the connection alive
+            ws.receive(timeout=30)
+    except Exception:
+        pass
+    finally:
+        LIVE_CLIENTS.discard(ws)
 
 _FALLBACK_MSG = (
     "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
@@ -27,6 +101,10 @@ _REPEAT_FALLBACK_MSG = (
     "क्षमा करें, मैं आपकी बात नहीं सुन पाया। कृपया बीप के बाद फिर से बोलें।"
 )
 _MIN_RECORDING_BYTES = 1024
+_STREAM_SAMPLE_RATE = 8000
+_STREAM_SILENCE_RMS = 350
+_STREAM_END_SILENCE_MS = 700
+_STREAM_MIN_UTTERANCE_MS = 500
 
 # Twilio RecordingSid always starts with RE followed by 32 hex chars.
 _RECORDING_SID_RE = re.compile(r"^RE[0-9A-Fa-f]{32}$")
@@ -63,6 +141,20 @@ def _public_base_url() -> str:
     if configured:
         return configured.rstrip("/")
     return request.host_url.rstrip("/")
+
+
+def _public_ws_base_url() -> str:
+    """Return publicly reachable WebSocket base URL derived from PUBLIC_BASE_URL."""
+    configured_stream_url = (current_app.config.get("TWILIO_MEDIA_STREAM_URL") or "").strip()
+    if configured_stream_url:
+        return configured_stream_url
+
+    base = _public_base_url()
+    if base.startswith("https://"):
+        return "wss://" + base[len("https://") :]
+    if base.startswith("http://"):
+        return "ws://" + base[len("http://") :]
+    return base
 
 
 def _normalize_phone(value: str) -> str:
@@ -197,7 +289,15 @@ def _get_context(speech_text: str, kb_id: str) -> str:
 
     try:
         from app.services.embedding_service import EmbeddingService
-        chunks = EmbeddingService.similarity_search(kb_id, speech_text, k=3)
+        chunks = EmbeddingService.hybrid_search(
+            kb_id,
+            speech_text,
+            k=3,
+            vector_k=24,
+            keyword_weight=0.5,
+            use_reranker=True,
+            rerank_pool=10,
+        )
         if not chunks:
             return ""
         
@@ -218,10 +318,13 @@ def _parse_script_config(raw_content: Optional[str]) -> dict[str, Any]:
     try:
         parsed = json.loads(content)
         if isinstance(parsed, dict):
+            # If it's valid JSON, we use it as is
             return parsed
     except Exception:
+        # If not valid JSON, treat the whole content as the system prompt
         pass
-    return {}
+    
+    return {"prompt": content}
 
 
 def _get_campaign_and_script_config(call_sid: Optional[str]) -> tuple[Optional[Any], dict[str, Any]]:
@@ -485,6 +588,42 @@ def _append_record_step(response: VoiceResponse, prompt: Optional[str] = None, k
     )
 
 
+def _append_stream_step(
+    response: VoiceResponse,
+    kb_id: Optional[str] = None,
+    call_sid: Optional[str] = None,
+) -> bool:
+    """
+    Append Twilio Media Streams <Connect><Stream>.
+    Returns True when stream TwiML was appended; False if config is invalid.
+    """
+    ws_url = _public_ws_base_url().strip().rstrip("/")
+    if not ws_url.startswith("ws://") and not ws_url.startswith("wss://"):
+        logger.error(
+            "Invalid TWILIO_MEDIA_STREAM_URL/Public base for realtime stream: %r",
+            ws_url,
+        )
+        return False
+
+    stream_path = "/voice/media-stream"
+    if ws_url.endswith(stream_path):
+        full_stream_url = ws_url
+    else:
+        full_stream_url = f"{ws_url}{stream_path}"
+
+    track = str(current_app.config.get("TWILIO_MEDIA_STREAM_TRACK", "inbound_track")).strip() or "inbound_track"
+    if track not in {"inbound_track", "outbound_track", "both_tracks"}:
+        track = "inbound_track"
+
+    connect = response.connect()
+    stream = connect.stream(url=full_stream_url, track=track)
+    if call_sid:
+        stream.parameter(name="call_sid", value=call_sid)
+    if kb_id:
+        stream.parameter(name="kb_id", value=kb_id)
+    return True
+
+
 def _repeat_prompt_twiml(kb_id: Optional[str] = None) -> VoiceResponse:
     twiml = VoiceResponse()
     _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id)
@@ -543,6 +682,295 @@ def _download_recording(recording_url: str, dest_path: Path) -> None:
                 fh.write(chunk)
 
 
+def _validate_twilio_ws_request() -> bool:
+    """Validate Twilio signature for websocket handshake request."""
+    if current_app.debug:
+        return True
+    auth_token = current_app.config.get("TWILIO_AUTH_TOKEN", "")
+    validator = RequestValidator(auth_token)
+    signature = request.headers.get("X-Twilio-Signature", "")
+    return validator.validate(request.url, request.args.to_dict(flat=True), signature)
+
+
+def _write_pcm16_wav(dest_path: Path, pcm16_data: bytes, sample_rate: int = _STREAM_SAMPLE_RATE) -> None:
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(dest_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(pcm16_data)
+
+
+def _mp3_to_mulaw_8k(mp3_path: Path) -> bytes:
+    """Convert MP3 TTS output to 8kHz mu-law bytes for Twilio media stream."""
+    from pydub import AudioSegment
+
+    seg = AudioSegment.from_file(str(mp3_path))
+    seg = seg.set_channels(1).set_frame_rate(_STREAM_SAMPLE_RATE).set_sample_width(2)
+    pcm16 = seg.raw_data
+    return _lin2ulaw(pcm16)
+
+
+def _stream_mulaw_audio(ws, stream_sid: str, mulaw_audio: bytes) -> None:
+    """Send mu-law payload in 20ms-ish chunks over Twilio bidirectional stream."""
+    if not stream_sid or not mulaw_audio:
+        return
+    chunk_size = 160  # 20ms at 8kHz, 8-bit mu-law
+    for i in range(0, len(mulaw_audio), chunk_size):
+        payload = base64.b64encode(mulaw_audio[i : i + chunk_size]).decode("ascii")
+        ws.send(
+            json.dumps(
+                {
+                    "event": "media",
+                    "streamSid": stream_sid,
+                    "media": {"payload": payload},
+                }
+            )
+        )
+
+
+def _build_stream_reply_audio(
+    call_sid: Optional[str],
+    kb_id: str,
+    script_config: dict[str, Any],
+    pcm16_audio: bytes,
+) -> bytes:
+    if not pcm16_audio:
+        return b""
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        wav_path = Path(tmp.name)
+    try:
+        _write_pcm16_wav(wav_path, pcm16_audio)
+
+        from app.services.stt_service import STTService
+        from app.services.ai_service import AIService
+        from app.services.tts_service import TTSService
+
+        primary_lang = script_config.get("primary_language", "English")
+        secondary_lang = script_config.get("secondary_language")
+        voice_id = str(script_config.get("voice_id") or "").strip() or None
+        gender = script_config.get("voice_style", "female")
+        script_prompt = str(script_config.get("prompt") or "").strip() or None
+
+        transcription = STTService.transcribe_file(wav_path, language=primary_lang)
+        if not transcription.strip():
+            return b""
+
+        raw_context = _get_context(transcription, kb_id)
+        try:
+            ai_reply = AIService.generate_reply(
+                user_text=transcription,
+                conversation_id=call_sid,
+                knowledge_context=raw_context,
+                primary_language=primary_lang,
+                secondary_language=secondary_lang,
+                script_prompt=script_prompt,
+            )
+            logger.info("STEP_4_AI_OK call_sid=%s", call_sid)
+        except Exception:
+            logger.exception("AI reply generation failed for call %s", call_sid)
+            ai_reply = "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
+
+        if not ai_reply.strip():
+            return b""
+
+        _save_conversation_turn(
+            call_sid=call_sid,
+            kb_id=kb_id,
+            phone_number="unknown",
+            customer_text=transcription,
+            ai_text=ai_reply,
+            status="in_progress",
+            duration_seconds=0,
+        )
+
+        tts_path = Path(TTSService.generate_audio(ai_reply, voice_id=voice_id, language=primary_lang, gender=gender))
+        
+        # Broadcast live event for monitoring
+        broadcast_live_event({
+            "event": "transcript",
+            "call_sid": call_sid,
+            "kb_id": kb_id,
+            "customer_text": transcription,
+            "ai_text": ai_reply,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return _mp3_to_mulaw_8k(tts_path)
+    except Exception:
+        logger.exception("Realtime stream utterance handling failed for call_sid=%s", call_sid)
+        return b""
+    finally:
+        try:
+            wav_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _send_ws_event(ws, send_lock: threading.Lock, payload: dict[str, Any]) -> None:
+    with send_lock:
+        ws.send(json.dumps(payload))
+
+
+def _start_outbound_playback(
+    ws,
+    send_lock: threading.Lock,
+    stream_sid: str,
+    mulaw_audio: bytes,
+):
+    stop_event = threading.Event()
+
+    def _runner() -> None:
+        chunk_size = 160
+        for i in range(0, len(mulaw_audio), chunk_size):
+            if stop_event.is_set():
+                return
+            payload = base64.b64encode(mulaw_audio[i : i + chunk_size]).decode("ascii")
+            _send_ws_event(
+                ws,
+                send_lock,
+                {
+                    "event": "media",
+                    "streamSid": stream_sid,
+                    "media": {"payload": payload},
+                },
+            )
+            # Stream at telephony pacing so caller barge-in can interrupt.
+            time.sleep(0.02)
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+    return thread, stop_event
+
+
+@sock.route("/voice/media-stream")
+def voice_media_stream(ws) -> None:
+    """
+    Twilio Media Streams websocket endpoint.
+    Receives inbound call audio, segments utterances by silence, then runs STT -> RAG -> AI -> TTS
+    and streams synthesized mu-law audio back on the same socket.
+    """
+    if not _validate_twilio_ws_request():
+        logger.warning("Rejected media-stream websocket due to invalid Twilio signature")
+        return
+
+    stream_sid = ""
+    call_sid = request.args.get("call_sid", "").strip() or None
+    kb_id = request.args.get("kb_id", "").strip()
+    if not kb_id:
+        kb_id = _resolve_kb_id()
+    _, script_config = _get_campaign_and_script_config(call_sid)
+
+    pcm_buffer = bytearray()
+    utterance = bytearray()
+    speech_seen = False
+    silence_ms = 0
+    send_lock = threading.Lock()
+    playback_thread = None
+    playback_stop_event = None
+
+    logger.info("MEDIA_STREAM_CONNECTED call_sid=%s kb_id=%s", call_sid, kb_id)
+    while True:
+        message = ws.receive()
+        if message is None:
+            break
+
+        try:
+            event = json.loads(message)
+        except Exception:
+            logger.warning("MEDIA_STREAM_INVALID_JSON call_sid=%s", call_sid)
+            continue
+
+        event_type = event.get("event")
+        if event_type == "start":
+            start = event.get("start") or {}
+            stream_sid = str(start.get("streamSid") or "").strip()
+            call_sid = str((start.get("callSid") or call_sid or "")).strip() or None
+            custom = start.get("customParameters") or {}
+            kb_id = str(custom.get("kb_id") or kb_id or "").strip()
+            _, script_config = _get_campaign_and_script_config(call_sid)
+            logger.info("MEDIA_STREAM_START call_sid=%s stream_sid=%s kb_id=%s", call_sid, stream_sid, kb_id)
+            
+            # Broadcast call start
+            broadcast_live_event({
+                "event": "call_start",
+                "call_sid": call_sid,
+                "kb_id": kb_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            continue
+
+        if event_type == "media":
+            media_payload = (((event.get("media") or {}).get("payload")) or "").strip()
+            if not media_payload:
+                continue
+            try:
+                ulaw_chunk = base64.b64decode(media_payload)
+                pcm_chunk = _ulaw2lin(ulaw_chunk)
+            except Exception:
+                continue
+
+            pcm_buffer.extend(pcm_chunk)
+            utterance.extend(pcm_chunk)
+            chunk_rms = _pcm_rms(pcm_chunk)
+            chunk_ms = int((len(pcm_chunk) / 2) / (_STREAM_SAMPLE_RATE / 1000))
+
+            if chunk_rms >= _STREAM_SILENCE_RMS:
+                # Barge-in: if caller starts speaking while AI audio is playing, interrupt playback.
+                if playback_thread and playback_thread.is_alive():
+                    if playback_stop_event:
+                        playback_stop_event.set()
+                    if stream_sid:
+                        _send_ws_event(
+                            ws,
+                            send_lock,
+                            {
+                                "event": "clear",
+                                "streamSid": stream_sid,
+                            },
+                        )
+                speech_seen = True
+                silence_ms = 0
+            else:
+                silence_ms += max(chunk_ms, 20)
+
+            utterance_ms = int((len(utterance) / 2) / (_STREAM_SAMPLE_RATE / 1000))
+            if speech_seen and silence_ms >= _STREAM_END_SILENCE_MS and utterance_ms >= _STREAM_MIN_UTTERANCE_MS:
+                mulaw_reply = _build_stream_reply_audio(
+                    call_sid=call_sid,
+                    kb_id=kb_id,
+                    script_config=script_config,
+                    pcm16_audio=bytes(utterance),
+                )
+                if mulaw_reply and stream_sid:
+                    playback_thread, playback_stop_event = _start_outbound_playback(
+                        ws=ws,
+                        send_lock=send_lock,
+                        stream_sid=stream_sid,
+                        mulaw_audio=mulaw_reply,
+                    )
+                utterance.clear()
+                speech_seen = False
+                silence_ms = 0
+            continue
+
+        if event_type == "stop":
+            if utterance:
+                mulaw_reply = _build_stream_reply_audio(
+                    call_sid=call_sid,
+                    kb_id=kb_id,
+                    script_config=script_config,
+                    pcm16_audio=bytes(utterance),
+                )
+                if mulaw_reply and stream_sid:
+                    _stream_mulaw_audio(ws, stream_sid, mulaw_reply)
+            if playback_thread and playback_thread.is_alive() and playback_stop_event:
+                playback_stop_event.set()
+            logger.info("MEDIA_STREAM_STOP call_sid=%s stream_sid=%s bytes=%s", call_sid, stream_sid, len(pcm_buffer))
+            break
+
+
 @twilio_voice_bp.post("/voice")
 @_validate_twilio
 def voice() -> Response:
@@ -562,6 +990,15 @@ def voice() -> Response:
             welcome_msg = "नमस्ते, मैं आपका एआई वॉइस सहायक हूँ। कृपया बीप के बाद बोलिए।"
         else:
             welcome_msg = "Hello, I am your AI voice assistant. Please speak after the beep."
+
+    if bool(current_app.config.get("TWILIO_REALTIME_STREAM_ENABLED", False)):
+        if _append_stream_step(twiml, kb_id=kb_id, call_sid=request.form.get("CallSid")):
+            logger.info(
+                "Realtime media stream enabled for call_sid=%s",
+                request.form.get("CallSid", ""),
+            )
+            return Response(str(twiml), mimetype="text/xml")
+        logger.warning("Realtime stream requested but unavailable; falling back to recording loop")
 
     _append_record_step(
         twiml,
@@ -720,6 +1157,16 @@ def process_recording() -> Response:
             # Hindi fallback message
             ai_reply = "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
 
+    # Broadcast transcript event for monitoring
+    broadcast_live_event({
+        "event": "transcript",
+        "call_sid": call_sid,
+        "kb_id": kb_id,
+        "customer_text": transcription,
+        "ai_text": ai_reply,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
     twiml = VoiceResponse()
     transcript_analysis = {"tags": {}, "should_handoff": False, "handoff_reason": ""}
     voice_id = str(script_config.get("voice_id") or "").strip() or None
@@ -757,7 +1204,6 @@ def process_recording() -> Response:
             logger.exception("Transcript tagging failed for call_sid=%s", call_sid)
     elif transcription_failed:
         _append_record_step(twiml, prompt=_REPEAT_FALLBACK_MSG, kb_id=kb_id, voice_id=voice_id, language=primary_lang, gender=gender)
-        # Still save what we captured (empty ai side) so the row exists
         _save_conversation_turn(
             call_sid=call_sid,
             kb_id=kb_id,
@@ -837,8 +1283,7 @@ def voice_status_callback() -> Response:
     # Convert Twilio status to our internal status
     internal_status = "completed" if status == "completed" else "failed"
 
-    # Update the final status + duration on the existing CallLog row (created during process_recording)
-    # If no row exists yet (e.g. call was never answered), _log_voice_call_event creates it.
+    # Update the final status + duration on the existing CallLog row
     _log_voice_call_event(
         kb_id=kb_id,
         phone_number=phone,
@@ -846,6 +1291,14 @@ def voice_status_callback() -> Response:
         duration_seconds=int(duration) if duration.isdigit() else 0,
         call_sid=call_sid or None,
     )
+
+    # Broadcast call end
+    broadcast_live_event({
+        "event": "call_end",
+        "call_sid": call_sid,
+        "status": internal_status,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
 
     # Final transcript-level lead tagging on call completion.
     if call_sid:
@@ -861,9 +1314,18 @@ def voice_status_callback() -> Response:
                     transcript=transcript_text,
                     script_config=script_config,
                 )
+                post_call = AIService.analyze_post_call(transcript_text)
+                merged_tags = dict(analysis.get("tags") or {})
+                merged_tags.update(
+                    {
+                        "sentiment": post_call.get("sentiment", "Neutral"),
+                        "lead_intent": post_call.get("lead_intent", "Neutral"),
+                        "call_summary": post_call.get("call_summary", ""),
+                    }
+                )
                 _save_tags_and_forwarding(
                     call_sid=call_sid,
-                    tags=analysis.get("tags") or {},
+                    tags=merged_tags,
                     is_forwarded=bool(call_log.is_forwarded),
                 )
         except Exception:

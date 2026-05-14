@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import { Search, Bell, HelpCircle, AlertTriangle, Sun, Moon, Menu } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../services/api';
 
 // Routes where the main content should be flush (no padding, no outer scroll)
 const FLUSH_ROUTES = ['/chat'];

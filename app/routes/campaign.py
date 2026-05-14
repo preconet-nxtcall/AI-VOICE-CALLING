@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, current_app
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import uuid
@@ -17,6 +17,18 @@ from app.utils.responses import success, error
 
 # Simple E.164-ish phone number validation
 _PHONE_RE = re.compile(r"^\+?[1-9]\d{6,14}$")
+
+
+def _enqueue_dialer_sweep() -> None:
+    """Trigger a distributed dialer sweep if Celery mode is enabled."""
+    try:
+        if not current_app.config.get("DIALER_USE_CELERY", False):
+            return
+        task = current_app.extensions.get("dialer_sweep_task")
+        if task:
+            task.delay()
+    except Exception:
+        current_app.logger.exception("Failed to enqueue dialer sweep task")
 
 
 def _parse_iso_datetime(value):
@@ -145,6 +157,10 @@ class CampaignListResource(Resource):
         if dialing_speed not in {"normal", "fast", "aggressive"}:
             dialing_speed = "normal"
 
+        # Logical check: if both start/end times are provided, they shouldn't be identical
+        if daily_start_time and daily_end_time and daily_start_time == daily_end_time:
+            return error("daily_start_time and daily_end_time cannot be the same.", 400)
+
         campaign = Campaign(
             user_id=user_uuid,
             name=name,
@@ -164,6 +180,10 @@ class CampaignListResource(Resource):
         )
         db.session.add(campaign)
         db.session.commit()
+
+        if status == "active":
+            _enqueue_dialer_sweep()
+
         return success({"campaign": campaign.to_dict()}, 201)
 
 
@@ -192,6 +212,8 @@ class CampaignStatusResource(Resource):
 
         campaign.status = status
         db.session.commit()
+        if status == "active":
+            _enqueue_dialer_sweep()
         return success({"campaign": campaign.to_dict()}, 200)
 
 
@@ -251,9 +273,12 @@ class CampaignLeadUploadResource(Resource):
             if row_idx == 1 and phone.lower() in {"phone", "phone_number", "number", "mobile", "tel"}:
                 continue
 
-            # Normalize: add + if missing
+            # Normalize: add +91 if it looks like a 10-digit Indian number without prefix
             if not phone.startswith("+"):
-                phone = "+" + phone
+                if len(phone) == 10 and phone.isdigit():
+                    phone = "+91" + phone
+                else:
+                    phone = "+" + phone
 
             if not _PHONE_RE.match(phone):
                 skipped += 1
@@ -276,6 +301,8 @@ class CampaignLeadUploadResource(Resource):
             added += 1
 
         db.session.commit()
+        if campaign.status == "active" and added > 0:
+            _enqueue_dialer_sweep()
 
         return success({
             "message": f"Uploaded {added} leads. Skipped {skipped}.",

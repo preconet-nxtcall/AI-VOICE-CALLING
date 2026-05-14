@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 
 from app.config import get_config
+from app.extensions import sock
 from app.models import db, bcrypt
 from app.routes import register_routes
 
@@ -17,6 +18,7 @@ def create_app(config_override=None):
     
     app = Flask(__name__, static_folder=static_folder, static_url_path="/")
     CORS(app) # Enable CORS for development
+    sock.init_app(app)
     app.config.from_object(get_config())
 
     if config_override:
@@ -27,11 +29,25 @@ def create_app(config_override=None):
     Migrate(app, db)
     jwt = JWTManager(app)
 
-    # Start Background Dialer Thread (For Free Tier support)
-    if os.environ.get("START_DIALER", "true").lower() == "true":
+    # Distributed queue / dialer mode selection
+    app.celery = None
+    if app.config.get("DIALER_USE_CELERY", False):
+        try:
+            from app.celery_app import create_celery
+            from app.tasks.dialer_tasks import register_dialer_tasks
+
+            app.celery = create_celery(app)
+            sweep_once_task = register_dialer_tasks(app.celery)
+            app.extensions["dialer_sweep_task"] = sweep_once_task
+            app.logger.info("Dialer configured for Celery distributed queue mode.")
+        except Exception as e:
+            app.logger.error("Failed to initialize Celery dialer mode: %s", e)
+    elif os.environ.get("START_DIALER", "true").lower() == "true":
         try:
             from app.services.dialer_worker import start_dialer
+
             start_dialer(app)
+            app.logger.info("Dialer configured for in-process thread mode.")
         except Exception as e:
             app.logger.error("Failed to start background dialer: %s", e)
 

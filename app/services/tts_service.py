@@ -46,9 +46,18 @@ class TTSService:
                 logger.exception("ElevenLabs TTS failed, falling back to gTTS")
 
         try:
-            tts = gTTS(text=text, lang="hi")
+            # Simple language detection if not provided
+            detected_lang = language
+            if not detected_lang:
+                # Check for Devanagari characters (Hindi)
+                if any('\u0900' <= char <= '\u097f' for char in text):
+                    detected_lang = 'hi'
+                else:
+                    detected_lang = 'en'
+            
+            tts = gTTS(text=text, lang=detected_lang)
             tts.save(str(file_path))
-            logger.info("TTS (gTTS) saved: %s", file_path)
+            logger.info("TTS (gTTS) saved in %s: %s", detected_lang, file_path)
             return str(file_path)
         except Exception:
             logger.exception("gTTS synthesis failed")
@@ -59,15 +68,16 @@ class TTSService:
         v_id = voice_id
         
         if not v_id and language:
-            lang_upper = str(language).strip().upper()
+            lang_key = str(language).strip().upper()
             gender_upper = str(gender or "FEMALE").strip().upper()
             
-            if lang_upper == "HINDI":
+            # Map common ISO codes to descriptive names if needed
+            if lang_key in ["HI", "HINDI"]:
                 if gender_upper == "MALE":
                     v_id = _get_config("ELEVENLABS_VOICE_ID_HINDI_MALE")
                 else:
                     v_id = _get_config("ELEVENLABS_VOICE_ID_HINDI_FEMALE")
-            elif lang_upper == "ENGLISH":
+            elif lang_key in ["EN", "ENGLISH"]:
                 if gender_upper == "MALE":
                     v_id = _get_config("ELEVENLABS_VOICE_ID_ENGLISH_MALE")
                 else:

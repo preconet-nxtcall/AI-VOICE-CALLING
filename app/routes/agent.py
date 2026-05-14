@@ -63,7 +63,8 @@ class AgentAskResource(Resource):
             answer_text = result.get("answer", "")
             audio_url = None
             if isinstance(answer_text, str) and answer_text.strip():
-                audio_file_path = TTSService.generate_audio(answer_text)
+                detected_lang = result.get("language_code", "en")
+                audio_file_path = TTSService.generate_audio(answer_text, language=detected_lang)
                 from pathlib import Path
                 filename = Path(audio_file_path).name
                 base_url = request.host_url.rstrip("/")
@@ -127,7 +128,8 @@ class AgentVoiceResource(Resource):
             answer_text = rag_result['answer']
             
             # 3. Response text -> local MP3 (TTS)
-            audio_file_path = TTSService.generate_audio(answer_text)
+            detected_lang = rag_result.get("language_code", "en")
+            audio_file_path = TTSService.generate_audio(answer_text, language=detected_lang)
             from pathlib import Path
             filename = Path(audio_file_path).name
             base_url = request.host_url.rstrip("/")

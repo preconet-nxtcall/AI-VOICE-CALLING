@@ -99,7 +99,7 @@ function MessageBubble({ msg, kbDocs }) {
         <div className={`
           relative px-4 py-3 rounded-2xl text-sm leading-relaxed
           ${isUser
-            ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-slate-900 dark:text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
+            ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
             : msg.isError
               ? 'bg-red-50 dark:bg-red-500/8 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 rounded-tl-sm'
               : 'bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-800 dark:text-slate-200 rounded-tl-sm shadow-sm'
@@ -517,7 +517,7 @@ export default function Chat() {
             {loading && (
               <div className="msg-animate flex gap-3 flex-row">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30 mt-0.5">
-                  <Loader2 size={14} className="text-slate-900 dark:text-white animate-spin" />
+                  <Loader2 size={14} className="text-white animate-spin" />
                 </div>
                 <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a]">
                   <TypingDots />
@@ -567,7 +567,7 @@ export default function Chat() {
             </div>
 
             {/* Hint */}
-            <p className="text-center text-[10px] text-slate-600 mt-2">
+            <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 mt-2">
               <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-500 font-sans">Enter</kbd>
               {' '}to send &middot;{' '}
               <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-500 font-sans">Shift+Enter</kbd>

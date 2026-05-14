@@ -30,7 +30,7 @@ class AgentService:
             search_filter = {"document_id": str(document_id)}
             
         # 2. Retrieve similar chunks
-        chunks = EmbeddingService.similarity_search(
+        chunks = EmbeddingService.hybrid_search(
             knowledge_base_id, 
             query, 
             k=5, 
@@ -68,36 +68,45 @@ class AgentService:
         if mode == "voice":
             system_prompt = (
                 "You are a helpful AI voice assistant. You answer user queries based primarily on the provided context. "
-                "IMPORTANT: Always respond in Hindi (Devanagari script) — this is a Hindi voice call. "
+                "IMPORTANT: Respond in the user's spoken language or as requested. "
                 "Keep responses concise and natural for spoken conversation (2-3 sentences max). "
-                "If the answer is not contained within the context, politely say so in Hindi. "
-                "Do not make up information."
+                "Do not make up information. "
+                "Return your response in JSON format: {\"answer\": \"...\", \"language_code\": \"...\"} "
+                "where language_code is the ISO 639-1 code of the response (e.g., 'hi', 'en', 'es')."
             )
         else:
             system_prompt = (
                 "You are a helpful AI assistant. Answer user queries based on the provided context from their knowledge base documents. "
                 "Respond in the same language the user writes in. "
                 "Be clear, accurate, and helpful. If the answer is not in the context, say so honestly. "
-                "Do not make up information."
+                "Do not make up information. "
+                "Return your response in JSON format: {\"answer\": \"...\", \"language_code\": \"...\"} "
+                "where language_code is the ISO 639-1 code of the response (e.g., 'hi', 'en', 'es')."
             )
         
-        user_message = f"Context Information:\n{combined_context}\n\nUser Query: {query}\n\nAnswer:"
+        user_message = f"Context Information:\n{combined_context}\n\nUser Query: {query}"
         
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
                 ],
                 temperature=0.2,
+                response_format={"type": "json_object"}
             )
-            answer = response.choices[0].message.content
+            raw_content = response.choices[0].message.content
+            import json
+            res_data = json.loads(raw_content)
+            answer = res_data.get("answer", "")
+            detected_lang = res_data.get("language_code", "en")
         except Exception as e:
             logger.exception("Failed to generate answer from OpenAI")
             raise e
             
         return {
             "answer": answer,
+            "language_code": detected_lang,
             "context_used": context_used
         }

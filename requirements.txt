@@ -31,4 +31,9 @@ twilio==9.3.3
 pytest==8.2.0
 pytest-flask==1.3.0
 flask-cors==4.0.1
+flask-sock==0.7.0
 gunicorn==23.0.0
+
+# Queue / workers
+celery==5.4.0
+redis==5.1.1

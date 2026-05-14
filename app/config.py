@@ -30,6 +30,9 @@ class Config:
     TWILIO_TENANT_KB_BY_ACCOUNT = os.environ.get("TWILIO_TENANT_KB_BY_ACCOUNT", "")
     TWILIO_REQUIRE_TENANT_MATCH = _env_bool("TWILIO_REQUIRE_TENANT_MATCH", False)
     PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
+    TWILIO_REALTIME_STREAM_ENABLED = _env_bool("TWILIO_REALTIME_STREAM_ENABLED", False)
+    TWILIO_MEDIA_STREAM_URL = os.environ.get("TWILIO_MEDIA_STREAM_URL", "")
+    TWILIO_MEDIA_STREAM_TRACK = os.environ.get("TWILIO_MEDIA_STREAM_TRACK", "inbound_track")
     # Voice AI
     ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
     ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
@@ -37,6 +40,22 @@ class Config:
     RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "./recordings")
     # TTS audio output
     TTS_AUDIO_DIR = os.environ.get("TTS_AUDIO_DIR", "./tts_audio")
+    # Distributed task queue / dialer
+    CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0"))
+    DIALER_USE_CELERY = _env_bool("DIALER_USE_CELERY", False)
+    DIALER_SWEEP_TASK_INTERVAL_SECONDS = int(os.environ.get("DIALER_SWEEP_TASK_INTERVAL_SECONDS", "15"))
+    CELERY_TASK_DEFAULT_QUEUE = os.environ.get("CELERY_TASK_DEFAULT_QUEUE", "default")
+    CELERY_TASK_DIALER_QUEUE = os.environ.get("CELERY_TASK_DIALER_QUEUE", "dialer")
+    CELERY_TASK_ACKS_LATE = _env_bool("CELERY_TASK_ACKS_LATE", True)
+    CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.environ.get("CELERY_WORKER_PREFETCH_MULTIPLIER", "1"))
+    CELERY_TASK_TIME_LIMIT = int(os.environ.get("CELERY_TASK_TIME_LIMIT", "90"))
+    CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get("CELERY_TASK_SOFT_TIME_LIMIT", "60"))
+    CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = _env_bool("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", True)
+    CELERY_DIALER_RETRY_BACKOFF = _env_bool("CELERY_DIALER_RETRY_BACKOFF", True)
+    CELERY_DIALER_RETRY_BACKOFF_MAX = int(os.environ.get("CELERY_DIALER_RETRY_BACKOFF_MAX", "120"))
+    CELERY_DIALER_RETRY_JITTER = _env_bool("CELERY_DIALER_RETRY_JITTER", True)
+    CELERY_DIALER_MAX_RETRIES = int(os.environ.get("CELERY_DIALER_MAX_RETRIES", "8"))
 
 
 class DevelopmentConfig(Config):
