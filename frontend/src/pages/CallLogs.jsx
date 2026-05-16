@@ -135,9 +135,21 @@ function CallRow({ log }) {
           </span>
         </td>
         <td className="px-4 py-3 max-w-[320px]">
-          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2" title={callSummary}>
-            {callSummary}
-          </p>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2" title={callSummary}>
+              {callSummary}
+            </p>
+            {log?.tags?.appointment_status === 'requested' && (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/40 uppercase tracking-tighter">
+                  📅 Appointment
+                </span>
+                <span className="text-[10px] text-slate-500 truncate italic">
+                  {log?.tags?.appointment_info}
+                </span>
+              </div>
+            )}
+          </div>
         </td>
         <td className="px-4 py-3">
           <button

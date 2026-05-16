@@ -61,7 +61,8 @@ class IngestionService:
     @staticmethod
     def _process_file_job(app, job_id: str, file_bytes: bytes, filename: str) -> None:
         with app.app_context():
-            job = db.session.get(IngestionJob, job_id)
+            job_uuid = uuid.UUID(job_id)
+            job = db.session.get(IngestionJob, job_uuid)
             if not job:
                 return
             try:
@@ -87,7 +88,8 @@ class IngestionService:
     @staticmethod
     def _process_url_job(app, job_id: str, url: str) -> None:
         with app.app_context():
-            job = db.session.get(IngestionJob, job_id)
+            job_uuid = uuid.UUID(job_id)
+            job = db.session.get(IngestionJob, job_uuid)
             if not job:
                 return
             try:

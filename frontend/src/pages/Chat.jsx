@@ -247,9 +247,17 @@ export default function Chat() {
 
   // Sync documents when selected KB changes
   useEffect(() => {
-    if (selectedKbId && knowledgeBases.length > 0) {
+    if (knowledgeBases.length > 0) {
+      // If no KB selected, or the current selected KB is not in the list, default to the first one
+      const exists = knowledgeBases.some(k => String(k.id) === String(selectedKbId));
+      if (!selectedKbId || !exists) {
+        setSelectedKbId(knowledgeBases[0].id);
+        return;
+      }
+
       const kb = knowledgeBases.find(k => String(k.id) === String(selectedKbId));
       setKbDocs(kb?.documents || []);
+      
       // If the current selected doc is not in the new KB, reset to 'all'
       if (selectedDocId !== 'all') {
         const docExists = kb?.documents?.some(d => String(d.id) === String(selectedDocId));
@@ -257,6 +265,7 @@ export default function Chat() {
       }
     } else {
       setKbDocs([]);
+      setSelectedKbId('');
     }
   }, [selectedKbId, knowledgeBases]);
 
@@ -293,7 +302,17 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      const payload = { knowledge_base_id: selectedKbId, query: trimmed };
+      // Map existing messages to history format for backend
+      const history = messages.slice(-6).map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
+      const payload = { 
+        knowledge_base_id: selectedKbId, 
+        query: trimmed,
+        history: history
+      };
       if (selectedDocId && selectedDocId !== 'all') payload.document_id = selectedDocId;
 
       const res = await api.post('/agent/ask', payload);

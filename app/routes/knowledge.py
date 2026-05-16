@@ -94,9 +94,10 @@ class KnowledgeUploadResource(Resource):
                 202,
             )
 
-        except Exception:
+        except Exception as e:
+            logger.exception("An error occurred during file upload: %s", str(e))
             db.session.rollback()
-            return error("An error occurred during file upload", 500)
+            return error(f"An error occurred during file upload: {str(e)}", 500)
 
 
 class KnowledgeListResource(Resource):
@@ -117,8 +118,9 @@ class KnowledgeListResource(Resource):
 
             return success({"knowledge_bases": result}, 200)
 
-        except Exception:
-            return error("An error occurred while fetching knowledge bases", 500)
+        except Exception as e:
+            logger.exception("An error occurred while fetching knowledge bases")
+            return error(f"An error occurred while fetching knowledge bases: {str(e)}", 500)
 
     @jwt_required()
     def post(self):

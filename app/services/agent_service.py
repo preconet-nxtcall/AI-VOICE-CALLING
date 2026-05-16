@@ -1,6 +1,7 @@
 import logging
-from typing import Dict, Any
 import os
+import json
+from typing import Dict, Any
 
 from app.services.embedding_service import EmbeddingService
 
@@ -16,13 +17,14 @@ def _get_openai_api_key() -> str:
 
 class AgentService:
     @staticmethod
-    def ask(knowledge_base_id: str, query: str, document_id: str = None, mode: str = "chat") -> Dict[str, Any]:
+    def ask(knowledge_base_id: str, query: str, document_id: str = None, mode: str = "chat", history: list = None) -> Dict[str, Any]:
         """
         Answers a user query using RAG over the specified knowledge base.
         :param knowledge_base_id: UUID of the knowledge base.
         :param query: User's question.
         :param document_id: Optional UUID of a specific document to restrict context to.
         :param mode: 'chat' for text (respond in user's language) or 'voice' for Hindi voice calls.
+        :param history: Optional list of previous messages [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
         """
         # 1. Build search filter
         search_filter = None
@@ -40,6 +42,7 @@ class AgentService:
         if not chunks:
             return {
                 "answer": "No information found in the selected knowledge base to answer your query. Please upload some documents first.",
+                "language_code": "en",
                 "context_used": []
             }
             
@@ -84,20 +87,28 @@ class AgentService:
                 "where language_code is the ISO 639-1 code of the response (e.g., 'hi', 'en', 'es')."
             )
         
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add history if available
+        if history:
+            # Only take the last 6 messages to avoid context bloat
+            for h in history[-6:]:
+                messages.append({
+                    "role": h.get("role", "user"),
+                    "content": h.get("content", "")
+                })
+        
         user_message = f"Context Information:\n{combined_context}\n\nUser Query: {query}"
+        messages.append({"role": "user", "content": user_message})
         
         try:
             response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
+                messages=messages,
                 temperature=0.2,
                 response_format={"type": "json_object"}
             )
             raw_content = response.choices[0].message.content
-            import json
             res_data = json.loads(raw_content)
             answer = res_data.get("answer", "")
             detected_lang = res_data.get("language_code", "en")

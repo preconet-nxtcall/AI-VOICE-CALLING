@@ -76,3 +76,31 @@ class EmailService:
         </div>
         """
         return EmailService.send_email(email, subject, body, html_body=html_body)
+    @staticmethod
+    def send_appointment_notification(to_email, lead_phone, appointment_details, call_sid=None):
+        subject = f"NEW APPOINTMENT REQUEST: {lead_phone}"
+        body = (
+            f"Hello,\n\n"
+            f"An appointment or demo request was detected during an AI voice call.\n\n"
+            f"Lead Phone: {lead_phone}\n"
+            f"Details: {appointment_details}\n"
+            f"Call SID: {call_sid}\n\n"
+            f"Please check your dashboard for more details.\n\n"
+            f"Best regards,\nThe AINxt.call Team"
+        )
+        
+        html_body = f"""
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #4f46e5;">New Appointment Detected</h2>
+            <p>Hello,</p>
+            <p>An appointment or demo request was detected during an AI voice call.</p>
+            <div style="background: #f8fafc; border-radius: 8px; padding: 20px; border: 1px solid #e2e8f0;">
+                <p><strong>Lead Phone:</strong> {lead_phone}</p>
+                <p><strong>Details:</strong> <span style="color: #ef4444; font-weight: bold;">{appointment_details}</span></p>
+                <p><strong>Call SID:</strong> {call_sid}</p>
+            </div>
+            <p>Please log in to your dashboard to view the full transcript and follow up with the lead.</p>
+            <p>Best regards,<br>The AINxt.call Team</p>
+        </div>
+        """
+        return EmailService.send_email(to_email, subject, body, html_body=html_body)

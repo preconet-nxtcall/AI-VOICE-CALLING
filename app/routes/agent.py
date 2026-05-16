@@ -42,6 +42,9 @@ class AgentAskResource(Resource):
             except ValueError:
                 return {"success": False, "error": "Invalid document_id format."}, 400
             
+        # Optional history for conversation memory
+        history = data.get("history", [])
+        
         user_id = get_jwt_identity()
         try:
             user_uuid = uuid.UUID(str(user_id))
@@ -55,10 +58,11 @@ class AgentAskResource(Resource):
             
         try:
             result = AgentService.ask(
-                knowledge_base_id,
+                str(kb_uuid),
                 query,
                 document_id=doc_uuid_str,
-                mode="chat"
+                mode="chat",
+                history=history
             )
             answer_text = result.get("answer", "")
             audio_url = None
@@ -67,8 +71,11 @@ class AgentAskResource(Resource):
                 audio_file_path = TTSService.generate_audio(answer_text, language=detected_lang)
                 from pathlib import Path
                 filename = Path(audio_file_path).name
-                base_url = request.host_url.rstrip("/")
-                audio_url = f"{base_url}/voice/audio/{filename}"
+                
+                # Use PUBLIC_BASE_URL for more reliable audio links
+                from flask import current_app
+                base_url = current_app.config.get("PUBLIC_BASE_URL") or request.host_url.rstrip("/")
+                audio_url = f"{base_url.rstrip('/')}/voice/audio/{filename}"
 
             result["audio_url"] = audio_url
             # Remove audio_file_path if it exists
@@ -80,6 +87,8 @@ class AgentAskResource(Resource):
         except ValueError as ve:
             return {"success": False, "error": str(ve)}, 400
         except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception("Agent chat failed")
             return {"success": False, "error": "An error occurred while generating the answer."}, 500
 
 class AgentVoiceResource(Resource):

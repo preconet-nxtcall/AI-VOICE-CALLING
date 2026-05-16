@@ -108,7 +108,8 @@ export default function LiveDashboard() {
             return {
               ...c,
               transcripts: [...c.transcripts, { customer: customer_text, ai: ai_text, ts: timestamp }],
-              lastUpdate: timestamp
+              lastUpdate: timestamp,
+              analysis: data.analysis || c.analysis // Preserve or update analysis
             };
           }
           return c;
@@ -254,6 +255,20 @@ export default function LiveDashboard() {
                       {selectedCall.call_sid}
                     </h2>
                   </div>
+                  
+                  {selectedCall.analysis?.appointment_detected && (
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.1)]"
+                    >
+                      <Rocket size={16} className="animate-bounce" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold uppercase tracking-wider leading-none mb-1">Appointment Detected</span>
+                        <span className="text-xs font-medium text-white">{selectedCall.analysis.appointment_details}</span>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <div className="px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700/50 flex flex-col items-center">

@@ -11,14 +11,22 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
-    "You are a professional AI voice assistant. "
-    "Use the provided 'Knowledge context' and 'Conversation history' to keep replies accurate and contextual. "
-    "If the answer is in the context, use it. If not, politely state you don't have that information. "
-    "Keep replies very short and conversational (1-2 sentences max) suitable for a phone call. "
-    "Do not use markdown, bullet points, or complex formatting."
+    "You are a sophisticated, human-like AI Sales Closer. "
+    "CHARACTER: High-energy, empathetic, and persuasive. "
+    "TONE: Warm, professional, and conversational. Use human fillers like 'Hmm,' 'Actually,' or 'That's interesting.' "
+    "MISSION: Your primary goal is to set an appointment or demo. "
+    "EMOTION-AWARE GENERATION: Dynamically adapt your response tone to be 'friendly', 'professional', 'confident', or 'calm' depending on the user's mood. "
+    "EMOTIONAL INTELLIGENCE: "
+    "- If the user sounds confused, simplify and reassure them (calm/friendly). "
+    "- If the user sounds busy, be concise and offer a quick callback (professional). "
+    "- If the user sounds interested, use 'Social Proof' (confident). "
+    "DYNAMICS: "
+    "- Never repeat the same phrase twice. "
+    "- If you were interrupted previously, acknowledge it gracefully. "
+    "- Keep responses under 15 words to maintain a fast, natural phone rhythm."
 )
 _MAX_TOKENS = 120  # headroom for 2 complete sentences without mid-sentence cut-off
-_MAX_MEMORY_MESSAGES = 6  # 3 turns: User, AI, User, AI, User, AI
+_MAX_MEMORY_MESSAGES = 10  # 5 turns: User, AI, User, AI, User, AI, User, AI, User, AI
 _MAX_ACTIVE_CONVERSATIONS = 5000
 _MEMORY_TTL_MINUTES = 30
 
@@ -220,23 +228,28 @@ class AIService:
 
         client = OpenAI(api_key=api_key)
         prompt = (
-            "You are classifying a call transcript.\n"
+            "You are classifying a call transcript for a CRM system.\n"
             f"Allowed lead tags: {tag_options or ['interested', 'not_interested', 'follow_up', 'invalid_number']}.\n"
             f"Handoff trigger hints: {handoff_triggers or ['human', 'agent', 'manager']}.\n"
-            f"Handoff number configured: {has_handoff_number}.\n"
-            "Return strict JSON object with keys: tags (object), should_handoff (boolean), handoff_reason (string).\n"
-            "Keep tag values short strings.\n\n"
+            "SPECIAL TASK: Detect if the user wants to book a meeting, demo, or appointment.\n"
+            "Return strict JSON object with keys:\n"
+            "- tags: (object) current lead tags\n"
+            "- should_handoff: (boolean) if user requested human/agent\n"
+            "- handoff_reason: (string) why handoff was triggered\n"
+            "- appointment_detected: (boolean) true if a date/time or meeting request was mentioned\n"
+            "- appointment_details: (string) the mentioned date/time/purpose if found\n\n"
             f"Transcript:\n{transcript}"
         )
 
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You classify phone call outcomes for CRM tagging."},
+                {"role": "system", "content": "You are a precise sales lead analyzer. Extract tags and appointment intents."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=220,
+            max_tokens=300,
             temperature=0.1,
+            response_format={"type": "json_object"}
         )
         content = (response.choices[0].message.content or "").strip() if response.choices else ""
         if not content:
@@ -247,10 +260,17 @@ class AIService:
             return None
 
         tags = parsed.get("tags") if isinstance(parsed.get("tags"), dict) else {}
+        # Auto-inject appointment tag if detected
+        if parsed.get("appointment_detected"):
+            tags["appointment_status"] = "requested"
+            tags["appointment_info"] = str(parsed.get("appointment_details") or "Requested but no specific time").strip()
+
         return {
             "tags": tags or {"call_outcome": "unknown"},
             "should_handoff": bool(parsed.get("should_handoff")) and has_handoff_number,
             "handoff_reason": str(parsed.get("handoff_reason") or "").strip(),
+            "appointment_detected": bool(parsed.get("appointment_detected")),
+            "appointment_details": str(parsed.get("appointment_details") or "").strip()
         }
 
     @staticmethod
@@ -280,10 +300,22 @@ class AIService:
         if not handoff_triggers:
             should_handoff = has_handoff_number and any(k in lowered for k in ["human", "agent", "manager", "representative"])
 
+        # Appointment keyword detection
+        appointment_keywords = [
+            "meeting", "appointment", "demo", "schedule", "book", "call me back",
+            "milna", "baat karna", "samay", "waqt", "kal", "parso", "monday", "tuesday", 
+            "wednesday", "thursday", "friday", "saturday", "sunday", "morning", "evening"
+        ]
+        appointment_detected = any(k in lowered for k in appointment_keywords)
+        if appointment_detected:
+            tags["appointment_intent"] = "detected_via_keywords"
+
         return {
             "tags": tags,
             "should_handoff": should_handoff,
             "handoff_reason": "trigger_keyword_match" if should_handoff else "",
+            "appointment_detected": appointment_detected,
+            "appointment_details": "Detected via keywords" if appointment_detected else ""
         }
 
     @staticmethod
@@ -348,6 +380,8 @@ class AIService:
                     "Return strict JSON with keys:\n"
                     "- sentiment: one of [Positive, Angry, Neutral]\n"
                     "- lead_intent: one of [Highly Interested, Interested, Not Interested, Neutral]\n"
+                    "- appointment_detected: boolean\n"
+                    "- appointment_info: string (details of any scheduled demo or meeting)\n"
                     "- call_summary: exactly one sentence, concise.\n\n"
                     "Rules:\n"
                     "1) If customer asks about pricing/cost/plan/availability/stock/delivery timeline, "
@@ -379,10 +413,17 @@ class AIService:
                     summary = str(parsed.get("call_summary") or "").strip()
                     if not summary:
                         summary = "Customer and assistant discussed the inquiry with no clear final outcome."
+                    
+                    # Add appointment info to summary if detected
+                    if parsed.get("appointment_detected"):
+                        summary += f" [Appointment: {parsed.get('appointment_info')}]"
+
                     return {
                         "sentiment": sentiment,
                         "lead_intent": lead_intent,
                         "call_summary": summary,
+                        "appointment_detected": bool(parsed.get("appointment_detected")),
+                        "appointment_info": str(parsed.get("appointment_info") or "")
                     }
             except Exception:
                 logger.exception("Post-call LLM analytics failed; using keyword fallback")

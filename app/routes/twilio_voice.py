@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 twilio_voice_bp = Blueprint("twilio_voice", __name__)
 LIVE_CLIENTS = set()
+SENT_APPOINTMENT_EMAILS = set()
+SENT_EMAILS_LOCK = threading.Lock()
 
 def broadcast_live_event(data: dict[str, Any]) -> None:
     """Broadcast a live event to all connected dashboard clients."""
@@ -363,19 +365,59 @@ def _save_tags_and_forwarding(call_sid: Optional[str], tags: dict[str, Any], is_
     try:
         from app.models import db
         from app.models.call_log import CallLog
+        from app.models.lead import Lead
         from sqlalchemy.orm.attributes import flag_modified
 
         log = CallLog.query.filter_by(call_sid=call_sid).first()
-        if not log:
-            return
-        merged_tags = dict(log.tags or {})
-        merged_tags.update(tags or {})
-        log.tags = merged_tags
-        log.is_forwarded = bool(is_forwarded)
-        flag_modified(log, "tags")
+        if log:
+            merged_tags = dict(log.tags or {})
+            merged_tags.update(tags or {})
+            log.tags = merged_tags
+            log.is_forwarded = bool(is_forwarded)
+            flag_modified(log, "tags")
+        
+        # Also sync status to Lead record if it exists
+        lead = Lead.query.filter_by(call_sid=call_sid).first()
+        if lead:
+            if tags.get("appointment_status") == "requested":
+                lead.status = "completed"  # Mark as successful conversion
+            elif is_forwarded:
+                lead.status = "completed"
+                
         db.session.commit()
     except Exception:
         logger.exception("Failed to update tags/forwarding for call_sid=%s", call_sid)
+
+
+def _send_appointment_email(kb_id: str, lead_phone: str, details: str, call_sid: str = None):
+    try:
+        if not kb_id or not call_sid:
+            return
+        
+        with SENT_EMAILS_LOCK:
+            if call_sid in SENT_APPOINTMENT_EMAILS:
+                return
+            SENT_APPOINTMENT_EMAILS.add(call_sid)
+
+        from app.models.knowledge_base import KnowledgeBase
+        from app.models.user import User
+        from app.services.email_service import EmailService
+        import uuid
+        
+        kb_uuid = uuid.UUID(str(kb_id))
+        from app.models import db
+        kb = db.session.get(KnowledgeBase, kb_uuid)
+        if kb:
+            user = db.session.get(User, kb.user_id)
+            if user and user.email:
+                EmailService.send_appointment_notification(
+                    to_email=user.email,
+                    lead_phone=lead_phone,
+                    appointment_details=details,
+                    call_sid=call_sid
+                )
+    except Exception:
+        logger.exception("Failed to send appointment notification email for kb_id=%s", kb_id)
 
 
 def _log_voice_call_event(
@@ -734,9 +776,9 @@ def _build_stream_reply_audio(
     kb_id: str,
     script_config: dict[str, Any],
     pcm16_audio: bytes,
-) -> bytes:
+) -> tuple[bytes, dict[str, Any]]:
     if not pcm16_audio:
-        return b""
+        return b"", {}
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         wav_path = Path(tmp.name)
@@ -755,7 +797,7 @@ def _build_stream_reply_audio(
 
         transcription = STTService.transcribe_file(wav_path, language=primary_lang)
         if not transcription.strip():
-            return b""
+            return b"", {}
 
         raw_context = _get_context(transcription, kb_id)
         try:
@@ -773,7 +815,7 @@ def _build_stream_reply_audio(
             ai_reply = "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
 
         if not ai_reply.strip():
-            return b""
+            return b"", {}
 
         _save_conversation_turn(
             call_sid=call_sid,
@@ -785,6 +827,21 @@ def _build_stream_reply_audio(
             duration_seconds=0,
         )
 
+        # ── Tagging & Handoff Detection (Realtime) ──────────────────────────
+        analysis = {}
+        try:
+            analysis = AIService.analyze_transcript_for_tags(
+                transcript=transcription,
+                script_config=script_config,
+            )
+            _save_tags_and_forwarding(
+                call_sid=call_sid,
+                tags=analysis.get("tags") or {},
+                is_forwarded=bool(analysis.get("should_handoff")),
+            )
+        except Exception:
+            logger.exception("Realtime tagging failed for call_sid=%s", call_sid)
+
         tts_path = Path(TTSService.generate_audio(ai_reply, voice_id=voice_id, language=primary_lang, gender=gender))
         
         # Broadcast live event for monitoring
@@ -794,13 +851,14 @@ def _build_stream_reply_audio(
             "kb_id": kb_id,
             "customer_text": transcription,
             "ai_text": ai_reply,
+            "analysis": analysis,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
-        return _mp3_to_mulaw_8k(tts_path)
+        return _mp3_to_mulaw_8k(tts_path), analysis
     except Exception:
         logger.exception("Realtime stream utterance handling failed for call_sid=%s", call_sid)
-        return b""
+        return b"", {}
     finally:
         try:
             wav_path.unlink(missing_ok=True)
@@ -937,12 +995,44 @@ def voice_media_stream(ws) -> None:
 
             utterance_ms = int((len(utterance) / 2) / (_STREAM_SAMPLE_RATE / 1000))
             if speech_seen and silence_ms >= _STREAM_END_SILENCE_MS and utterance_ms >= _STREAM_MIN_UTTERANCE_MS:
-                mulaw_reply = _build_stream_reply_audio(
+                mulaw_reply, analysis = _build_stream_reply_audio(
                     call_sid=call_sid,
                     kb_id=kb_id,
                     script_config=script_config,
                     pcm16_audio=bytes(utterance),
                 )
+                
+                # Check for Appointments in Realtime
+                if analysis.get("appointment_detected") and call_sid:
+                    logger.info("REALTIME_APPOINTMENT_DETECTED call_sid=%s", call_sid)
+                    direction = request.form.get("Direction", "")
+                    if "outbound" in direction.lower():
+                        lead_phone = (request.form.get("To", "") or "").strip()
+                    else:
+                        lead_phone = (request.form.get("From", "") or "").strip()
+                    
+                    _send_appointment_email(
+                        kb_id=kb_id,
+                        lead_phone=lead_phone,
+                        details=analysis.get("appointment_details", "No details provided"),
+                        call_sid=call_sid
+                    )
+
+                # Check for Handoff in Realtime
+                handoff_number = str(script_config.get("handoff_number") or "").strip()
+                if analysis.get("should_handoff") and handoff_number and call_sid:
+                    logger.info("REALTIME_HANDOFF_TRIGGERED call_sid=%s", call_sid)
+                    from app.services.voice_service import VoiceService
+                    primary_lang = script_config.get("primary_language", "Hindi")
+                    if "HINDI" in primary_lang.upper():
+                        preface = "मैं आपको हमारे मानव विशेषज्ञ से जोड़ रहा हूँ। कृपया लाइन पर रहें।"
+                    else:
+                        preface = "I am connecting you with our human expert. Please stay on the line."
+                    
+                    VoiceService.redirect_to_handoff(call_sid, handoff_number, preface=preface)
+                    # Once redirected, we can stop the media stream.
+                    break
+
                 if mulaw_reply and stream_sid:
                     playback_thread, playback_stop_event = _start_outbound_playback(
                         ws=ws,
@@ -1200,6 +1290,15 @@ def process_recording() -> Response:
                 transcript=transcription,
                 script_config=script_config,
             )
+            
+            # Send appointment email if detected
+            if transcript_analysis.get("appointment_detected") and call_sid:
+                _send_appointment_email(
+                    kb_id=kb_id,
+                    lead_phone=caller_number,
+                    details=transcript_analysis.get("appointment_details", "No details provided"),
+                    call_sid=call_sid
+                )
         except Exception:
             logger.exception("Transcript tagging failed for call_sid=%s", call_sid)
     elif transcription_failed:
@@ -1234,7 +1333,11 @@ def process_recording() -> Response:
     )
     if should_handoff:
         logger.info("HANDOFF_TRIGGERED call_sid=%s number=%s", call_sid, handoff_number)
-        handoff_preface = "मैं आपको हमारे मानव विशेषज्ञ से जोड़ रहा हूँ। कृपया लाइन पर रहें।"
+        primary_lang = script_config.get("primary_language", "Hindi")
+        if "HINDI" in primary_lang.upper():
+            handoff_preface = "मैं आपको हमारे मानव विशेषज्ञ से जोड़ रहा हूँ। कृपया लाइन पर रहें।"
+        else:
+            handoff_preface = "I am connecting you with our human expert. Please stay on the line."
         return Response(
             VoiceService.build_handoff_twiml(handoff_number=handoff_number, preface=handoff_preface),
             mimetype="text/xml",
@@ -1244,6 +1347,20 @@ def process_recording() -> Response:
 
     return Response(str(twiml), mimetype="text/xml")
 
+
+@twilio_voice_bp.route("/voice/handoff-twiml", methods=["GET", "POST"])
+def voice_handoff_twiml() -> Response:
+    """
+    Endpoint used for redirecting an active call to a handoff.
+    """
+    handoff_number = request.args.get("handoff_number") or request.form.get("handoff_number")
+    preface = request.args.get("preface") or request.form.get("preface")
+    
+    if not handoff_number:
+        return Response("<Response><Hangup/></Response>", mimetype="text/xml")
+        
+    twiml = VoiceService.build_handoff_twiml(handoff_number=handoff_number, preface=preface)
+    return Response(str(twiml), mimetype="text/xml")
 
 @twilio_voice_bp.get("/voice/audio/<filename>")
 def serve_tts_audio(filename: str) -> Response:
@@ -1279,6 +1396,9 @@ def voice_status_callback() -> Response:
         phone = (request.form.get("From", "") or "").strip()
 
     logger.info("VOICE_STATUS_CALLBACK call_sid=%s status=%s duration=%s", call_sid, status, duration)
+    
+    with SENT_EMAILS_LOCK:
+        SENT_APPOINTMENT_EMAILS.discard(call_sid)
 
     # Convert Twilio status to our internal status
     internal_status = "completed" if status == "completed" else "failed"
@@ -1323,6 +1443,9 @@ def voice_status_callback() -> Response:
                         "call_summary": post_call.get("call_summary", ""),
                     }
                 )
+                if post_call.get("appointment_detected"):
+                    merged_tags["appointment_status"] = "requested"
+                    merged_tags["appointment_info"] = post_call.get("appointment_info")
                 _save_tags_and_forwarding(
                     call_sid=call_sid,
                     tags=merged_tags,

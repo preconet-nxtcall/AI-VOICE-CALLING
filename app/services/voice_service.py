@@ -1,4 +1,4 @@
-﻿import os
+import os
 import logging
 import io
 import base64
@@ -182,3 +182,43 @@ class VoiceService:
         except Exception as e:
             logger.exception("Failed to initiate outbound call to %s: %s", to_number, str(e))
             raise e
+    @staticmethod
+    def redirect_to_handoff(call_sid: str, handoff_number: str, preface: Optional[str] = None) -> None:
+        """
+        Force a call in progress to redirect to a handoff TwiML.
+        Useful for breaking out of a Media Stream loop.
+        """
+        account_sid = _get_api_key("TWILIO_ACCOUNT_SID")
+        auth_token = _get_api_key("TWILIO_AUTH_TOKEN")
+        
+        try:
+            from flask import current_app, request
+            base_url = current_app.config.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+            if not base_url and request:
+                base_url = request.host_url.rstrip("/")
+        except RuntimeError:
+            base_url = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+            
+        if not account_sid or not auth_token or not base_url:
+            logger.error("Missing Twilio/BaseURL config for call redirect.")
+            return
+
+        from twilio.rest import Client
+        client = Client(account_sid, auth_token)
+        
+        # We need a URL that returns the handoff TwiML. 
+        # We can use a dedicated endpoint or reuse the logic.
+        # Let's assume we have an endpoint /voice/handoff-twiml
+        import urllib.parse
+        params = {"handoff_number": handoff_number}
+        if preface:
+            params["preface"] = preface
+            
+        query = urllib.parse.urlencode(params)
+        redirect_url = f"{base_url}/voice/handoff-twiml?{query}"
+        
+        try:
+            client.calls(call_sid).update(url=redirect_url, method="POST")
+            logger.info("Redirected call %s to handoff at %s", call_sid, handoff_number)
+        except Exception:
+            logger.exception("Failed to redirect call %s to handoff", call_sid)
