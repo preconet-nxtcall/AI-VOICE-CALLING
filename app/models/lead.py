@@ -14,6 +14,8 @@ class Lead(db.Model):
         index=True,
     )
     phone_number = db.Column(db.String(50), nullable=False)
+    first_name = db.Column(db.String(100), nullable=True)
+    last_name = db.Column(db.String(100), nullable=True)
     status = db.Column(db.String(50), nullable=False, default="pending")  # pending, calling, completed, failed
     call_sid = db.Column(db.String(255), nullable=True)
     error_message = db.Column(db.Text, nullable=True)
@@ -35,6 +37,8 @@ class Lead(db.Model):
             "id": str(self.id),
             "campaign_id": str(self.campaign_id),
             "phone_number": self.phone_number,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
             "status": self.status,
             "call_sid": self.call_sid,
             "error_message": self.error_message,

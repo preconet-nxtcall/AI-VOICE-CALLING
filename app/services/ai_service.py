@@ -11,19 +11,13 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
-    "You are a sophisticated, human-like AI Sales Closer. "
-    "CHARACTER: High-energy, empathetic, and persuasive. "
-    "TONE: Warm, professional, and conversational. Use human fillers like 'Hmm,' 'Actually,' or 'That's interesting.' "
-    "MISSION: Your primary goal is to set an appointment or demo. "
-    "EMOTION-AWARE GENERATION: Dynamically adapt your response tone to be 'friendly', 'professional', 'confident', or 'calm' depending on the user's mood. "
-    "EMOTIONAL INTELLIGENCE: "
-    "- If the user sounds confused, simplify and reassure them (calm/friendly). "
-    "- If the user sounds busy, be concise and offer a quick callback (professional). "
-    "- If the user sounds interested, use 'Social Proof' (confident). "
-    "DYNAMICS: "
-    "- Never repeat the same phrase twice. "
-    "- If you were interrupted previously, acknowledge it gracefully. "
-    "- Keep responses under 15 words to maintain a fast, natural phone rhythm."
+    "You are a professional AI voice assistant on a live phone call. "
+    "PERSONALITY: Friendly, confident, and natural — never robotic. Speak like a real human agent, not a chatbot. "
+    "RULES: Never use markdown, bullet points, numbers, or any formatting. Keep every response under 2 sentences. "
+    "Never say 'As an AI' or 'I am a language model'. Never repeat the same phrase twice in a row. "
+    "LANGUAGE: Use simple, conversational Hindi and English. Avoid technical jargon. "
+    "If unsure, say: 'Let me check that for you.' Always use the caller's name if you know it. "
+    "ROLE: You are a sales agent for NxtCall, helping businesses set up AI-powered calling campaigns."
 )
 _MAX_TOKENS = 120  # headroom for 2 complete sentences without mid-sentence cut-off
 _MAX_MEMORY_MESSAGES = 10  # 5 turns: User, AI, User, AI, User, AI, User, AI, User, AI
@@ -106,6 +100,9 @@ class AIService:
         else:
             full_system_prompt = f"{_SYSTEM_PROMPT}\n\n{lang_instruction}"
 
+        if not user_text or not user_text.strip():
+            return "Hello? Are you still there?"
+
         try:
             # For voice calls, we still want short replies, but gpt-4o is better at nuances
             response = client.chat.completions.create(
@@ -178,10 +175,11 @@ class AIService:
             _CALL_LAST_SEEN.pop(cid, None)
             _CALL_MEMORY.pop(cid, None)
 
-        if len(_CALL_LAST_SEEN) <= _MAX_ACTIVE_CONVERSATIONS:
+        # Only prune by count if we exceed the limit by 10% to avoid sorting too often
+        if len(_CALL_LAST_SEEN) <= int(_MAX_ACTIVE_CONVERSATIONS * 1.1):
             return
 
-        # Drop oldest conversations first to enforce hard cap.
+        # Drop oldest conversations first to enforce hard cap back to 100%
         oldest_ids = sorted(_CALL_LAST_SEEN, key=_CALL_LAST_SEEN.get)[
             : len(_CALL_LAST_SEEN) - _MAX_ACTIVE_CONVERSATIONS
         ]
@@ -228,14 +226,16 @@ class AIService:
 
         client = OpenAI(api_key=api_key)
         prompt = (
-            "You are classifying a call transcript for a CRM system.\n"
+            "You are a professional sales lead classifier for a CRM.\n"
             f"Allowed lead tags: {tag_options or ['interested', 'not_interested', 'follow_up', 'invalid_number']}.\n"
             f"Handoff trigger hints: {handoff_triggers or ['human', 'agent', 'manager']}.\n"
-            "SPECIAL TASK: Detect if the user wants to book a meeting, demo, or appointment.\n"
-            "Return strict JSON object with keys:\n"
+            "SPECIAL TASKS:\n"
+            "1. Detect if the user explicitly wants to book a meeting, demo, or appointment.\n"
+            "2. Detect if the user requested to speak with a human/manager (handoff).\n"
+            "Return strict JSON with keys:\n"
             "- tags: (object) current lead tags\n"
-            "- should_handoff: (boolean) if user requested human/agent\n"
-            "- handoff_reason: (string) why handoff was triggered\n"
+            "- should_handoff: (boolean) true if human agent requested\n"
+            "- handoff_reason: (string) specific reason for handoff\n"
             "- appointment_detected: (boolean) true if a date/time or meeting request was mentioned\n"
             "- appointment_details: (string) the mentioned date/time/purpose if found\n\n"
             f"Transcript:\n{transcript}"
@@ -416,7 +416,7 @@ class AIService:
                     
                     # Add appointment info to summary if detected
                     if parsed.get("appointment_detected"):
-                        summary += f" [Appointment: {parsed.get('appointment_info')}]"
+                        summary = f"{summary.rstrip('.')} (Appointment: {parsed.get('appointment_info')})."
 
                     return {
                         "sentiment": sentiment,

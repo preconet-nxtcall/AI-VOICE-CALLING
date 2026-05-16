@@ -329,24 +329,22 @@ def _parse_script_config(raw_content: Optional[str]) -> dict[str, Any]:
     return {"prompt": content}
 
 
-def _get_campaign_and_script_config(call_sid: Optional[str]) -> tuple[Optional[Any], dict[str, Any]]:
+def _get_campaign_and_script_config(call_sid: Optional[str]) -> tuple[Optional[Any], Optional[Any], dict[str, Any]]:
     if not call_sid:
-        return None, {}
+        return None, None, {}
     try:
         from app.models.lead import Lead
         from app.models.campaign import Campaign
 
         lead = Lead.query.filter_by(call_sid=call_sid).first()
         if not lead:
-            return None, {}
-        campaign = Campaign.query.get(lead.campaign_id)
-        if not campaign:
-            return None, {}
-        script = getattr(campaign, "script", None)
-        return campaign, _parse_script_config(getattr(script, "content", None))
+            return None, None, {}
+        campaign = db.session.get(Campaign, lead.campaign_id) if lead.campaign_id else None
+        script = getattr(campaign, "script", None) if campaign else None
+        return lead, campaign, _parse_script_config(getattr(script, "content", None))
     except Exception:
         logger.exception("Failed to load campaign/script config for call_sid=%s", call_sid)
-        return None, {}
+        return None, None, {}
 
 
 def _conversation_to_plain_text(conversation: list[dict[str, Any]]) -> str:
@@ -774,6 +772,7 @@ def _stream_mulaw_audio(ws, stream_sid: str, mulaw_audio: bytes) -> None:
 def _build_stream_reply_audio(
     call_sid: Optional[str],
     kb_id: str,
+    lead_name: Optional[str],
     script_config: dict[str, Any],
     pcm16_audio: bytes,
 ) -> tuple[bytes, dict[str, Any]]:
@@ -800,6 +799,9 @@ def _build_stream_reply_audio(
             return b"", {}
 
         raw_context = _get_context(transcription, kb_id)
+        if lead_name:
+            raw_context = f"IMPORTANT: The caller's name is {lead_name}. Use it naturally in the conversation.\n\n{raw_context}"
+
         try:
             ai_reply = AIService.generate_reply(
                 user_text=transcription,
@@ -918,7 +920,8 @@ def voice_media_stream(ws) -> None:
     kb_id = request.args.get("kb_id", "").strip()
     if not kb_id:
         kb_id = _resolve_kb_id()
-    _, script_config = _get_campaign_and_script_config(call_sid)
+    lead, _, script_config = _get_campaign_and_script_config(call_sid)
+    lead_name = getattr(lead, "first_name", "") if lead else ""
 
     pcm_buffer = bytearray()
     utterance = bytearray()
@@ -998,6 +1001,7 @@ def voice_media_stream(ws) -> None:
                 mulaw_reply, analysis = _build_stream_reply_audio(
                     call_sid=call_sid,
                     kb_id=kb_id,
+                    lead_name=lead_name,
                     script_config=script_config,
                     pcm16_audio=bytes(utterance),
                 )
@@ -1069,7 +1073,7 @@ def voice() -> Response:
         return Response(str(_unavailable_and_hangup_twiml()), mimetype="text/xml")
 
     twiml = VoiceResponse()
-    _, script_config = _get_campaign_and_script_config(request.form.get("CallSid"))
+    lead, _, script_config = _get_campaign_and_script_config(request.form.get("CallSid"))
     voice_id = str(script_config.get("voice_id") or "").strip() or None
     primary_lang = script_config.get("primary_language", "Hindi")
     gender = script_config.get("voice_style", "female")
@@ -1141,7 +1145,8 @@ def process_recording() -> Response:
     except ValueError:
         recording_duration = 0
     kb_id = _resolve_kb_id()
-    campaign, script_config = _get_campaign_and_script_config(call_sid)
+    lead, campaign, script_config = _get_campaign_and_script_config(call_sid)
+    lead_name = getattr(lead, "first_name", "") if lead else ""
     logger.info(
         "VOICE_PIPELINE_START call_sid=%s recording_sid=%s to=%s",
         call_sid,
@@ -1225,6 +1230,8 @@ def process_recording() -> Response:
     if transcription:
         logger.info("STEP_3_GET_CONTEXT call_sid=%s kb_id=%s", call_sid, kb_id)
         raw_context = _get_context(transcription, kb_id)
+        if lead_name:
+            raw_context = f"IMPORTANT: The caller's name is {lead_name}. Use it naturally in the conversation.\n\n{raw_context}"
 
         try:
             logger.info("STEP_4_AI_GENERATE call_sid=%s", call_sid)
@@ -1428,7 +1435,7 @@ def voice_status_callback() -> Response:
 
             call_log = CallLog.query.filter_by(call_sid=call_sid).first()
             if call_log:
-                _, script_config = _get_campaign_and_script_config(call_sid)
+                lead, _, script_config = _get_campaign_and_script_config(call_sid)
                 transcript_text = _conversation_to_plain_text(call_log.conversation or [])
                 analysis = AIService.analyze_transcript_for_tags(
                     transcript=transcript_text,
