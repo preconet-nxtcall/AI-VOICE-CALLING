@@ -339,3 +339,27 @@ class CampaignLeadListResource(Resource):
         )
 
         return success({"leads": [l.to_dict() for l in leads]}, 200)
+
+
+class CampaignSweepResource(Resource):
+    """Manually trigger a dialer sweep (useful for testing or manual dialing)."""
+
+    @jwt_required()
+    def post(self):
+        user_id = get_jwt_identity()
+        try:
+            user_uuid = uuid.UUID(str(user_id))
+        except ValueError:
+            return error("Invalid user identity.", 401)
+
+        # Execute a single dialer sweep
+        try:
+            from app.services.dialer_worker import dialer_sweep_once
+            stats = dialer_sweep_once()
+            return success({
+                "message": "Manual dialer sweep completed successfully.",
+                "stats": stats
+            }, 200)
+        except Exception as e:
+            current_app.logger.exception("Manual dialer sweep failed")
+            return error(f"Failed to execute dialer sweep: {str(e)}", 500)
