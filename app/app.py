@@ -28,7 +28,7 @@ def create_app(config_override=None):
     bcrypt.init_app(app)
     Migrate(app, db)
     
-    # Programmatically run migrations on startup
+    # Programmatically run migrations on startup to keep DB in sync
     try:
         from flask_migrate import upgrade
         with app.app_context():
