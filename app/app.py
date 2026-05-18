@@ -27,6 +27,17 @@ def create_app(config_override=None):
     db.init_app(app)
     bcrypt.init_app(app)
     Migrate(app, db)
+    
+    # Programmatically run migrations on startup
+    try:
+        from flask_migrate import upgrade
+        with app.app_context():
+            app.logger.info("Programmatically running database upgrade...")
+            upgrade()
+            app.logger.info("Database upgrade completed successfully.")
+    except Exception as e:
+        app.logger.error("Failed to run database upgrade: %s", e)
+
     jwt = JWTManager(app)
 
     # Distributed queue / dialer mode selection
