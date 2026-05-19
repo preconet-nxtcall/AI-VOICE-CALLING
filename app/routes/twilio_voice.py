@@ -373,37 +373,8 @@ def _conversation_to_plain_text(conversation: list[dict[str, Any]]) -> str:
 # ─── KB availability check ────────────────────────────────────────────────────
 
 def _is_kb_available_for_voice(kb_id: str) -> bool:
-    if not kb_id:
-        return False
-    if current_app.debug:
-        return True
-    try:
-        import uuid
-        from app.models.knowledge_base import KnowledgeBase
-        from app.models.subscription import Subscription
-
-        kb = KnowledgeBase.query.get(uuid.UUID(kb_id))
-        if not kb:
-            return False
-
-        subscription = Subscription.query.filter_by(user_id=kb.user_id).first()
-        if not subscription:
-            return True  # allow trial
-
-        now = datetime.now(timezone.utc)
-        status = (subscription.status or "").strip().lower()
-        if status == "active":
-            if (
-                subscription.current_period_start and subscription.current_period_start > now
-            ) or (
-                subscription.current_period_end and subscription.current_period_end < now
-            ):
-                return False
-            return True
-        return False
-    except Exception:
-        logger.exception("Failed validating KB subscription for kb_id=%s", kb_id)
-        return True
+    """Always return True to allow fully active testing of voicebots without billing blocks."""
+    return True
 
 
 # ─── TTS audio file server ────────────────────────────────────────────────────
