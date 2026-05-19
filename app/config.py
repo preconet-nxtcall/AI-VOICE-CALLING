@@ -22,17 +22,12 @@ class Config:
     # RAG / embeddings
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
     FAISS_INDEX_DIR = os.environ.get("FAISS_INDEX_DIR", "./faiss_indices")
-    # Twilio
-    TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
-    TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
-    TWILIO_DEFAULT_KB_ID = os.environ.get("TWILIO_DEFAULT_KB_ID", "")
-    TWILIO_TENANT_KB_BY_NUMBER = os.environ.get("TWILIO_TENANT_KB_BY_NUMBER", "")
-    TWILIO_TENANT_KB_BY_ACCOUNT = os.environ.get("TWILIO_TENANT_KB_BY_ACCOUNT", "")
-    TWILIO_REQUIRE_TENANT_MATCH = _env_bool("TWILIO_REQUIRE_TENANT_MATCH", False)
+    # VoiceLink Telephony
+    VOICELINK_API_TOKEN = os.environ.get("VOICELINK_API_TOKEN", "")
+    VOICELINK_DID_NUMBER = os.environ.get("VOICELINK_DID_NUMBER", "")
+    VOICELINK_COUNTRY_CODE = os.environ.get("VOICELINK_COUNTRY_CODE", "91")
+    # Public URL for VoiceLink WebSocket + webhook callbacks
     PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
-    TWILIO_REALTIME_STREAM_ENABLED = _env_bool("TWILIO_REALTIME_STREAM_ENABLED", False)
-    TWILIO_MEDIA_STREAM_URL = os.environ.get("TWILIO_MEDIA_STREAM_URL", "")
-    TWILIO_MEDIA_STREAM_TRACK = os.environ.get("TWILIO_MEDIA_STREAM_TRACK", "inbound_track")
     # Voice AI
     ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
     ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")

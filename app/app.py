@@ -78,6 +78,11 @@ def create_app(config_override=None):
     from app.routes.twilio_voice import twilio_voice_bp
     app.register_blueprint(twilio_voice_bp)
 
+    from app.routes.voicelink_voice import voicelink_voice_bp, register_voicelink_websocket
+    app.register_blueprint(voicelink_voice_bp)
+    register_voicelink_websocket(sock)
+
+
     # --- JWT error handlers (return JSON, not HTML) ---
 
     @jwt.expired_token_loader

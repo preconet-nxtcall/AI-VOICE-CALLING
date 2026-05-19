@@ -1,16 +1,32 @@
-import os
-import logging
+"""
+voice_service.py
+~~~~~~~~~~~~~~~~
+Core voice service for the AI Voice Calling system (VoiceLink only).
+
+Provides:
+  • VoiceService.make_outbound_call  — POST to VoiceLink add_lead API
+  • VoiceService.transcribe          — Whisper STT
+  • VoiceService.synthesize          — ElevenLabs / gTTS TTS
+"""
+
+from __future__ import annotations
+
 import io
-import base64
+import json
+import logging
+import os
+import uuid
 from typing import Optional, Tuple
-from openai import OpenAI
-from gtts import gTTS
+
 import requests
-from twilio.twiml.voice_response import VoiceResponse
+from gtts import gTTS
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
+
 def _get_api_key(key_name: str) -> str:
+    """Read a config key from the Flask app config, falling back to env vars."""
     try:
         from flask import current_app
         key = current_app.config.get(key_name)
@@ -18,207 +34,194 @@ def _get_api_key(key_name: str) -> str:
         key = None
     return key or os.environ.get(key_name, "")
 
-class VoiceService:
-    @staticmethod
-    def build_handoff_twiml(handoff_number: str, preface: Optional[str] = None) -> str:
-        """
-        Build TwiML that optionally informs the caller, then forwards to a human.
-        """
-        number = (handoff_number or "").strip()
-        if not number:
-            raise ValueError("handoff_number is required for call forwarding.")
 
-        twiml = VoiceResponse()
-        if preface:
-            twiml.say(preface, voice="alice", language="hi-IN")
-        twiml.dial(number)
-        return str(twiml)
+class VoiceService:
+    # ─── Outbound Calling ─────────────────────────────────────────────────────
+
+    @staticmethod
+    def make_outbound_call(
+        to_number: str,
+        kb_id: str,
+        from_number_override: Optional[str] = None,
+    ) -> str:
+        """
+        Initiate an outbound AI call via VoiceLink.
+        Returns a temporary call-sid that is replaced by the real one once
+        VoiceLink sends the 'start' event on the WebSocket.
+        """
+        # Resolve the public base URL
+        try:
+            from flask import current_app, request as flask_request
+            base_url = current_app.config.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+            if not base_url:
+                base_url = flask_request.host_url.rstrip("/")
+        except RuntimeError:
+            base_url = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+        if not base_url:
+            raise ValueError("PUBLIC_BASE_URL is not configured.")
+
+        api_token = _get_api_key("VOICELINK_API_TOKEN")
+        did_number = (from_number_override or "").strip() or _get_api_key("VOICELINK_DID_NUMBER")
+        country_code = _get_api_key("VOICELINK_COUNTRY_CODE").strip() or "91"
+
+        if not api_token:
+            raise ValueError("VOICELINK_API_TOKEN is not configured.")
+        if not did_number:
+            raise ValueError("VOICELINK_DID_NUMBER is not configured for outbound calls.")
+
+        # Generate a temporary placeholder SID; replaced by the real callSid in the WS 'start' event
+        temp_call_sid = f"vl_{uuid.uuid4().hex}"
+
+        # custom_parameters max 255 chars
+        custom_params = json.dumps({"kb_id": kb_id, "temp_call_sid": temp_call_sid})
+        if len(custom_params) > 255:
+            custom_params = json.dumps({"kb_id": kb_id})
+
+        # VoiceLink requires wss:// for the media stream
+        ws_base = base_url.replace("https://", "wss://").replace("http://", "ws://")
+        websocket_url = f"{ws_base}/voice/voicelink-stream"
+        webhook_url = f"{base_url}/voice/voicelink-status-callback"
+
+        payload = {
+            "did_number": did_number,
+            "customer_number": to_number,
+            "country_code": country_code,
+            "custom_parameters": custom_params,
+            "websocket_url": websocket_url,
+            "webhook_url": webhook_url,
+            "call_limit": 1,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            resp = requests.post(
+                "https://app.voicelink.co.in/api/v1/add_lead",
+                json=payload,
+                headers=headers,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            logger.info(
+                "[VoiceLink] Lead added for %s  temp_call_sid=%s  response=%s",
+                to_number,
+                temp_call_sid,
+                resp.text[:200],
+            )
+            return temp_call_sid
+        except Exception:
+            logger.exception("[VoiceLink] Failed to add lead for %s", to_number)
+            raise
+
+    # ─── Speech-to-Text ───────────────────────────────────────────────────────
 
     @staticmethod
     def transcribe(audio_file) -> str:
         """
-        Transcribes audio using OpenAI Whisper.
+        Transcribe audio using OpenAI Whisper.
         audio_file should be a file-like object or a path.
         """
         api_key = _get_api_key("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY is not configured.")
-        
+
         client = OpenAI(api_key=api_key)
-        
+
         try:
-            # Ensure we're at the beginning of the file
-            if hasattr(audio_file, 'seek'):
+            if hasattr(audio_file, "seek"):
                 audio_file.seek(0)
 
-            # Determine extension from filename or content_type
-            orig_filename = getattr(audio_file, 'filename', '') or getattr(audio_file, 'name', '') or 'audio.wav'
-            content_type = getattr(audio_file, 'content_type', '')
-            
+            orig_filename = (
+                getattr(audio_file, "filename", "")
+                or getattr(audio_file, "name", "")
+                or "audio.wav"
+            )
+            content_type = getattr(audio_file, "content_type", "")
+
             ext = os.path.splitext(orig_filename)[1]
             if not ext:
-                if 'audio/webm' in content_type:
-                    ext = '.webm'
-                elif 'audio/mp4' in content_type or 'audio/m4a' in content_type:
-                    ext = '.m4a'
-                elif 'audio/mpeg' in content_type:
-                    ext = '.mp3'
-                elif 'audio/ogg' in content_type:
-                    ext = '.ogg'
+                if "audio/webm" in content_type:
+                    ext = ".webm"
+                elif "audio/mp4" in content_type or "audio/m4a" in content_type:
+                    ext = ".m4a"
+                elif "audio/mpeg" in content_type:
+                    ext = ".mp3"
+                elif "audio/ogg" in content_type:
+                    ext = ".ogg"
                 else:
-                    ext = '.wav'
-            
-            filename = f"audio{ext}"
+                    ext = ".wav"
 
             transcript = client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=(filename, audio_file)
+                model="whisper-1",
+                file=(f"audio{ext}", audio_file),
             )
             return transcript.text
-        except Exception as e:
-            logger.exception(f"Whisper transcription failed: {str(e)}")
-            raise e
+        except Exception:
+            logger.exception("Whisper transcription failed")
+            raise
+
+    # ─── Text-to-Speech ───────────────────────────────────────────────────────
 
     @staticmethod
     def synthesize(text: str) -> Tuple[bytes, str]:
         """
-        Synthesizes text to speech using ElevenLabs (if key available) or gTTS.
-        Returns a tuple of (audio_bytes, content_type).
+        Synthesize text to speech using ElevenLabs (preferred) or gTTS (fallback).
+        Returns (audio_bytes, content_type).
         """
         eleven_key = _get_api_key("ELEVENLABS_API_KEY")
-        
-        # Language-specific voice ID selection
+
         voice_id = _get_api_key("ELEVENLABS_VOICE_ID")
         if not voice_id:
-            # Simple character detection for voice ID selection
-            if any('\u0900' <= char <= '\u097f' for char in text):
-                voice_id = _get_api_key("ELEVENLABS_VOICE_ID_HINDI_FEMALE") or _get_api_key("ELEVENLABS_VOICE_ID_HINDI_MALE")
+            if any("\u0900" <= ch <= "\u097f" for ch in text):
+                voice_id = (
+                    _get_api_key("ELEVENLABS_VOICE_ID_HINDI_FEMALE")
+                    or _get_api_key("ELEVENLABS_VOICE_ID_HINDI_MALE")
+                )
             else:
-                voice_id = _get_api_key("ELEVENLABS_VOICE_ID_ENGLISH_FEMALE") or _get_api_key("ELEVENLABS_VOICE_ID_ENGLISH_MALE")
-        
+                voice_id = (
+                    _get_api_key("ELEVENLABS_VOICE_ID_ENGLISH_FEMALE")
+                    or _get_api_key("ELEVENLABS_VOICE_ID_ENGLISH_MALE")
+                )
+
         if not voice_id:
-            voice_id = "21m00Tcm4TlvDq8ikWAM" # Default: Rachel
-        
+            voice_id = "21m00Tcm4TlvDq8ikWAM"  # Default: Rachel
+
         if eleven_key:
             try:
                 url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
                 headers = {
                     "Accept": "audio/mpeg",
                     "Content-Type": "application/json",
-                    "xi-api-key": eleven_key
+                    "xi-api-key": eleven_key,
                 }
                 data = {
                     "text": text,
                     "model_id": "eleven_multilingual_v2",
-                    "voice_settings": {
-                        "stability": 0.5,
-                        "similarity_boost": 0.75
-                    }
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
                 }
                 response = requests.post(url, json=data, headers=headers)
                 if response.status_code == 200:
                     return response.content, "audio/mpeg"
-                else:
-                    logger.error(f"ElevenLabs API failed with status {response.status_code}: {response.text}")
-            except Exception as e:
+                logger.error(
+                    "ElevenLabs API failed with status %s: %s",
+                    response.status_code,
+                    response.text,
+                )
+            except Exception:
                 logger.exception("ElevenLabs synthesis failed, falling back to gTTS")
-        
-        # Fallback to gTTS
+
+        # gTTS fallback
         try:
-            # Simple language detection
-            detected_lang = 'en'
-            if any('\u0900' <= char <= '\u097f' for char in text):
-                detected_lang = 'hi'
+            detected_lang = "hi" if any("\u0900" <= ch <= "\u097f" for ch in text) else "en"
             tts = gTTS(text=text, lang=detected_lang)
             fp = io.BytesIO()
             tts.write_to_fp(fp)
             fp.seek(0)
             return fp.read(), "audio/mpeg"
-        except Exception as e:
-            logger.exception("gTTS synthesis failed")
-            raise e
-
-    @staticmethod
-    def make_outbound_call(to_number: str, kb_id: str, from_number_override: Optional[str] = None) -> str:
-        """
-        Initiates an outbound Twilio call.
-        Returns the Call SID.
-        """
-        account_sid = _get_api_key("TWILIO_ACCOUNT_SID")
-        auth_token = _get_api_key("TWILIO_AUTH_TOKEN")
-        from_number = (from_number_override or "").strip() or _get_api_key("TWILIO_PHONE_NUMBER")
-        
-        try:
-            from flask import current_app, request
-            base_url = current_app.config.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
-            if not base_url and request:
-                base_url = request.host_url.rstrip("/")
-        except RuntimeError:
-            base_url = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
-
-        if not account_sid or not auth_token:
-            raise ValueError("TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN is not configured.")
-        if not from_number:
-            raise ValueError("TWILIO_PHONE_NUMBER is not configured for outbound calls.")
-        if not base_url:
-            raise ValueError("PUBLIC_BASE_URL is not configured (or no active request).")
-
-        from twilio.rest import Client
-        client = Client(account_sid, auth_token)
-
-        webhook_url = f"{base_url}/voice?kb_id={kb_id}"
-
-        try:
-            call = client.calls.create(
-                to=to_number,
-                from_=from_number,
-                url=webhook_url,
-                status_callback=f"{base_url}/voice/status-callback?kb_id={kb_id}",
-                status_callback_event=["completed", "failed", "busy", "no-answer", "canceled"],
-                status_callback_method="POST",
-            )
-            logger.info("Initiated outbound call to %s. SID: %s", to_number, call.sid)
-            return call.sid
-        except Exception as e:
-            logger.exception("Failed to initiate outbound call to %s: %s", to_number, str(e))
-            raise e
-    @staticmethod
-    def redirect_to_handoff(call_sid: str, handoff_number: str, preface: Optional[str] = None) -> None:
-        """
-        Force a call in progress to redirect to a handoff TwiML.
-        Useful for breaking out of a Media Stream loop.
-        """
-        account_sid = _get_api_key("TWILIO_ACCOUNT_SID")
-        auth_token = _get_api_key("TWILIO_AUTH_TOKEN")
-        
-        try:
-            from flask import current_app, request
-            base_url = current_app.config.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
-            if not base_url and request:
-                base_url = request.host_url.rstrip("/")
-        except RuntimeError:
-            base_url = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
-            
-        if not account_sid or not auth_token or not base_url:
-            logger.error("Missing Twilio/BaseURL config for call redirect.")
-            return
-
-        from twilio.rest import Client
-        client = Client(account_sid, auth_token)
-        
-        # We need a URL that returns the handoff TwiML. 
-        # We can use a dedicated endpoint or reuse the logic.
-        # Let's assume we have an endpoint /voice/handoff-twiml
-        import urllib.parse
-        params = {"handoff_number": handoff_number}
-        if preface:
-            params["preface"] = preface
-            
-        query = urllib.parse.urlencode(params)
-        redirect_url = f"{base_url}/voice/handoff-twiml?{query}"
-        
-        try:
-            client.calls(call_sid).update(url=redirect_url, method="POST")
-            logger.info("Redirected call %s to handoff at %s", call_sid, handoff_number)
         except Exception:
-            logger.exception("Failed to redirect call %s to handoff", call_sid)
+            logger.exception("gTTS synthesis failed")
+            raise

@@ -10,16 +10,19 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = (
+_BASE_SYSTEM_PROMPT = (
     "You are a professional AI voice assistant on a live phone call. "
     "PERSONALITY: Friendly, confident, and natural — never robotic. Speak like a real human agent, not a chatbot. "
     "RULES: Never use markdown, bullet points, numbers, or any formatting. Keep every response under 2 sentences. "
     "Never say 'As an AI' or 'I am a language model'. Never repeat the same phrase twice in a row. "
     "LANGUAGE: Use simple, conversational Hindi and English. Avoid technical jargon. "
-    "If unsure, say: 'Let me check that for you.' Always use the caller's name if you know it. "
-    "ROLE: You are a sales agent for NxtCall, helping businesses set up AI-powered calling campaigns."
+    "If unsure, say: 'Let me check that for you.' Always use the caller's name if you know it."
 )
-_MAX_TOKENS = 120  # headroom for 2 complete sentences without mid-sentence cut-off
+
+# For backward-compatibility keep alias
+_SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT
+
+_MAX_TOKENS = 150  # 2 full sentences; bumped from 120 to prevent mid-sentence cut-off in Hindi
 _MAX_MEMORY_MESSAGES = 10  # 5 turns: User, AI, User, AI, User, AI, User, AI, User, AI
 _MAX_ACTIVE_CONVERSATIONS = 5000
 _MEMORY_TTL_MINUTES = 30
@@ -92,13 +95,17 @@ class AIService:
         script_instruction = (script_prompt or "").strip()
         if script_instruction:
             full_system_prompt = (
-                f"{_SYSTEM_PROMPT}\n\n"
+                f"{_BASE_SYSTEM_PROMPT}\n\n"
                 f"{lang_instruction}\n"
                 "Follow these campaign-specific instructions:\n"
                 f"{script_instruction}"
             )
         else:
-            full_system_prompt = f"{_SYSTEM_PROMPT}\n\n{lang_instruction}"
+            full_system_prompt = (
+                f"{_BASE_SYSTEM_PROMPT}\n\n"
+                f"{lang_instruction}\n"
+                "ROLE: You are a helpful sales agent. Answer customer questions professionally."
+            )
 
         if not user_text or not user_text.strip():
             return "Hello? Are you still there?"

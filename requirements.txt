@@ -24,8 +24,6 @@ gTTS==2.5.1
 elevenlabs==1.50.5
 pydub==0.25.1
 
-# Twilio
-twilio==9.3.3
 
 # Dev / testing
 pytest==8.2.0

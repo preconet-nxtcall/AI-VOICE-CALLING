@@ -3,9 +3,8 @@ import { Loader2, Plus, Upload, ChevronDown, ChevronUp, Play, Pause, CalendarClo
 import api from '../services/api';
 
 const CALLER_ID_OPTIONS = [
-  { label: 'Primary Twilio Number', value: '+14155550101' },
-  { label: 'Sales Team Number', value: '+14155550102' },
-  { label: 'Support Number', value: '+14155550103' },
+  { label: 'VoiceLink DID (from .env)', value: 'voicelink_default' },
+  { label: 'Custom Number', value: 'custom' },
 ];
 
 export default function Campaigns() {
@@ -82,8 +81,14 @@ export default function Campaigns() {
     if (!formData.name.trim()) return setError('Campaign name is required.');
     if (!formData.knowledge_base_id) return setError('Please select a Knowledge Base.');
 
-    const callerId = formData.caller_id === 'custom' ? formData.custom_caller_id.trim() : formData.caller_id;
-    if (!callerId) return setError('Caller ID is required.');
+    // 'voicelink_default' → let backend use VOICELINK_DID_NUMBER from env (send null)
+    // 'custom' → use the custom number entered by user
+    const callerId =
+      formData.caller_id === 'custom'
+        ? formData.custom_caller_id.trim() || null
+        : formData.caller_id === 'voicelink_default'
+        ? null
+        : formData.caller_id;
 
     const payload = {
       name: formData.name.trim(),

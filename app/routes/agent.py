@@ -161,7 +161,7 @@ class AgentOutboundCallResource(Resource):
     @jwt_required()
     def post(self):
         """
-        Trigger an outbound Twilio call to a specific phone number.
+        Trigger an outbound AI call via VoiceLink to a specific phone number.
         Expects JSON: { "phone_number": "+1234567890", "knowledge_base_id": "..." }
         """
         data = request.get_json(silent=True)

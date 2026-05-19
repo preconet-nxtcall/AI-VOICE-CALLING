@@ -19,7 +19,7 @@ class CallLog(db.Model):
         db.ForeignKey("campaigns.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Twilio CallSid — links all recording turns of one call to a single log row
+    # VoiceLink callSid — links all conversation turns of one call to a single log row
     call_sid = db.Column(db.String(64), nullable=True, index=True, unique=True)
 
     phone_number = db.Column(db.String(40), nullable=False)

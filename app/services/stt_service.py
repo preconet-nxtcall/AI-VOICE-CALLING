@@ -24,7 +24,8 @@ class STTService:
 
         Args:
             audio_path: Absolute path to the audio file on disk.
-            language: Language hint (e.g. 'Hindi', 'English').
+            language: Language hint (e.g. 'Hindi', 'English', 'Auto-Detect').
+                      Pass None or 'Auto-Detect' to let Whisper auto-detect.
 
         Returns:
             Transcribed text string.
@@ -38,24 +39,28 @@ class STTService:
 
         client = OpenAI(api_key=api_key)
 
-        # Map display name to ISO code
-        lang_code = "hi"  # default
+        # Map display name to ISO 639-1 code.
+        # Pass None to let Whisper auto-detect (handles Auto-Detect and unknown values).
+        lang_code: Optional[str] = None
         if language:
-            l_up = language.upper()
+            l_up = language.upper().strip()
             if "ENGLISH" in l_up:
                 lang_code = "en"
             elif "HINDI" in l_up:
                 lang_code = "hi"
+            # "Auto-Detect", empty, or unknown → keep None so Whisper auto-detects
 
         try:
             with audio_path.open("rb") as fh:
-                response = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=(audio_path.name, fh),
-                    language=lang_code
-                )
+                kwargs = {
+                    "model": "whisper-1",
+                    "file": (audio_path.name, fh),
+                }
+                if lang_code:
+                    kwargs["language"] = lang_code  # only pass when explicit
+                response = client.audio.transcriptions.create(**kwargs)
             text = (response.text or "").strip()
-            logger.info("Transcription [%s]: %.200s", audio_path.name, text)
+            logger.info("Transcription [%s lang=%s]: %.200s", audio_path.name, lang_code or "auto", text)
             return text
         except Exception:
             logger.exception("STT transcription failed for file: %s", audio_path)
