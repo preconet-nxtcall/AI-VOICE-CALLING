@@ -66,26 +66,20 @@ class TTSService:
     @staticmethod
     def _elevenlabs(text: str, api_key: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None) -> bytes:
         v_id = voice_id
-        
+
         if not v_id and language:
             lang_key = str(language).strip().upper()
             gender_upper = str(gender or "FEMALE").strip().upper()
-            
-            # Map common ISO codes to descriptive names if needed
+
+            # Resolve voice ID based on language + gender from env config
             if lang_key in ["HI", "HINDI"]:
-                if gender_upper == "MALE":
-                    v_id = _get_config("ELEVENLABS_VOICE_ID_HINDI_MALE")
-                else:
-                    v_id = _get_config("ELEVENLABS_VOICE_ID_HINDI_FEMALE")
+                v_id = _get_config("ELEVENLABS_VOICE_ID_HINDI_MALE") if gender_upper == "MALE" else _get_config("ELEVENLABS_VOICE_ID_HINDI_FEMALE")
             elif lang_key in ["EN", "ENGLISH"]:
-                if gender_upper == "MALE":
-                    v_id = _get_config("ELEVENLABS_VOICE_ID_ENGLISH_MALE")
-                else:
-                    v_id = _get_config("ELEVENLABS_VOICE_ID_ENGLISH_FEMALE")
+                v_id = _get_config("ELEVENLABS_VOICE_ID_ENGLISH_MALE") if gender_upper == "MALE" else _get_config("ELEVENLABS_VOICE_ID_ENGLISH_FEMALE")
 
         if not v_id:
             v_id = _get_config("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM"
-            
+
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{v_id}"
         headers = {
             "Accept": "audio/mpeg",
@@ -95,7 +89,16 @@ class TTSService:
         payload = {
             "text": text,
             "model_id": "eleven_multilingual_v2",
-            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+            "voice_settings": {
+                # Higher stability = more consistent/predictable delivery (good for phone)
+                "stability": 0.65,
+                # High similarity keeps it sounding like the chosen voice
+                "similarity_boost": 0.80,
+                # Style adds slight warmth/expressiveness — avoids a flat robotic tone
+                "style": 0.35,
+                # Speaker boost enhances voice clarity on phone-quality audio
+                "use_speaker_boost": True,
+            },
         }
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
         resp.raise_for_status()

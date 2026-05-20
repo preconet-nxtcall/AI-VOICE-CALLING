@@ -64,6 +64,13 @@ class KnowledgeUploadResource(Resource):
             if kb_err:
                 return kb_err
 
+            existing_doc = Document.query.filter_by(
+                knowledge_base_id=kb.id,
+                filename=file.filename
+            ).first()
+            if existing_doc:
+                return error("A document with this name already exists in the knowledge base.", 400)
+
             file_stream = file.read()
             filename = file.filename
             if len(file_stream) > _MAX_UPLOAD_BYTES:
@@ -163,6 +170,13 @@ class KnowledgeUrlResource(Resource):
             kb, kb_err = _resolve_user_kb(user_uuid, knowledge_base_id)
             if kb_err:
                 return kb_err
+
+            existing_doc = Document.query.filter_by(
+                knowledge_base_id=kb.id,
+                filename=url
+            ).first()
+            if existing_doc:
+                return error("This URL has already been added to the knowledge base.", 400)
 
             job = IngestionJob(
                 user_id=user_uuid,

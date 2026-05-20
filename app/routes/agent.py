@@ -21,6 +21,10 @@ class AgentAskResource(Resource):
         knowledge_base_id = data.get("knowledge_base_id")
         query = data.get("query", "")
         document_id = data.get("document_id")  # optional: restrict to a specific document
+        # 'voice' = short 1-2 sentence phone-call style, 'chat' = full response
+        mode = data.get("mode", "chat")
+        if mode not in ("chat", "voice"):
+            mode = "chat"
         
         if not isinstance(query, str) or not query.strip():
             return {"success": False, "error": "'query' must be a non-empty string."}, 400
@@ -61,7 +65,7 @@ class AgentAskResource(Resource):
                 str(kb_uuid),
                 query,
                 document_id=doc_uuid_str,
-                mode="chat",
+                mode=mode,
                 history=history
             )
             answer_text = result.get("answer", "")

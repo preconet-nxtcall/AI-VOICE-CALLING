@@ -3,7 +3,7 @@ import {
   Send, Bot, User, Sparkles, Loader2, AlertTriangle,
   ChevronDown, Database, Trash2, Volume2, VolumeX,
   BookOpen, FileText, Link as LinkIcon, MessageSquare,
-  Zap, Copy, Check, RotateCcw
+  Zap, Copy, Check, RotateCcw, Mic, MessageCircle
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -208,6 +208,9 @@ export default function Chat() {
   const [kbLoading, setKbLoading] = useState(true);
   const [kbError, setKbError] = useState('');
 
+  // Voice mode: mimics phone call short responses
+  const [voiceMode, setVoiceMode] = useState(false);
+
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const chatBodyRef = useRef(null);
@@ -302,8 +305,8 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      // Map existing messages to history format for backend
-      const history = messages.slice(-6).map(m => ({
+      // Map existing messages to history format — last 10 messages for good context
+      const history = messages.slice(-10).map(m => ({
         role: m.role,
         content: m.content
       }));
@@ -311,7 +314,10 @@ export default function Chat() {
       const payload = { 
         knowledge_base_id: selectedKbId, 
         query: trimmed,
-        history: history
+        history,
+        // 'voice' mode → short 1-2 sentence responses (simulates phone call)
+        // 'chat'  mode → full helpful responses
+        mode: voiceMode ? 'voice' : 'chat',
       };
       if (selectedDocId && selectedDocId !== 'all') payload.document_id = selectedDocId;
 
@@ -423,6 +429,20 @@ export default function Chat() {
 
             {/* Status + clear */}
             <div className="flex items-center gap-2">
+              {/* Voice Mode Toggle */}
+              <button
+                onClick={() => setVoiceMode(v => !v)}
+                title={voiceMode ? 'Switch to Chat Mode (full responses)' : 'Switch to Voice Mode (short phone-call responses)'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all text-[10px] font-semibold ${
+                  voiceMode
+                    ? 'bg-violet-600/20 border-violet-500/40 text-violet-300'
+                    : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-[#1e2d4a] text-slate-500 hover:border-violet-400/40 hover:text-violet-400'
+                }`}
+              >
+                {voiceMode ? <Mic size={11} /> : <MessageCircle size={11} />}
+                {voiceMode ? 'Voice Mode' : 'Chat Mode'}
+              </button>
+
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/15">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-[10px] font-semibold text-emerald-400">Online</span>
@@ -584,6 +604,16 @@ export default function Chat() {
                 }
               </button>
             </div>
+
+            {/* Voice mode banner */}
+            {voiceMode && (
+              <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-violet-500/8 border border-violet-500/20 rounded-xl">
+                <Mic size={12} className="text-violet-400 flex-shrink-0" />
+                <p className="text-[10px] text-violet-300 leading-snug">
+                  <span className="font-bold">Voice Mode ON</span> — Responses are short (1–2 sentences) exactly as the AI will speak on a phone call. Select a document below to test with specific content.
+                </p>
+              </div>
+            )}
 
             {/* Hint */}
             <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 mt-2">

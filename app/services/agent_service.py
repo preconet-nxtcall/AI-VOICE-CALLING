@@ -45,7 +45,8 @@ class AgentService:
                 "language_code": "en",
                 "context_used": []
             }
-            
+        
+
         # 2. Format context
         context_texts = []
         context_used = []
@@ -70,13 +71,16 @@ class AgentService:
         
         if mode == "voice":
             system_prompt = (
-                "You are a helpful AI voice assistant. You answer user queries based primarily on the provided context. "
-                "IMPORTANT: Respond in the user's spoken language or as requested. "
-                "Keep responses concise and natural for spoken conversation (2-3 sentences max). "
-                "Do not make up information. "
-                "Return your response in JSON format: {\"answer\": \"...\", \"language_code\": \"...\"} "
-                "where language_code is the ISO 639-1 code of the response (e.g., 'hi', 'en', 'es')."
+                "You are a helpful AI voice assistant on a live phone call. "
+                "Answer user queries based on the provided context. "
+                "Keep responses concise and natural for spoken conversation (1-2 sentences max). "
+                "Do not make up information not found in the context. "
+                "CRITICAL LANGUAGE RULE: You must ONLY respond in Hindi (Devanagari script) or English. "
+                "If the user speaks Hindi, respond in Hindi. If the user speaks English, respond in English. "
+                "Never respond in any other language. "
+                "Return your response in JSON format: {\"answer\": \"...\", \"language_code\": \"hi\" or \"en\"}"
             )
+            max_tokens = 200
         else:
             system_prompt = (
                 "You are a helpful AI assistant. Answer user queries based on the provided context from their knowledge base documents. "
@@ -84,8 +88,9 @@ class AgentService:
                 "Be clear, accurate, and helpful. If the answer is not in the context, say so honestly. "
                 "Do not make up information. "
                 "Return your response in JSON format: {\"answer\": \"...\", \"language_code\": \"...\"} "
-                "where language_code is the ISO 639-1 code of the response (e.g., 'hi', 'en', 'es')."
+                "where language_code is the ISO 639-1 code of the response (e.g., 'hi', 'en')."
             )
+            max_tokens = 600
         
         messages = [{"role": "system", "content": system_prompt}]
         
@@ -106,6 +111,7 @@ class AgentService:
                 model="gpt-4o",
                 messages=messages,
                 temperature=0.2,
+                max_tokens=max_tokens,
                 response_format={"type": "json_object"}
             )
             raw_content = response.choices[0].message.content

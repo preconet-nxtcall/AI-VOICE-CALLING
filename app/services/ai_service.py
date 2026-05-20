@@ -11,21 +11,55 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 _BASE_SYSTEM_PROMPT = (
-    "You are a professional AI voice assistant on a live phone call. "
-    "PERSONALITY: Friendly, confident, and natural — never robotic. Speak like a real human agent, not a chatbot. "
-    "RULES: Never use markdown, bullet points, numbers, or any formatting. Keep every response under 2 sentences. "
-    "Never say 'As an AI' or 'I am a language model'. Never repeat the same phrase twice in a row. "
-    "LANGUAGE: Use simple, conversational Hindi and English. Avoid technical jargon. "
-    "If unsure, say: 'Let me check that for you.' Always use the caller's name if you know it."
+    "You are a warm, professional AI voice assistant on a live phone call. "
+    "You must sound EXACTLY like a real human agent — never robotic, never stiff, always natural and conversational. "
+    "\n\nPERSONALITY & TONE:"
+    "\n- Be warm, empathetic, and genuinely helpful. Mirror the caller's energy."
+    "\n- Use natural acknowledgements: 'Sure!', 'Of course!', 'Absolutely!', 'Great question!', 'I understand!'"
+    "\n- Show empathy when needed: 'I completely understand', 'That makes perfect sense', 'I hear you'"
+    "\n- Sound positive and engaged, never flat or monotone."
+    "\n\nSTRICT RULES:"
+    "\n- NEVER use markdown, bullet points, numbers, headers, or any formatting whatsoever."
+    "\n- Keep responses short and clear — 1 to 3 natural spoken sentences maximum."
+    "\n- NEVER say 'As an AI', 'I am a language model', 'I am an AI assistant', or anything that reveals you are artificial."
+    "\n- NEVER repeat the exact same phrase twice in a conversation."
+    "\n- NEVER make up facts. If unsure, say: 'Let me check that for you' or 'I want to make sure I give you the right info'."
+    "\n- Always address the caller by their first name if you know it — use it naturally (not every sentence)."
+    "\n- Use simple, everyday language. Avoid technical jargon unless the caller uses it first."
+    "\n- If the caller's message is unclear, politely ask once: 'Sorry, could you say that again? I want to make sure I understand you correctly.'"
+    "\n- Guide the conversation naturally — if it feels right, ask one short follow-up question to help the caller."
+    "\n- Keep the caller engaged — never leave long dead silences in your response."
+    "\n\nCONVERSATION FLOW:"
+    "\n- Acknowledge what the caller said BEFORE answering (e.g., 'Sure, I can help with that!' then answer)."
+    "\n- When closing a topic, gently ask if there's anything else: 'Is there anything else I can help you with?'"
+    "\n- If the caller sounds frustrated, immediately empathize first: 'I completely understand your concern, and I am here to help.'"
 )
 
 # For backward-compatibility keep alias
 _SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT
 
-_MAX_TOKENS = 150  # 2 full sentences; bumped from 120 to prevent mid-sentence cut-off in Hindi
-_MAX_MEMORY_MESSAGES = 10  # 5 turns: User, AI, User, AI, User, AI, User, AI, User, AI
+_MAX_TOKENS = 200  # Increased: allows 2-3 full natural sentences in Hindi/English without mid-sentence cut-off
+_MAX_MEMORY_MESSAGES = 14  # 7 full turns of conversation context
 _MAX_ACTIVE_CONVERSATIONS = 5000
 _MEMORY_TTL_MINUTES = 30
+
+
+# ─── Language-aware fallback messages ────────────────────────────────────────
+
+def _get_error_fallback_message(language: str = "English") -> str:
+    """Return a polite error/hold message in Hindi or English."""
+    lang = (language or "English").upper().strip()
+    if "HINDI" in lang:
+        return "क्षमा करें, एक क्षण रुकिए — मैं अभी आपकी मदद करता हूं।"
+    return "I'm sorry, give me just a moment and I'll be right with you."
+
+
+def _get_repeat_request_message(language: str = "English") -> str:
+    """Return a polite 'please repeat' message in Hindi or English."""
+    lang = (language or "English").upper().strip()
+    if "HINDI" in lang:
+        return "माफ़ करें, मुझे ठीक से सुनाई नहीं दिया। क्या आप फिर से बता सकते हैं?"
+    return "Sorry, I didn't quite catch that. Could you say that again for me?"
 
 _CALL_MEMORY: Dict[str, Deque[str]] = defaultdict(
     lambda: deque(maxlen=_MAX_MEMORY_MESSAGES)
@@ -65,61 +99,73 @@ class AIService:
 
         client = OpenAI(api_key=api_key)
 
-        history_block = AIService._history_text(conversation_id)
+        # Filter out 'None' string from frontend for secondary language
+        s_lang = secondary_language if secondary_language and secondary_language.lower() != "none" else None
+
+        # ── Build conversation history as proper role-based messages ──────
+        history_messages: List[dict] = AIService._history_messages(conversation_id)
         context_block = (knowledge_context or "").strip()
 
-        prompt_parts: List[str] = []
-        if history_block:
-            prompt_parts.append(f"Conversation history:\n{history_block}")
-        if context_block:
-            prompt_parts.append(f"Knowledge context:\n{context_block}")
-        prompt_parts.append(f"User: {user_text.strip()}")
-
-        # Construct the specialized system instructions for multi-language
-        # Filter out 'None' string from frontend
-        s_lang = secondary_language if secondary_language and secondary_language.lower() != "none" else None
-        
+        # ── Language instructions ─────────────────────────────────────────
         if primary_language == "Auto-Detect":
-            lang_instruction = "Respond in the same language the user speaks in (Auto-Detect mode). "
+            lang_instruction = (
+                "LANGUAGE: Detect the caller's language automatically and respond in EXACTLY the same language. "
+                "If the caller mixes languages (code-switch), match their style naturally. "
+            )
         else:
-            lang_instruction = f"Primary language is {primary_language}. "
-            
-        if s_lang:
-            lang_instruction += f"Secondary language is {s_lang}. Understand and respond in both naturally. "
-        elif primary_language != "Auto-Detect":
-            lang_instruction += f"Always respond in {primary_language}. "
-            
-        if "HINDI" in [primary_language.upper(), (s_lang or "").upper()]:
-            lang_instruction += "If responding in Hindi, use Devanagari script. "
+            lang_instruction = f"LANGUAGE: Always respond in {primary_language}. "
+            if s_lang:
+                lang_instruction += (
+                    f"The caller may also speak {s_lang}. Understand both languages and respond naturally. "
+                )
 
+        if "HINDI" in [primary_language.upper(), (s_lang or "").upper()]:
+            lang_instruction += "When responding in Hindi, ALWAYS use Devanagari script, not Roman/transliterated Hindi. "
+
+        # ── Build system prompt ───────────────────────────────────────────
         script_instruction = (script_prompt or "").strip()
         if script_instruction:
             full_system_prompt = (
                 f"{_BASE_SYSTEM_PROMPT}\n\n"
-                f"{lang_instruction}\n"
-                "Follow these campaign-specific instructions:\n"
+                f"{lang_instruction}\n\n"
+                "CAMPAIGN SCRIPT INSTRUCTIONS (follow these precisely):\n"
                 f"{script_instruction}"
             )
         else:
             full_system_prompt = (
                 f"{_BASE_SYSTEM_PROMPT}\n\n"
-                f"{lang_instruction}\n"
-                "ROLE: You are a helpful sales agent. Answer customer questions professionally."
+                f"{lang_instruction}\n\n"
+                "ROLE: You are a knowledgeable, friendly sales and support agent. "
+                "Answer customer questions helpfully, build rapport, and guide them toward a positive outcome."
             )
 
+        # ── Handle completely empty speech (noise/silence) ────────────────
         if not user_text or not user_text.strip():
-            return "Hello? Are you still there?"
+            # Return a natural check-in rather than silence
+            return _get_repeat_request_message(primary_language)
+
+        # ── Build user message with optional KB context ───────────────────
+        user_content_parts: List[str] = []
+        if context_block:
+            user_content_parts.append(
+                f"[KNOWLEDGE BASE CONTEXT — use this to answer accurately]:\n{context_block}"
+            )
+        user_content_parts.append(f"Caller says: {user_text.strip()}")
+        user_message = {"role": "user", "content": "\n\n".join(user_content_parts)}
+
+        # ── Assemble full message list (system + history + current) ───────
+        messages = [{"role": "system", "content": full_system_prompt}]
+        messages.extend(history_messages)
+        messages.append(user_message)
 
         try:
-            # For voice calls, we still want short replies, but gpt-4o is better at nuances
             response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": full_system_prompt},
-                    {"role": "user", "content": "\n\n".join(prompt_parts)},
-                ],
+                messages=messages,
                 max_tokens=_MAX_TOKENS,
-                temperature=0.7,
+                temperature=0.75,  # Slightly more natural/creative for conversational warmth
+                presence_penalty=0.6,  # Discourage repeating the same phrases
+                frequency_penalty=0.3,  # Encourage varied vocabulary
             )
         except Exception:
             logger.exception("AI completion request failed")
@@ -149,6 +195,7 @@ class AIService:
 
     @staticmethod
     def _history_text(conversation_id: Optional[str]) -> str:
+        """Legacy plain-text history (kept for backward-compat)."""
         if not conversation_id:
             return ""
         with _MEMORY_LOCK:
@@ -157,6 +204,25 @@ class AIService:
             if history:
                 _CALL_LAST_SEEN[conversation_id] = datetime.utcnow()
         return "\n".join(history)
+
+    @staticmethod
+    def _history_messages(conversation_id: Optional[str]) -> List[dict]:
+        """Return conversation history as proper OpenAI role-based message dicts."""
+        if not conversation_id:
+            return []
+        with _MEMORY_LOCK:
+            AIService._prune_memory_locked()
+            raw_history = list(_CALL_MEMORY.get(conversation_id, []))
+            if raw_history:
+                _CALL_LAST_SEEN[conversation_id] = datetime.utcnow()
+
+        messages: List[dict] = []
+        for line in raw_history:
+            if line.startswith("User: "):
+                messages.append({"role": "user", "content": line[6:]})
+            elif line.startswith("AI: "):
+                messages.append({"role": "assistant", "content": line[4:]})
+        return messages
 
     @staticmethod
     def _append_memory(conversation_id: Optional[str], user_text: str, ai_text: str) -> None:

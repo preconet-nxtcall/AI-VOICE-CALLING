@@ -1,0 +1,23 @@
+Script Created → KB Uploaded → Campaign Created → Leads CSV Uploaded
+                                                         ↓
+                                              Dialer Thread picks lead
+                                                         ↓
+                                         VoiceLink dials +91XXXXXXXXXX
+                                                         ↓
+                                         Lead picks up → WebSocket opens
+                                                         ↓
+                                    AI speaks Welcome Message (warm, natural)
+                                                         ↓
+                               Lead talks → Whisper STT (with telephony prompt)
+                                                         ↓
+                          AI thinks → RAG searches Knowledge Base → GPT-4o replies
+                               (human-like, empathetic, 1-3 sentences, no repetition)
+                                                         ↓
+                                    If mumble/noise → "Could you say that again?"
+                                    If error → polite hold message (in Hindi/English)
+                                                         ↓
+                               ElevenLabs TTS (stability 0.65, speaker boost ON)
+                                                         ↓
+                               Audio streamed back → Lead hears natural human voice
+                                                         ↓
+                                    Call ends → Tags + Summary + Sentiment saved

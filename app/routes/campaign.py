@@ -65,22 +65,32 @@ class CampaignListResource(Resource):
             .all()
         )
 
+        # Get lead stats using a single query grouping by campaign_id and status
+        from sqlalchemy import func
+        campaign_ids = [c.id for c in campaigns]
+        
+        stats_by_campaign = {
+            cid: {"total": 0, "completed": 0, "failed": 0, "pending": 0, "calling": 0} 
+            for cid in campaign_ids
+        }
+        
+        if campaign_ids:
+            stats_query = db.session.query(
+                Lead.campaign_id,
+                Lead.status,
+                func.count(Lead.id)
+            ).filter(Lead.campaign_id.in_(campaign_ids)).group_by(Lead.campaign_id, Lead.status).all()
+            
+            for cid, status, count in stats_query:
+                if status in stats_by_campaign[cid]:
+                    stats_by_campaign[cid][status] = count
+                stats_by_campaign[cid]["total"] += count
+
         # Attach lead stats to each campaign
         result = []
         for c in campaigns:
             d = c.to_dict()
-            total = Lead.query.filter_by(campaign_id=c.id).count()
-            completed = Lead.query.filter_by(campaign_id=c.id, status="completed").count()
-            failed = Lead.query.filter_by(campaign_id=c.id, status="failed").count()
-            pending = Lead.query.filter_by(campaign_id=c.id, status="pending").count()
-            calling = Lead.query.filter_by(campaign_id=c.id, status="calling").count()
-            d["lead_stats"] = {
-                "total": total,
-                "completed": completed,
-                "failed": failed,
-                "pending": pending,
-                "calling": calling,
-            }
+            d["lead_stats"] = stats_by_campaign[c.id]
             result.append(d)
 
         return success({"campaigns": result}, 200)
@@ -253,6 +263,38 @@ class CampaignLeadUploadResource(Resource):
         added = 0
         skipped = 0
         errors_list = []
+        
+        batch_size = 5000
+        current_batch_phones = set()
+
+        def process_batch():
+            nonlocal added, skipped, current_batch_phones
+            if not current_batch_phones:
+                return
+            
+            # Query existing phones in this batch
+            existing_records = Lead.query.with_entities(Lead.phone_number).filter(
+                Lead.campaign_id == campaign_uuid,
+                Lead.phone_number.in_(current_batch_phones)
+            ).all()
+            existing_phones = {r[0] for r in existing_records}
+            
+            new_leads = []
+            for phone in current_batch_phones:
+                if phone in existing_phones:
+                    skipped += 1
+                else:
+                    new_leads.append(Lead(
+                        campaign_id=campaign_uuid,
+                        phone_number=phone,
+                        status="pending"
+                    ))
+                    
+            if new_leads:
+                db.session.bulk_save_objects(new_leads)
+                added += len(new_leads)
+                
+            current_batch_phones.clear()
 
         for row_idx, row in enumerate(reader, start=1):
             if not row:
@@ -286,20 +328,19 @@ class CampaignLeadUploadResource(Resource):
                     errors_list.append(f"Row {row_idx}: Invalid number format '{raw_phone}'")
                 continue
 
-            # Check for duplicates within the same campaign
-            existing = Lead.query.filter_by(campaign_id=campaign_uuid, phone_number=phone).first()
-            if existing:
+            # Handle duplicates within the CSV itself
+            if phone in current_batch_phones:
                 skipped += 1
                 continue
 
-            lead = Lead(
-                campaign_id=campaign_uuid,
-                phone_number=phone,
-                status="pending",
-            )
-            db.session.add(lead)
-            added += 1
+            current_batch_phones.add(phone)
+            
+            if len(current_batch_phones) >= batch_size:
+                process_batch()
 
+        # Process any remaining leads
+        process_batch()
+        
         db.session.commit()
         if campaign.status == "active" and added > 0:
             _enqueue_dialer_sweep()

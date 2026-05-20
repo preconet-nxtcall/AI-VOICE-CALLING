@@ -28,8 +28,9 @@ export default function Dashboard() {
   const [liveConversation, setLiveConversation] = useState([]);
   const [liveCall, setLiveCall] = useState(null);
   
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isInitial = false) => {
     try {
+      if (isInitial) setLoading(true);
       const logRes = await api.get('/call-logs');
       const nextLogs = logRes.data?.call_logs || [];
       const nextSummary = logRes.data?.summary || null;
@@ -37,23 +38,33 @@ export default function Dashboard() {
       setSummary(nextSummary);
 
       const active = nextLogs.find((l) => l.status === 'in_progress');
-      if (active) {
-        setLiveCall(active);
-        setLiveConversation(active.conversation || []);
+      const targetCall = active || nextLogs[0];
+      
+      if (targetCall) {
+        setLiveCall(active ? active : null);
+        
+        // Fetch transcript separately for the live/latest call
+        try {
+          const detailRes = await api.get(`/call-logs/${targetCall.id}`);
+          setLiveConversation(detailRes.data.call_log?.conversation || []);
+        } catch (detailErr) {
+          console.error('Failed to fetch live transcript:', detailErr);
+          setLiveConversation([]);
+        }
       } else {
         setLiveCall(null);
-        setLiveConversation(nextLogs[0]?.conversation || []);
+        setLiveConversation([]);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 5000);
+    fetchDashboardData(true);
+    const interval = setInterval(() => fetchDashboardData(false), 5000);
     return () => clearInterval(interval);
   }, []);
 

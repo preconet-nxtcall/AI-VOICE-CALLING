@@ -41,8 +41,8 @@ class CallLog(db.Model):
 
     campaign = db.relationship("Campaign", lazy="joined")
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_conversation=True):
+        res = {
             "id": str(self.id),
             "user_id": str(self.user_id),
             "campaign_id": str(self.campaign_id) if self.campaign_id else None,
@@ -53,6 +53,11 @@ class CallLog(db.Model):
             "duration_seconds": self.duration_seconds,
             "tags": self.tags or {},
             "is_forwarded": self.is_forwarded,
-            "conversation": self.conversation or [],
             "created_at": self.created_at.isoformat(),
         }
+        if include_conversation:
+            # When defer() is used in SQLAlchemy, accessing self.conversation will trigger a DB hit.
+            # Only access it if include_conversation is True.
+            res["conversation"] = self.conversation or []
+            
+        return res

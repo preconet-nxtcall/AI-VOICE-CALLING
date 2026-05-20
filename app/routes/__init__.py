@@ -11,9 +11,9 @@ from app.routes.knowledge import (
 from app.routes.agent import AgentAskResource, AgentVoiceResource, AgentOutboundCallResource
 from app.routes.subscription import PlanListResource, SubscriptionResource
 from app.routes.campaign import CampaignListResource, CampaignStatusResource, CampaignLeadUploadResource, CampaignLeadListResource, CampaignSweepResource
-from app.routes.call_log import CallLogListResource
+from app.routes.call_log import CallLogListResource, CallLogDetailResource
 from app.routes.billing import BillingSummaryResource
-from app.routes.script import ScriptListResource
+from app.routes.script import ScriptListResource, ScriptDetailResource
 
 
 def register_routes(api):
@@ -49,6 +49,8 @@ def register_routes(api):
     api.add_resource(CampaignLeadListResource, "/campaigns/<string:campaign_id>/leads")
     api.add_resource(CampaignSweepResource, "/campaigns/sweep")
     api.add_resource(ScriptListResource, "/scripts")
+    api.add_resource(ScriptDetailResource, "/scripts/<string:script_id>")
 
     # Call log routes
     api.add_resource(CallLogListResource, "/call-logs")
+    api.add_resource(CallLogDetailResource, "/call-logs/<string:log_id>")

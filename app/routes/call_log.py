@@ -4,10 +4,11 @@ import uuid
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func
+from sqlalchemy.orm import defer
 
 from app.models import db
 from app.models.call_log import CallLog
-from app.utils.responses import success
+from app.utils.responses import success, error
 
 
 class CallLogListResource(Resource):
@@ -44,8 +45,10 @@ class CallLogListResource(Resource):
         ).scalar() or 0
 
         # Fetch up to 1000 logs for the frontend to render the 7D/30D charts effectively
+        # Optimization: defer fetching the massive JSON conversation transcript
         logs = (
             CallLog.query.filter_by(user_id=user_uuid)
+            .options(defer(CallLog.conversation))
             .order_by(CallLog.created_at.desc())
             .limit(1000)
             .all()
@@ -53,7 +56,7 @@ class CallLogListResource(Resource):
 
         return success(
             {
-                "call_logs": [log.to_dict() for log in logs],
+                "call_logs": [log.to_dict(include_conversation=False) for log in logs],
                 "summary": {
                     "total_calls": total_calls,
                     "completed_calls": completed_calls,
@@ -64,3 +67,20 @@ class CallLogListResource(Resource):
             },
             200,
         )
+
+
+class CallLogDetailResource(Resource):
+    @jwt_required()
+    def get(self, log_id):
+        user_id = get_jwt_identity()
+        try:
+            user_uuid = uuid.UUID(str(user_id))
+            log_uuid = uuid.UUID(str(log_id))
+        except ValueError:
+            return error("Invalid UUID", 400)
+
+        log = CallLog.query.filter_by(id=log_uuid, user_id=user_uuid).first()
+        if not log:
+            return error("Call log not found", 404)
+
+        return success({"call_log": log.to_dict(include_conversation=True)}, 200)

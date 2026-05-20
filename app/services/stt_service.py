@@ -6,6 +6,14 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
+# Whisper telephony prompt — primes Whisper with domain context so it handles
+# compressed 8 kHz phone audio much more accurately.
+_WHISPER_TELEPHONY_PROMPT = (
+    "This is a phone conversation between a customer and a sales support agent. "
+    "The caller may discuss products, pricing, plans, appointments, or customer support. "
+    "Transcribe every word accurately, including brand names and numbers."
+)
+
 
 def _get_openai_key() -> str:
     try:
@@ -22,13 +30,14 @@ class STTService:
         """
         Transcribe a saved audio file using OpenAI Whisper.
 
+        Supported languages: Hindi, English, Auto-Detect.
+
         Args:
             audio_path: Absolute path to the audio file on disk.
-            language: Language hint (e.g. 'Hindi', 'English', 'Auto-Detect').
-                      Pass None or 'Auto-Detect' to let Whisper auto-detect.
+            language:   'Hindi', 'English', or 'Auto-Detect' (default).
 
         Returns:
-            Transcribed text string.
+            Transcribed text string (empty string if nothing was captured).
         """
         api_key = _get_openai_key()
         if not api_key:
@@ -39,28 +48,34 @@ class STTService:
 
         client = OpenAI(api_key=api_key)
 
-        # Map display name to ISO 639-1 code.
-        # Pass None to let Whisper auto-detect (handles Auto-Detect and unknown values).
+        # ── Language → ISO 639-1 (only Hindi and English supported) ──────────
+        # Passing None lets Whisper auto-detect — used for 'Auto-Detect' mode.
         lang_code: Optional[str] = None
         if language:
             l_up = language.upper().strip()
-            if "ENGLISH" in l_up:
-                lang_code = "en"
-            elif "HINDI" in l_up:
+            if "HINDI" in l_up:
                 lang_code = "hi"
-            # "Auto-Detect", empty, or unknown → keep None so Whisper auto-detects
+            elif "ENGLISH" in l_up:
+                lang_code = "en"
+            # Any other value (Auto-Detect, None, empty) → keep None (auto)
 
         try:
             with audio_path.open("rb") as fh:
-                kwargs = {
+                kwargs: dict = {
                     "model": "whisper-1",
                     "file": (audio_path.name, fh),
+                    # Telephony prompt drastically improves accuracy on 8 kHz phone audio
+                    "prompt": _WHISPER_TELEPHONY_PROMPT,
                 }
                 if lang_code:
-                    kwargs["language"] = lang_code  # only pass when explicit
+                    kwargs["language"] = lang_code  # only pass when explicitly known
                 response = client.audio.transcriptions.create(**kwargs)
+
             text = (response.text or "").strip()
-            logger.info("Transcription [%s lang=%s]: %.200s", audio_path.name, lang_code or "auto", text)
+            logger.info(
+                "STT [%s lang=%s]: %.200s",
+                audio_path.name, lang_code or "auto-detect", text
+            )
             return text
         except Exception:
             logger.exception("STT transcription failed for file: %s", audio_path)

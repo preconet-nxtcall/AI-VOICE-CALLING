@@ -37,16 +37,16 @@ export default function Campaigns() {
     retry_interval_seconds: 300,
   });
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       setError('');
       const res = await api.get('/campaigns');
       setCampaigns(res.data.campaigns || []);
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to load campaigns.');
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
@@ -69,10 +69,10 @@ export default function Campaigns() {
   };
 
   useEffect(() => {
-    fetchCampaigns();
+    fetchCampaigns(true);
     fetchKnowledgeBases();
     fetchScripts();
-    const interval = setInterval(fetchCampaigns, 12000);
+    const interval = setInterval(() => fetchCampaigns(false), 12000);
     return () => clearInterval(interval);
   }, []);
 
@@ -126,7 +126,7 @@ export default function Campaigns() {
         retry_interval_seconds: 300,
       });
       setShowCreateModal(false);
-      fetchCampaigns();
+      fetchCampaigns(false);
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to create campaign.');
     } finally {
@@ -138,7 +138,7 @@ export default function Campaigns() {
     try {
       setError('');
       await api.patch(`/campaigns/${id}/status`, { status });
-      fetchCampaigns();
+      fetchCampaigns(false);
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to update campaign status.');
     }
@@ -173,7 +173,7 @@ export default function Campaigns() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setUploadMessage(`Success: ${res.data.message}`);
-      fetchCampaigns();
+      fetchCampaigns(false);
       if (expandedCampaign === campaignId) {
         const leadsRes = await api.get(`/campaigns/${campaignId}/leads`);
         setLeads(leadsRes.data.leads || []);

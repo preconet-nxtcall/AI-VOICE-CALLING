@@ -201,7 +201,12 @@ class VoiceService:
                 data = {
                     "text": text,
                     "model_id": "eleven_multilingual_v2",
-                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+                    "voice_settings": {
+                        "stability": 0.65,
+                        "similarity_boost": 0.80,
+                        "style": 0.35,
+                        "use_speaker_boost": True,
+                    },
                 }
                 response = requests.post(url, json=data, headers=headers)
                 if response.status_code == 200:

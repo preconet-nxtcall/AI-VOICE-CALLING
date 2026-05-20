@@ -37,35 +37,74 @@ logger = logging.getLogger(__name__)
 twilio_voice_bp = Blueprint("twilio_voice", __name__)
 
 # ─── Live dashboard broadcast ─────────────────────────────────────────────────
+# RLock guards LIVE_CLIENTS against concurrent add/discard/iteration across threads.
 LIVE_CLIENTS: set = set()
+LIVE_CLIENTS_LOCK = threading.RLock()
 SENT_APPOINTMENT_EMAILS: set = set()
 SENT_EMAILS_LOCK = threading.Lock()
 
 
 def broadcast_live_event(data: dict[str, Any]) -> None:
-    """Broadcast a JSON event to all connected live-dashboard WebSocket clients."""
+    """Thread-safe broadcast of a JSON event to all live-dashboard WebSocket clients."""
     payload = json.dumps(data)
-    to_remove = []
-    for client in LIVE_CLIENTS:
+    # Snapshot the set under the lock so we never iterate while another thread mutates it
+    with LIVE_CLIENTS_LOCK:
+        snapshot = list(LIVE_CLIENTS)
+    dead = []
+    for client in snapshot:
         try:
             client.send(payload)
         except Exception:
-            to_remove.append(client)
-    for client in to_remove:
-        LIVE_CLIENTS.discard(client)
+            dead.append(client)
+    if dead:
+        with LIVE_CLIENTS_LOCK:
+            for client in dead:
+                LIVE_CLIENTS.discard(client)
 
 
 @sock.route("/api/v1/live-events")
 def live_events_stream(ws):
-    """WebSocket endpoint for the live dashboard to receive real-time call events."""
-    LIVE_CLIENTS.add(ws)
+    """
+    WebSocket endpoint for the live dashboard.
+
+    Authentication: the frontend passes the JWT as ?token=<jwt> in the URL
+    (standard WS upgrade cannot set Authorization headers from the browser).
+    """
+    # Optional JWT validation — gracefully reject unauthenticated sockets
+    token = request.args.get("token", "").strip()
+    if token:
+        try:
+            import jwt as _jwt
+            secret = current_app.config.get("SECRET_KEY", "")
+            _jwt.decode(token, secret, algorithms=["HS256"])
+        except Exception:
+            logger.warning("[LiveEvents] Rejected WS connection: invalid token")
+            ws.close()
+            return
+
+    with LIVE_CLIENTS_LOCK:
+        LIVE_CLIENTS.add(ws)
+    logger.info("[LiveEvents] Client connected — total=%d", len(LIVE_CLIENTS))
     try:
         while True:
-            ws.receive(timeout=30)
-    except Exception:
-        pass
+            msg = ws.receive(timeout=30)  # blocks; raises on disconnect
+            if msg is None:
+                # clean disconnect
+                break
+            # Accept ping from frontend heartbeat; reply with pong
+            try:
+                parsed = json.loads(msg)
+                if parsed.get("type") == "ping":
+                    ws.send(json.dumps({"type": "pong"}))
+            except Exception:
+                pass
+    except Exception as exc:
+        # Covers timeout-triggered close or any other network error
+        logger.debug("[LiveEvents] WS receive error (client likely disconnected): %s", exc)
     finally:
-        LIVE_CLIENTS.discard(ws)
+        with LIVE_CLIENTS_LOCK:
+            LIVE_CLIENTS.discard(ws)
+        logger.info("[LiveEvents] Client disconnected — total=%d", len(LIVE_CLIENTS))
 
 
 # ─── Knowledge Base context lookup ───────────────────────────────────────────

@@ -216,24 +216,12 @@ class EmbeddingService:
             return []
 
         if filter:
-            # FAISS native metadata filtering can be unreliable for string/UUID comparisons in some versions.
-            # We fetch a larger candidate pool (e.g. 50 chunks) and filter in Python to ensure 
-            # we don't miss matching chunks, then take the top k.
-            raw_results = store.similarity_search_with_score(query, k=50)
-            
-            # Apply filter
-            filtered_results = []
-            for doc, score in raw_results:
-                match = True
+            def metadata_filter(metadata: dict) -> bool:
                 for key, val in filter.items():
-                    if str(doc.metadata.get(key)) != str(val):
-                        match = False
-                        break
-                if match:
-                    filtered_results.append((doc, score))
-            
-            # Take top k
-            results = filtered_results[:k]
+                    if str(metadata.get(key)) != str(val):
+                        return False
+                return True
+            results = store.similarity_search_with_score(query, k=k, filter=metadata_filter)
         else:
             results = store.similarity_search_with_score(query, k=k)
 
@@ -369,25 +357,22 @@ class EmbeddingService:
         if store is None:
             return []
 
-        # Candidate pool from vector search.
-        raw_results = store.similarity_search_with_score(query, k=max(vector_k, k))
+        # Build a callable filter for FAISS native filtering
+        faiss_filter = None
+        if filter:
+            def _faiss_filter(metadata: dict) -> bool:
+                for key, val in filter.items():
+                    if str(metadata.get(key)) != str(val):
+                        return False
+                return True
+            faiss_filter = _faiss_filter
+
+        # Candidate pool from vector search with native filtering.
+        raw_results = store.similarity_search_with_score(query, k=max(vector_k, k), filter=faiss_filter)
         if not raw_results:
             return []
 
-        # Apply metadata filter.
-        filtered: list[tuple[LCDocument, float]] = []
-        for doc, score in raw_results:
-            if filter:
-                matched = True
-                for key, val in filter.items():
-                    if str(doc.metadata.get(key)) != str(val):
-                        matched = False
-                        break
-                if not matched:
-                    continue
-            filtered.append((doc, float(score)))
-        if not filtered:
-            return []
+        filtered = [(doc, float(score)) for doc, score in raw_results]
 
         docs = [d for d, _ in filtered]
         vec_scores = [s for _, s in filtered]

@@ -83,12 +83,28 @@ function ConversationPanel({ conversation }) {
 
 function CallRow({ log }) {
   const [expanded, setExpanded] = useState(false);
-  const hasConversation = log.conversation && log.conversation.length > 0;
-  const turnCount = Math.floor((log.conversation || []).length / 2);
+  const [loadingTranscript, setLoadingTranscript] = useState(false);
+  const [transcript, setTranscript] = useState(null);
 
   const sentiment = log?.tags?.sentiment || 'Neutral';
   const leadIntent = log?.tags?.lead_intent || 'Neutral';
   const callSummary = log?.tags?.call_summary || 'No summary available.';
+
+  const handleToggle = async () => {
+    if (!expanded && !transcript) {
+      try {
+        setLoadingTranscript(true);
+        const res = await api.get(`/call-logs/${log.id}`);
+        setTranscript(res.data.call_log?.conversation || []);
+      } catch (err) {
+        console.error("Failed to load transcript");
+        setTranscript([]);
+      } finally {
+        setLoadingTranscript(false);
+      }
+    }
+    setExpanded(!expanded);
+  };
 
   return (
     <>
@@ -153,21 +169,15 @@ function CallRow({ log }) {
         </td>
         <td className="px-4 py-3">
           <button
-            onClick={() => setExpanded((v) => !v)}
-            disabled={!hasConversation}
-            title={hasConversation ? 'View transcript' : 'No transcript available'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${
-              hasConversation
-                ? 'bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 ring-1 ring-indigo-500/30 cursor-pointer'
-                : 'bg-slate-800 text-slate-600 cursor-not-allowed ring-1 ring-slate-700/50'
-            }`}
+            onClick={handleToggle}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 ring-1 ring-indigo-500/30 cursor-pointer`}
           >
-            {hasConversation ? (turnCount > 0 ? `${turnCount} turns` : 'View') : 'No transcript'}
+            {expanded ? 'Hide' : 'View'}
           </button>
         </td>
       </tr>
 
-      {expanded && hasConversation && (
+      {expanded && (
         <tr className="border-t border-slate-200 dark:border-slate-800/60">
           <td colSpan="9" className="bg-slate-50/50 dark:bg-slate-900/60">
             <div className="flex items-center justify-between px-6 pt-4 pb-2">
@@ -177,9 +187,17 @@ function CallRow({ log }) {
                   Conversation Transcript
                 </span>
               </div>
-              <span className="text-xs text-slate-600">{log.conversation.length} messages</span>
+              {transcript && (
+                <span className="text-xs text-slate-600">{transcript.length} messages</span>
+              )}
             </div>
-            <ConversationPanel conversation={log.conversation} />
+            {loadingTranscript ? (
+              <div className="px-6 py-5 text-center text-slate-600 dark:text-slate-500 text-sm">
+                Loading transcript...
+              </div>
+            ) : (
+              <ConversationPanel conversation={transcript} />
+            )}
           </td>
         </tr>
       )}

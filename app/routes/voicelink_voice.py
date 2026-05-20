@@ -49,9 +49,9 @@ voicelink_voice_bp = Blueprint("voicelink_voice", __name__)
 
 # ─── Audio constants ──────────────────────────────────────────────────────────
 _SAMPLE_RATE = 8000        # VoiceLink streams 8 kHz
-_SILENCE_RMS = 350         # RMS below this = silence
-_END_SILENCE_MS = 700      # trailing silence to end utterance
-_MIN_UTTERANCE_MS = 500    # minimum utterance duration to process
+_SILENCE_RMS = 300         # RMS below this = silence (lowered for better sensitivity)
+_END_SILENCE_MS = 800      # trailing silence to end utterance (slightly more patient)
+_MIN_UTTERANCE_MS = 400    # minimum utterance duration to process (lowered to catch short replies)
 _PCM_SAMPLE_WIDTH = 2      # bytes per sample (16-bit PCM)
 
 
@@ -155,7 +155,7 @@ def _build_reply_audio(
         _write_pcm16_wav(wav_path, pcm16_audio)
 
         from app.services.stt_service import STTService
-        from app.services.ai_service import AIService
+        from app.services.ai_service import AIService, _get_error_fallback_message, _get_repeat_request_message
         from app.services.tts_service import TTSService
 
         primary_lang = script_config.get("primary_language", "English")
@@ -167,7 +167,13 @@ def _build_reply_audio(
         # 1 — STT
         transcription = STTService.transcribe_file(wav_path, language=primary_lang)
         if not transcription.strip():
-            return b"", {}
+            # Caller mumbled or there was noise — politely ask them to repeat
+            logger.info("[VoiceLink] STT returned empty call_sid=%s — requesting repeat", call_sid)
+            repeat_msg = _get_repeat_request_message(primary_lang)
+            tts_path = Path(TTSService.generate_audio(
+                repeat_msg, voice_id=voice_id, language=primary_lang, gender=gender
+            ))
+            return _mp3_to_alaw_8k(tts_path), {}
         logger.info("[VoiceLink] STT call_sid=%s text=%r", call_sid, transcription[:80])
 
         # 2 — RAG context
@@ -190,7 +196,8 @@ def _build_reply_audio(
             )
         except Exception:
             logger.exception("[VoiceLink] AI reply failed call_sid=%s", call_sid)
-            ai_reply = "क्षमा करें, मुझे अभी उत्तर देने में कठिनाई हो रही है।"
+            # Use language-aware fallback so caller always hears their language
+            ai_reply = _get_error_fallback_message(primary_lang)
 
         if not ai_reply.strip():
             return b"", {}
@@ -366,6 +373,13 @@ def register_voicelink_websocket(sock_instance) -> None:
 
                 # Load script config and lead name
                 script_config = _get_campaign_and_script_config(call_sid)[2] if call_sid else {}
+                if not script_config:
+                    script_config = {
+                        "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
+                        "primary_language": "Hindi",
+                        "voice_style": "female",
+                        "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
+                    }
                 try:
                     from app.models.lead import Lead
                     lead_obj = Lead.query.filter_by(call_sid=call_sid).first() if call_sid else None
