@@ -4,7 +4,7 @@ services:
     name: ai-voice-backend
     env: python
     buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
-    startCommand: flask db upgrade && gunicorn --worker-class gevent --workers 2 --bind 0.0.0.0:$PORT --timeout 120 run:app
+    startCommand: flask db upgrade && gunicorn --worker-class gthread --workers 2 --threads 4 --bind 0.0.0.0:$PORT --timeout 300 --keep-alive 300 run:app
     envVars:
       - key: APP_ENV
         value: production

@@ -121,10 +121,15 @@ def create_app(config_override=None):
         app.logger.exception("Unhandled exception: %s", exc)
         return jsonify({"success": False, "error": "An internal server error occurred."}), 500
 
-    # Route to serve the frontend
+    # Route to serve the frontend SPA
+    # IMPORTANT: /voice/* paths must NOT be caught here — those are WebSocket/HTTP endpoints
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve(path):
+        # Never serve index.html for backend API or voice WebSocket paths
+        if path.startswith("api/") or path.startswith("voice/") or path.startswith("health"):
+            from flask import abort
+            abort(404)
         if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
             return send_from_directory(app.static_folder, path)
         else:

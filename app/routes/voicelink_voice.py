@@ -399,25 +399,34 @@ def register_voicelink_websocket(sock_instance) -> None:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
 
-                # ── Play welcome message ──────────────────────────────
+                # ── Play welcome message in background thread ──────────
+                # We must NOT block the WS receive loop here — VoiceLink
+                # will drop the connection if no events arrive quickly.
                 welcome_msg = str(script_config.get("welcome_message") or "").strip()
                 if welcome_msg and stream_sid:
-                    try:
-                        from app.services.tts_service import TTSService
-                        from pathlib import Path as _Path
-                        primary_lang = script_config.get("primary_language", "Hindi")
-                        voice_id = str(script_config.get("voice_id") or "").strip() or None
-                        gender = script_config.get("voice_style", "female")
-                        tts_path = _Path(TTSService.generate_audio(
-                            welcome_msg, voice_id=voice_id, language=primary_lang, gender=gender
-                        ))
-                        welcome_alaw = _mp3_to_alaw_8k(tts_path)
-                        playback_thread, playback_stop = _start_playback(
-                            ws, send_lock, stream_sid, welcome_alaw
-                        )
-                        logger.info("[VoiceLink] Playing welcome message call_sid=%s", call_sid)
-                    except Exception:
-                        logger.exception("[VoiceLink] Failed to play welcome message call_sid=%s", call_sid)
+                    def _play_welcome(_ws=ws, _lock=send_lock, _sid=stream_sid,
+                                      _msg=welcome_msg, _cfg=script_config,
+                                      _call_sid=call_sid):
+                        try:
+                            from app.services.tts_service import TTSService
+                            from pathlib import Path as _Path
+                            primary_lang = _cfg.get("primary_language", "Hindi")
+                            voice_id = str(_cfg.get("voice_id") or "").strip() or None
+                            gender = _cfg.get("voice_style", "female")
+                            tts_path = _Path(TTSService.generate_audio(
+                                _msg, voice_id=voice_id, language=primary_lang, gender=gender
+                            ))
+                            welcome_alaw = _mp3_to_alaw_8k(tts_path)
+                            # Short delay to ensure VoiceLink WS is fully ready
+                            time.sleep(0.5)
+                            _start_playback(_ws, _lock, _sid, welcome_alaw)
+                            logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
+                        except Exception:
+                            logger.exception(
+                                "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid
+                            )
+
+                    threading.Thread(target=_play_welcome, daemon=True).start()
                 continue
 
             # ── media (inbound customer audio) ───────────────────────────

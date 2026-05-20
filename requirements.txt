@@ -31,7 +31,6 @@ pytest-flask==1.3.0
 flask-cors==4.0.1
 flask-sock==0.7.0
 gunicorn==23.0.0
-gevent==24.11.1
 
 # Queue / workers
 celery==5.4.0
