@@ -4,7 +4,7 @@ services:
     name: ai-voice-backend
     env: python
     buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
-    startCommand: flask db upgrade && gunicorn run:app
+    startCommand: flask db upgrade && gunicorn --worker-class gevent --workers 2 --bind 0.0.0.0:$PORT --timeout 120 run:app
     envVars:
       - key: APP_ENV
         value: production
@@ -24,6 +24,30 @@ services:
         value: /data/recordings
       - key: TTS_AUDIO_DIR
         value: /data/tts_audio
+      # ── Public URL (VoiceLink webhook + WebSocket) ──
+      - key: PUBLIC_BASE_URL
+        value: https://ai-voice-calling-bz0z.onrender.com
+      # ── VoiceLink ──
+      - key: VOICELINK_DID_NUMBER
+        value: "+919484957094"
+      - key: VOICELINK_COUNTRY_CODE
+        value: "91"
+      # ── Dialer config ──
+      - key: DIALER_USE_CELERY
+        value: "false"
+      - key: DIALER_SWEEP_TASK_INTERVAL_SECONDS
+        value: "15"
+      # ── Secret keys: set these manually in the Render dashboard ──
+      # OPENAI_API_KEY        → set in Render dashboard → Environment
+      # VOICELINK_API_TOKEN   → set in Render dashboard → Environment
+      # ELEVENLABS_API_KEY    → set in Render dashboard → Environment
+      # ELEVENLABS_VOICE_ID_HINDI_MALE
+      # ELEVENLABS_VOICE_ID_HINDI_FEMALE
+      # ELEVENLABS_VOICE_ID_ENGLISH_MALE
+      # ELEVENLABS_VOICE_ID_ENGLISH_FEMALE
+      # ZEPTOMAIL_USER
+      # ZEPTOMAIL_API_TOKEN
+      # MAIL_DEFAULT_SENDER
     disk:
       name: ai-voice-storage
       mountPath: /data
@@ -33,7 +57,7 @@ services:
   - type: worker
     name: ai-voice-dialer
     env: python
-    buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
+    buildCommand: pip install -r requirements.txt
     startCommand: python run_dialer.py
     envVars:
       - key: APP_ENV
@@ -42,4 +66,16 @@ services:
         value: postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a/ai_voice_calling
       - key: FAISS_INDEX_DIR
         value: /data/faiss_indices
-
+      - key: VOICELINK_DID_NUMBER
+        value: "+919484957094"
+      - key: VOICELINK_COUNTRY_CODE
+        value: "91"
+      - key: PUBLIC_BASE_URL
+        value: https://ai-voice-calling-bz0z.onrender.com
+      - key: DIALER_USE_CELERY
+        value: "false"
+      - key: DIALER_SWEEP_TASK_INTERVAL_SECONDS
+        value: "15"
+      # ── Secret keys: set these manually in the Render dashboard ──
+      # OPENAI_API_KEY
+      # VOICELINK_API_TOKEN

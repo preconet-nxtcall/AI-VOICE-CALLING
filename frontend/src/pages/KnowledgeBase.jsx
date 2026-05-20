@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Upload, Link as LinkIcon, FileText, Trash2, Database, Loader2,
-  Phone, PhoneCall, CheckCircle2, AlertCircle, Info, Mic,
-  BookOpen, ChevronDown, RefreshCw, X, Sparkles, Clock
+  Phone, PhoneCall, CheckCircle2, AlertCircle, Mic,
+  BookOpen, ChevronDown, RefreshCw, X, Clock
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -98,7 +98,7 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
       const sid = res.data?.data?.call_sid || '';
       setCallSid(sid);
       setCallStatus('success');
-      setCallMsg(res.data?.data?.message || 'Call initiated! You will receive a call shortly.');
+      setCallMsg(res.data?.data?.message || 'Call initiated! Your phone will ring shortly.');
       setPhone('');
     } catch (err) {
       setCallStatus('error');
@@ -118,93 +118,79 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
   return (
     <div className="bg-white dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 flex-shrink-0">
-          <PhoneCall size={18} className="text-white" />
+      <div className="px-5 pt-5 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 flex-shrink-0">
+          <PhoneCall size={16} className="text-white" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">Test AI Agent</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Make a live test call to verify your AI setup</p>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Test AI Agent</h2>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">AI will call your number — answer to test</p>
         </div>
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="p-5 space-y-4">
 
-        {/* Readiness Checklist */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Setup Checklist</p>
-
-          <ChecklistItem
-            done={docCount > 0}
-            label={docCount > 0 ? `Knowledge Base ready (${docCount} doc${docCount !== 1 ? 's' : ''})` : 'No documents — upload knowledge first'}
-            warn={docCount === 0}
-          />
-          <ChecklistItem
-            done={knowledgeBases.length > 0 && !!selectedKbId}
-            label={selectedKbId ? `Knowledge Base selected` : 'Select a Knowledge Base below'}
-          />
-          <ChecklistItem
-            done={scripts.length > 0}
-            label={scripts.length > 0 ? `${scripts.length} Agent Script${scripts.length !== 1 ? 's' : ''} available` : 'No scripts — AI will use default behaviour'}
-            optional
-          />
+        {/* Compact Readiness Strip */}
+        <div className="flex flex-wrap gap-2">
+          <CompactChip done={docCount > 0} warn={docCount === 0}
+            label={docCount > 0 ? `${docCount} doc${docCount !== 1 ? 's' : ''}` : 'No docs'} />
+          <CompactChip done={!!selectedKbId}
+            label={selectedKbId ? 'KB selected' : 'Select KB'} />
+          <CompactChip done={scripts.length > 0} optional
+            label={scripts.length > 0 ? `${scripts.length} script${scripts.length !== 1 ? 's' : ''}` : 'No script'} />
         </div>
 
-        {/* Knowledge Base selector */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-            <Database size={12} className="text-indigo-500" /> Knowledge Base
-          </label>
-          <div className="relative">
-            <select
-              value={selectedKbId}
-              onChange={e => setSelectedKbId(e.target.value)}
-              className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 pr-8 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-            >
-              {knowledgeBases.length === 0
-                ? <option value="">No Knowledge Bases</option>
-                : knowledgeBases.map(kb => (
-                  <option key={kb.id} value={kb.id}>
-                    {kb.name} ({kb.documents?.length || 0} docs)
-                  </option>
-                ))
-              }
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        {/* Knowledge Base + Script in one row */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
+              <Database size={10} className="text-indigo-500" /> KB
+            </label>
+            <div className="relative">
+              <select
+                value={selectedKbId}
+                onChange={e => setSelectedKbId(e.target.value)}
+                className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 pr-6 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+              >
+                {knowledgeBases.length === 0
+                  ? <option value="">No KBs</option>
+                  : knowledgeBases.map(kb => (
+                    <option key={kb.id} value={kb.id}>
+                      {kb.name} ({kb.documents?.length || 0})
+                    </option>
+                  ))
+                }
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
           </div>
-        </div>
 
-        {/* Script selector (optional) */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-            <Mic size={12} className="text-violet-500" /> AI Script
-            <span className="text-[10px] font-normal text-slate-400">(optional)</span>
-          </label>
-          <div className="relative">
-            <select
-              value={scriptId}
-              onChange={e => setScriptId(e.target.value)}
-              disabled={loadingScripts}
-              className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 pr-8 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all disabled:opacity-50"
-            >
-              <option value="">Default AI behaviour (no script)</option>
-              {scripts.map(s => {
-                const cfg = (() => { try { return JSON.parse(s.content || '{}'); } catch { return {}; } })();
-                return (
-                  <option key={s.id} value={s.id}>
-                    {s.name} — {cfg.primary_language || 'Hindi'} · {cfg.voice_style || 'female'} voice
-                  </option>
-                );
-              })}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
+              <Mic size={10} className="text-violet-500" /> Script <span className="text-slate-500 font-normal">(opt)</span>
+            </label>
+            <div className="relative">
+              <select
+                value={scriptId}
+                onChange={e => setScriptId(e.target.value)}
+                disabled={loadingScripts}
+                className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 pr-6 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all disabled:opacity-50"
+              >
+                <option value="">Default (no script)</option>
+                {scripts.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
           </div>
         </div>
 
         {/* Phone number input */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-            <Phone size={12} className="text-amber-500" /> Your Phone Number
+          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1.5">
+            <Phone size={10} className="text-amber-500" /> Your Phone Number
+            <span className="text-slate-500 font-normal text-[10px]">— AI will call you</span>
           </label>
           <div className="relative">
             <input
@@ -213,7 +199,7 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
               onChange={e => setPhone(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && canCall && handleCall()}
               placeholder="+91 98765 43210 or 9876543210"
-              className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-xl px-4 py-3 text-slate-900 dark:text-slate-200 text-sm focus:outline-none transition-all focus:ring-1 pr-28 ${
+              className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-200 text-sm focus:outline-none transition-all focus:ring-1 pr-24 ${
                 phone.trim() === ''
                   ? 'border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:ring-amber-500'
                   : phoneValid
@@ -221,47 +207,40 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
                     : 'border-red-500/50 focus:border-red-500 focus:ring-red-500'
               }`}
             />
-            {/* Inline normalized preview */}
             {phone.trim() && (
-              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono font-semibold ${phoneValid ? 'text-emerald-400' : 'text-red-400'}`}>
+              <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-semibold ${phoneValid ? 'text-emerald-400' : 'text-red-400'}`}>
                 {phoneValid ? normalizedPhone : 'Invalid'}
               </span>
             )}
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">
-            10-digit Indian numbers auto-prefixed with +91. International: include country code.
-          </p>
+          <p className="text-[10px] text-slate-400 mt-1">10-digit Indian numbers auto-prefixed with +91.</p>
         </div>
 
         {/* Call Status */}
         {callStatus === 'success' && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-start gap-3">
-            <CheckCircle2 size={18} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 flex items-start gap-2.5">
+            <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-emerald-300">Call Initiated Successfully!</p>
-              <p className="text-xs text-slate-400 mt-1">{callMsg}</p>
-              {callSid && <p className="text-[10px] text-slate-500 mt-1 font-mono">SID: {callSid}</p>}
+              <p className="text-xs font-semibold text-emerald-300">📞 Your phone is ringing! Answer it.</p>
               {countdown > 0 && (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <Clock size={11} className="text-slate-500" />
-                  <p className="text-[10px] text-slate-500">
-                    Your phone should ring within <span className="text-amber-400 font-bold">{countdown}s</span>. Make sure it's not on silent.
-                  </p>
-                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Ringing within <span className="text-amber-400 font-bold">{countdown}s</span> · Don't put it on silent
+                </p>
               )}
+              {callSid && <p className="text-[9px] text-slate-600 mt-1 font-mono">SID: {callSid}</p>}
             </div>
-            <button onClick={reset} className="text-slate-500 hover:text-slate-300 flex-shrink-0"><X size={14} /></button>
+            <button onClick={reset} className="text-slate-500 hover:text-slate-300 flex-shrink-0"><X size={13} /></button>
           </div>
         )}
 
         {callStatus === 'error' && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 flex items-start gap-3">
-            <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 flex items-start gap-2.5">
+            <AlertCircle size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-red-300">Call Failed</p>
-              <p className="text-xs text-slate-400 mt-1">{callMsg}</p>
+              <p className="text-xs font-semibold text-red-300">Call Failed</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{callMsg}</p>
             </div>
-            <button onClick={reset} className="text-slate-500 hover:text-slate-300 flex-shrink-0"><X size={14} /></button>
+            <button onClick={reset} className="text-slate-500 hover:text-slate-300 flex-shrink-0"><X size={13} /></button>
           </div>
         )}
 
@@ -269,54 +248,48 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
         <button
           onClick={handleCall}
           disabled={!canCall}
-          className={`w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg ${
+          className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg ${
             canCall
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-amber-500/25 hover:shadow-amber-500/40'
               : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none'
           }`}
         >
           {calling ? (
-            <><Loader2 size={16} className="animate-spin" /> Connecting...</>
+            <><Loader2 size={15} className="animate-spin" /> Dialing...</>
           ) : (
-            <><PhoneCall size={16} /> Call Me Now</>
+            <><PhoneCall size={15} /> Call Me Now</>
           )}
         </button>
 
-        {/* Why disabled info */}
+        {/* Why disabled hint */}
         {!canCall && !calling && (
-          <div className="flex items-start gap-2 px-1">
-            <Info size={12} className="text-slate-500 flex-shrink-0 mt-0.5" />
-            <p className="text-[10px] text-slate-500 leading-relaxed">
-              {docCount === 0
-                ? 'Upload at least one document to your Knowledge Base before making a test call.'
-                : !phoneValid && phone.trim()
-                  ? 'Enter a valid phone number to continue.'
-                  : !phone.trim()
-                    ? 'Enter your phone number above.'
-                    : 'Complete the checklist above.'}
-            </p>
-          </div>
+          <p className="text-[10px] text-slate-500 text-center">
+            {docCount === 0
+              ? '⚠ Upload docs to KB first'
+              : !phone.trim()
+                ? 'Enter your number → AI will call you'
+                : !phoneValid
+                  ? '⚠ Invalid phone number'
+                  : 'Complete setup above'}
+          </p>
         )}
 
-        {/* What happens next */}
-        <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
-            <Sparkles size={10} className="text-violet-400" /> What happens during the test call
-          </p>
-          <ol className="space-y-1.5">
+        {/* How it works — compact */}
+        <div className="rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/40 px-3.5 py-3">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-2">How it works</p>
+          <div className="space-y-1.5">
             {[
-              'VoiceLink dials your number via AI agent',
-              'AI speaks the Welcome Message from your script',
-              'You talk naturally — the AI listens and replies',
-              'AI searches your Knowledge Base to answer questions',
-              'Call ends → check Live Dashboard for transcript',
-            ].map((step, i) => (
-              <li key={i} className="flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="flex-shrink-0 w-4 h-4 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-bold flex items-center justify-center">{i + 1}</span>
-                {step}
-              </li>
+              ['📲', 'AI dials your number — you receive the call'],
+              ['🗣', 'Speak naturally — AI listens & replies'],
+              ['🔍', 'AI searches your Knowledge Base for answers'],
+              ['📊', 'Call ends → transcript on Live Dashboard'],
+            ].map(([icon, text], i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="text-sm leading-none">{icon}</span>
+                <span>{text}</span>
+              </div>
             ))}
-          </ol>
+          </div>
         </div>
 
       </div>
@@ -324,31 +297,13 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
   );
 }
 
-// ── Checklist item ──────────────────────────────────────────────────────────
-function ChecklistItem({ done, label, warn = false, optional = false }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center ${
-        done
-          ? 'bg-emerald-500/15 border border-emerald-500/30'
-          : warn
-            ? 'bg-red-500/10 border border-red-500/30'
-            : optional
-              ? 'bg-slate-500/10 border border-slate-500/20'
-              : 'bg-amber-500/10 border border-amber-500/30'
-      }`}>
-        {done
-          ? <CheckCircle2 size={10} className="text-emerald-400" />
-          : warn
-            ? <X size={9} className="text-red-400" />
-            : <Clock size={9} className={optional ? 'text-slate-400' : 'text-amber-400'} />}
-      </span>
-      <span className={`text-xs ${done ? 'text-slate-600 dark:text-slate-300' : warn ? 'text-red-400' : optional ? 'text-slate-500' : 'text-amber-400'}`}>
-        {label}
-        {optional && <span className="text-slate-500 ml-1">(optional)</span>}
-      </span>
-    </div>
-  );
+// ── Compact status chip ──────────────────────────────────────────────────────
+function CompactChip({ done, label, warn = false, optional = false }) {
+  const base = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border';
+  if (done)     return <span className={`${base} bg-emerald-500/10 border-emerald-500/20 text-emerald-400`}><CheckCircle2 size={9} />{label}</span>;
+  if (warn)     return <span className={`${base} bg-red-500/10 border-red-500/20 text-red-400`}><AlertCircle size={9} />{label}</span>;
+  if (optional) return <span className={`${base} bg-slate-500/10 border-slate-500/20 text-slate-500`}><Clock size={9} />{label}</span>;
+  return <span className={`${base} bg-amber-500/10 border-amber-500/20 text-amber-400`}><Clock size={9} />{label}</span>;
 }
 
 // ── Main Component ──────────────────────────────────────────────────────────

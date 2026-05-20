@@ -70,6 +70,18 @@ class VoiceService:
         if not did_number:
             raise ValueError("VOICELINK_DID_NUMBER is not configured for outbound calls.")
 
+        # Normalize phone numbers for VoiceLink:
+        # VoiceLink expects numbers WITHOUT the leading '+' (it uses country_code separately)
+        # e.g. "+919876543210" → "919876543210"
+        def _normalize_for_voicelink(number: str) -> str:
+            n = number.strip()
+            if n.startswith("+"):
+                n = n[1:]
+            return n
+
+        did_number_clean = _normalize_for_voicelink(did_number)
+        customer_number_clean = _normalize_for_voicelink(to_number)
+
         # Generate a temporary placeholder SID; replaced by the real callSid in the WS 'start' event
         temp_call_sid = f"vl_{uuid.uuid4().hex}"
 
@@ -84,14 +96,15 @@ class VoiceService:
         webhook_url = f"{base_url}/voice/voicelink-status-callback"
 
         payload = {
-            "did_number": did_number,
-            "customer_number": to_number,
+            "did_number": did_number_clean,
+            "customer_number": customer_number_clean,
             "country_code": country_code,
             "custom_parameters": custom_params,
             "websocket_url": websocket_url,
             "webhook_url": webhook_url,
             "call_limit": 1,
         }
+
 
         headers = {
             "Authorization": f"Bearer {api_token}",

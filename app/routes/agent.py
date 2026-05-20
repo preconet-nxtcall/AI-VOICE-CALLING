@@ -207,11 +207,13 @@ class AgentOutboundCallResource(Resource):
                 "success": True,
                 "data": {
                     "call_sid": call_sid,
-                    "message": f"Call initiated to {phone_number}"
+                    "message": f"Call initiated to {phone_number}. Your phone will ring within 30 seconds — answer to talk with the AI agent."
                 }
             }, 200
         except ValueError as ve:
             return {"success": False, "error": str(ve)}, 400
         except Exception as e:
-            return {"success": False, "error": "Failed to initiate call."}, 500
+            import logging
+            logging.getLogger(__name__).exception("Failed to initiate outbound call to %s", phone_number)
+            return {"success": False, "error": f"Failed to initiate call: {str(e)}"}, 500
 
