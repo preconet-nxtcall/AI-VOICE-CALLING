@@ -81,13 +81,7 @@ def _write_pcm16_wav(dest_path: Path, pcm16_data: bytes) -> None:
         wf.writeframes(pcm16_data)
 
 
-def _mp3_to_alaw_8k(mp3_path: Path) -> bytes:
-    """Convert MP3 TTS output to 8 kHz mono G.711 A-law bytes for VoiceLink."""
-    from pydub import AudioSegment
-
-    seg = AudioSegment.from_file(str(mp3_path))
-    seg = seg.set_channels(1).set_frame_rate(_SAMPLE_RATE).set_sample_width(_PCM_SAMPLE_WIDTH)
-    return _lin2alaw(seg.raw_data)
+# (pydub/ffmpeg dependency removed for Render compatibility)
 
 
 # ─── VoiceLink call-sid / lead helpers ───────────────────────────────────────
@@ -170,10 +164,11 @@ def _build_reply_audio(
             # Caller mumbled or there was noise — politely ask them to repeat
             logger.info("[VoiceLink] STT returned empty call_sid=%s — requesting repeat", call_sid)
             repeat_msg = _get_repeat_request_message(primary_lang)
-            tts_path = Path(TTSService.generate_audio(
+            repeat_msg = _get_repeat_request_message(primary_lang)
+            alaw_bytes = TTSService.generate_alaw_8k(
                 repeat_msg, voice_id=voice_id, language=primary_lang, gender=gender
-            ))
-            return _mp3_to_alaw_8k(tts_path), {}
+            )
+            return alaw_bytes, {}
         logger.info("[VoiceLink] STT call_sid=%s text=%r", call_sid, transcription[:80])
 
         # 2 — RAG context
@@ -249,10 +244,10 @@ def _build_reply_audio(
             pass
 
         # 7 — TTS → A-law
-        tts_path = Path(TTSService.generate_audio(
+        alaw_reply = TTSService.generate_alaw_8k(
             ai_reply, voice_id=voice_id, language=primary_lang, gender=gender
-        ))
-        return _mp3_to_alaw_8k(tts_path), analysis
+        )
+        return alaw_reply, analysis
 
     except Exception:
         logger.exception("[VoiceLink] Pipeline failed call_sid=%s", call_sid)
@@ -413,14 +408,16 @@ def register_voicelink_websocket(sock_instance) -> None:
                             primary_lang = _cfg.get("primary_language", "Hindi")
                             voice_id = str(_cfg.get("voice_id") or "").strip() or None
                             gender = _cfg.get("voice_style", "female")
-                            tts_path = _Path(TTSService.generate_audio(
+                            welcome_alaw = TTSService.generate_alaw_8k(
                                 _msg, voice_id=voice_id, language=primary_lang, gender=gender
-                            ))
-                            welcome_alaw = _mp3_to_alaw_8k(tts_path)
+                            )
                             # Short delay to ensure VoiceLink WS is fully ready
                             time.sleep(0.5)
-                            _start_playback(_ws, _lock, _sid, welcome_alaw)
-                            logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
+                            if welcome_alaw:
+                                _start_playback(_ws, _lock, _sid, welcome_alaw)
+                                logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
+                            else:
+                                logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
                         except Exception:
                             logger.exception(
                                 "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid

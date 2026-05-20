@@ -64,7 +64,32 @@ class TTSService:
             raise
 
     @staticmethod
-    def _elevenlabs(text: str, api_key: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None) -> bytes:
+    def generate_alaw_8k(text: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None) -> bytes:
+        """Convert text to speech, and return raw G.711 A-law 8kHz bytes for VoiceLink."""
+        import audioop
+        if not text or not text.strip():
+            raise ValueError("Text cannot be empty")
+
+        eleven_key = _get_config("ELEVENLABS_API_KEY")
+        if eleven_key:
+            try:
+                # Get PCM 16kHz from ElevenLabs
+                pcm16k_bytes = TTSService._elevenlabs(
+                    text, eleven_key, voice_id=voice_id, language=language, gender=gender, output_format="pcm_16000"
+                )
+                # Downsample 16kHz to 8kHz (mono, 16-bit width = 2 bytes)
+                pcm8k_bytes, _ = audioop.ratecv(pcm16k_bytes, 2, 1, 16000, 8000, None)
+                # Convert PCM 16-bit to A-law
+                return audioop.lin2alaw(pcm8k_bytes, 2)
+            except Exception:
+                logger.exception("ElevenLabs TTS failed, cannot return ALAW audio without ffmpeg")
+                return b""
+
+        logger.error("ElevenLabs API key is missing. gTTS is not supported for ALAW streaming without ffmpeg.")
+        return b""
+
+    @staticmethod
+    def _elevenlabs(text: str, api_key: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None, output_format: str = "mp3_44100_128") -> bytes:
         v_id = voice_id
 
         if not v_id and language:
@@ -80,9 +105,9 @@ class TTSService:
         if not v_id:
             v_id = _get_config("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM"
 
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/{v_id}"
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{v_id}?output_format={output_format}"
         headers = {
-            "Accept": "audio/mpeg",
+            "Accept": "*/*",
             "Content-Type": "application/json",
             "xi-api-key": api_key,
         }
@@ -102,4 +127,5 @@ class TTSService:
         }
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
         resp.raise_for_status()
+        
         return resp.content
