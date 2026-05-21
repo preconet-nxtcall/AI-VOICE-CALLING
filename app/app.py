@@ -139,6 +139,16 @@ def create_app(config_override=None):
     def health():
         return {"status": "ok", "service": "saas-ai-backend"}
 
+    @app.get("/api/v1/sys-info")
+    def sys_info():
+        import sys
+        try:
+            import audioop
+            has_audioop = True
+        except ImportError:
+            has_audioop = False
+        return {"python": sys.version, "has_audioop": has_audioop}
+
     @app.get("/api/v1/debug-logs")
     def get_debug_logs():
         try:

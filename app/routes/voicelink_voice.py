@@ -348,11 +348,11 @@ def register_voicelink_websocket(sock_instance) -> None:
             # ── start ────────────────────────────────────────────────────
             if event_type == "start":
                 start = event.get("start") or {}
-                stream_sid = str(start.get("streamSid") or event.get("streamSid") or "").strip()
-                call_sid = str(start.get("callSid") or "").strip() or None
+                stream_sid = str(start.get("streamSid") or start.get("stream_sid") or event.get("streamSid") or event.get("stream_sid") or "").strip()
+                call_sid = str(start.get("callSid") or start.get("call_sid") or "").strip() or None
 
                 # customParameters may arrive as a nested dict or JSON string
-                custom = start.get("customParameters") or {}
+                custom = start.get("customParameters") or start.get("custom_parameters") or {}
                 if isinstance(custom, str):
                     try:
                         custom = json.loads(custom)
@@ -360,7 +360,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                         custom = {}
 
                 kb_id = str(custom.get("kb_id") or "").strip()
-                temp_call_sid = str(custom.get("temp_call_sid") or "").strip()
+                temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
 
                 # Swap temp placeholder → real telephony callSid
                 if temp_call_sid and call_sid and temp_call_sid != call_sid:
