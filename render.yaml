@@ -31,7 +31,7 @@ services:
       - key: VOICELINK_DID_NUMBER
         value: "+919484957094"
       - key: VOICELINK_COUNTRY_CODE
-        value: "91"
+        value: ""
       # ── Dialer config ──
       - key: DIALER_USE_CELERY
         value: "false"
@@ -69,7 +69,7 @@ services:
       - key: VOICELINK_DID_NUMBER
         value: "+919484957094"
       - key: VOICELINK_COUNTRY_CODE
-        value: "91"
+        value: ""
       - key: PUBLIC_BASE_URL
         value: https://ai-voice-calling-bz0z.onrender.com
       - key: DIALER_USE_CELERY

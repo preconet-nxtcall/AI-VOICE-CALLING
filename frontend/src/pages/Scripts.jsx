@@ -376,11 +376,11 @@ export default function Scripts() {
                       id="handoff-number"
                       value={handoffNumber}
                       onChange={(e) => setHandoffNumber(e.target.value)}
-                      placeholder="+91 99999 99999"
+                      placeholder="+1 234 567 8900"
                       className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
                     />
                     {handoffNumber && !E164_RE.test(handoffNumber.replace(/\s+/g, '')) && (
-                      <p className="text-xs text-red-500 mt-1">Enter a valid number (e.g. +91 99999 99999)</p>
+                      <p className="text-xs text-red-500 mt-1">Enter a valid number (e.g. +1 234 567 8900)</p>
                     )}
                   </div>
                 )}

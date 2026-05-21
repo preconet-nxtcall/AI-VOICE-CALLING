@@ -139,4 +139,12 @@ def create_app(config_override=None):
     def health():
         return {"status": "ok", "service": "saas-ai-backend"}
 
+    @app.get("/api/v1/debug-logs")
+    def get_debug_logs():
+        try:
+            with open("debug.log", "r") as f:
+                return f.read(), 200, {"Content-Type": "text/plain"}
+        except Exception as e:
+            return str(e), 500
+
     return app

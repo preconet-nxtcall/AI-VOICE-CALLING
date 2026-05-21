@@ -25,7 +25,7 @@ class Config:
     # VoiceLink Telephony
     VOICELINK_API_TOKEN = os.environ.get("VOICELINK_API_TOKEN", "")
     VOICELINK_DID_NUMBER = os.environ.get("VOICELINK_DID_NUMBER", "")
-    VOICELINK_COUNTRY_CODE = os.environ.get("VOICELINK_COUNTRY_CODE", "91")
+    VOICELINK_COUNTRY_CODE = os.environ.get("VOICELINK_COUNTRY_CODE", "")
     # Public URL for VoiceLink WebSocket + webhook callbacks
     PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
     # Voice AI

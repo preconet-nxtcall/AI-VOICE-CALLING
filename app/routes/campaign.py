@@ -315,12 +315,9 @@ class CampaignLeadUploadResource(Resource):
             if row_idx == 1 and phone.lower() in {"phone", "phone_number", "number", "mobile", "tel"}:
                 continue
 
-            # Normalize: add +91 if it looks like a 10-digit Indian number without prefix
+            # Normalize: add + if it does not have it
             if not phone.startswith("+"):
-                if len(phone) == 10 and phone.isdigit():
-                    phone = "+91" + phone
-                else:
-                    phone = "+" + phone
+                phone = "+" + phone
 
             if not _PHONE_RE.match(phone):
                 skipped += 1

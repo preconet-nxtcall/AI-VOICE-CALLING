@@ -63,7 +63,7 @@ class VoiceService:
 
         api_token = _get_api_key("VOICELINK_API_TOKEN")
         did_number = (from_number_override or "").strip() or _get_api_key("VOICELINK_DID_NUMBER")
-        country_code = _get_api_key("VOICELINK_COUNTRY_CODE").strip() or "91"
+        country_code = _get_api_key("VOICELINK_COUNTRY_CODE").strip()
 
         if not api_token:
             raise ValueError("VOICELINK_API_TOKEN is not configured.")

@@ -11,9 +11,6 @@ const E164_RE = /^\+?[1-9]\d{6,14}$/;
 
 function normalizePhone(raw) {
   const cleaned = raw.replace(/[\s\-().]/g, '');
-  if (!cleaned.startsWith('+') && cleaned.length === 10 && /^\d+$/.test(cleaned)) {
-    return '+91' + cleaned;
-  }
   return cleaned.startsWith('+') ? cleaned : '+' + cleaned;
 }
 
@@ -123,7 +120,7 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
           <PhoneCall size={16} className="text-white" />
         </div>
         <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Test AI Agent</h2>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Personal AI Agent</h2>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">AI will call your number — answer to test</p>
         </div>
       </div>
@@ -198,7 +195,7 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
               value={phone}
               onChange={e => setPhone(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && canCall && handleCall()}
-              placeholder="+91 98765 43210 or 9876543210"
+              placeholder="+1 234 567 8900 or 12345678900"
               className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-lg px-3 py-2.5 text-slate-900 dark:text-slate-200 text-sm focus:outline-none transition-all focus:ring-1 pr-24 ${
                 phone.trim() === ''
                   ? 'border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:ring-amber-500'
@@ -213,7 +210,7 @@ function TestCallPanel({ knowledgeBases, selectedKbId, setSelectedKbId }) {
               </span>
             )}
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">10-digit Indian numbers auto-prefixed with +91.</p>
+          <p className="text-[10px] text-slate-400 mt-1">Numbers are auto-prefixed with + if missing.</p>
         </div>
 
         {/* Call Status */}
