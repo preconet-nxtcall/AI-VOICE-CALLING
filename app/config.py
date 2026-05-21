@@ -97,8 +97,13 @@ def get_config():
     
     # Fix Render's 'postgres://' to 'postgresql://' for SQLAlchemy 1.4+
     db_url = os.environ.get("DATABASE_URL")
-    if db_url and db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    if not db_url:
+        # Fallback to the one defined in render.yaml if missing from environment
+        db_url = "postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a/ai_voice_calling"
+        
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
         config_obj.SQLALCHEMY_DATABASE_URI = db_url
         
     return config_obj
