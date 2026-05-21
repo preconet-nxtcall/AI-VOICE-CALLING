@@ -147,7 +147,17 @@ def create_app(config_override=None):
             has_audioop = True
         except ImportError:
             has_audioop = False
-        return {"python": sys.version, "has_audioop": has_audioop}
+        return {
+            "has_audioop": has_audioop,
+            "python": sys.version
+        }
+
+    global_ws_logs = []
+    app.config['WS_LOGS'] = global_ws_logs
+
+    @app.get("/api/v1/ws-logs")
+    def ws_logs():
+        return {"logs": app.config.get('WS_LOGS', [])[-20:]}
 
     @app.get("/api/v1/debug-logs")
     def get_debug_logs():

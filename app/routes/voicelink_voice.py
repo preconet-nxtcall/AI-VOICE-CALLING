@@ -328,6 +328,10 @@ def register_voicelink_websocket(sock_instance) -> None:
             if message is None:
                 logger.info("[VoiceLink] WebSocket disconnected call_sid=%s", call_sid)
                 break
+            
+            from flask import current_app
+            if 'WS_LOGS' in current_app.config:
+                current_app.config['WS_LOGS'].append(message[:200] + ("..." if len(message) > 200 else ""))
 
             try:
                 event = json.loads(message)
