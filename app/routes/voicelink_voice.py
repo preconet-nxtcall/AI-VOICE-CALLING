@@ -423,14 +423,18 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     if 'WS_LOGS' in current_app.config:
                                         current_app.config['WS_LOGS'].append(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
                                     
+                                    import time as _time
+                                    _t0 = _time.time()
                                     welcome_alaw = TTSService.generate_alaw_8k(
                                         _msg, voice_id=voice_id, language=primary_lang, gender=gender
                                     )
+                                    _dur = _time.time() - _t0
+                                    
                                     # Short delay to ensure VoiceLink WS is fully ready
                                     time.sleep(0.5)
                                     if welcome_alaw:
                                         if 'WS_LOGS' in current_app.config:
-                                            current_app.config['WS_LOGS'].append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes. Starting playback...")
+                                            current_app.config['WS_LOGS'].append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Starting playback...")
                                         _start_playback(_ws, _lock, _sid, welcome_alaw)
                                         logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
                                     else:
