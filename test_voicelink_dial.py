@@ -58,14 +58,7 @@ def make_call(to_number, country_code_val):
     except Exception as e:
         print(f"ERROR: {e}")
 
-# Test with country code empty and customer number = 8918523121
-print("\n--- Test 1: empty country_code, customer = 8918523121 ---")
-make_call("8918523121", "")
-
 # Test with country code "91" (India) and customer = 8918523121
-print("\n--- Test 2: country_code='91', customer = 8918523121 ---")
+print("\n--- Triggering single call to 8918523121 (India) ---")
 make_call("8918523121", "91")
 
-# Test with customer = +918918523121
-print("\n--- Test 3: country_code='', customer = +918918523121 ---")
-make_call("+918918523121", "")

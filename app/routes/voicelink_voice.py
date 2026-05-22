@@ -286,6 +286,7 @@ def _ws_send(ws, lock: threading.Lock, payload: dict) -> None:
         except Exception as e:
             logger.debug("[VoiceLink] WS send error (connection may have closed)")
             _log_ws_event(f"SEND ERROR: {str(e)}")
+            raise e
 
 
 def _start_playback(
@@ -304,12 +305,16 @@ def _start_playback(
                     _log_ws_event(f"PLAYBACK RUNNER INTERRUPTED: sent={sent_count} chunks")
                     return
                 chunk = alaw_audio[i: i + chunk_size]
-                _ws_send(ws, lock, {
-                    "event": "media",
-                    "streamSid": stream_sid,
-                    "stream_sid": stream_sid,
-                    "media": {"payload": base64.b64encode(chunk).decode("ascii")},
-                })
+                try:
+                    _ws_send(ws, lock, {
+                        "event": "media",
+                        "streamSid": stream_sid,
+                        "stream_sid": stream_sid,
+                        "media": {"payload": base64.b64encode(chunk).decode("ascii")},
+                    })
+                except Exception:
+                    _log_ws_event(f"PLAYBACK RUNNER STOPPED early due to SEND ERROR after sending {sent_count} chunks")
+                    return
                 sent_count += 1
                 time.sleep(0.02)
             _log_ws_event(f"PLAYBACK RUNNER COMPLETE: sent={sent_count} chunks")
@@ -320,6 +325,7 @@ def _start_playback(
     t = threading.Thread(target=_runner, daemon=True)
     t.start()
     return t, stop_event
+
 
 
 

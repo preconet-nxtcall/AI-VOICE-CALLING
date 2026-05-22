@@ -175,7 +175,7 @@ def create_app(config_override=None):
                     break
                 except Exception:
                     continue
-        return {"logs": [line.rstrip("\n") for line in lines[-200:]]}
+        return {"logs": [line.rstrip("\n") for line in lines[-1000:]]}
 
     @app.get("/api/v1/webhook-logs")
     def webhook_logs():
@@ -183,11 +183,13 @@ def create_app(config_override=None):
 
     @app.get("/api/v1/debug-logs")
     def get_debug_logs():
+        from flask import Response
         try:
             with open("debug.log", "r") as f:
-                return f.read(), 200, {"Content-Type": "text/plain"}
+                content = f.read()
+            return Response(content, mimetype="text/plain")
         except Exception as e:
-            return str(e), 500
+            return Response(str(e), status=500, mimetype="text/plain")
 
     def pre_warm_tts():
         with app.app_context():
