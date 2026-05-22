@@ -359,6 +359,15 @@ def register_voicelink_websocket(sock_instance) -> None:
 
         logger.info("[VoiceLink] WebSocket connected from %s", request.remote_addr)
 
+        # Log headers
+        try:
+            headers_list = []
+            for k, v in request.headers.items():
+                headers_list.append(f"{k}: {v}")
+            _log_ws_event(f"WS CONNECT HEADERS: {', '.join(headers_list)}")
+        except Exception as he:
+            _log_ws_event(f"WS CONNECT HEADERS ERROR: {he}")
+
         while True:
             try:
                 message = ws.receive()
