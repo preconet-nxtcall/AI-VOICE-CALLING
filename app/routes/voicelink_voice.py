@@ -381,15 +381,22 @@ def register_voicelink_websocket(sock_instance) -> None:
                     _log_ws_event(f"DISCONNECT: WebSocket connection closed for call_sid={call_sid}")
                     break
                 
-                _log_ws_event(f"INCOMING: {message[:200]}" + ("..." if len(message) > 200 else ""))
-
                 try:
                     event = json.loads(message)
+                    event_type = event.get("event")
                 except Exception:
+                    _log_ws_event(f"INCOMING RAW INVALID JSON: {message[:200]}")
                     logger.warning("[VoiceLink] Invalid JSON frame ignored")
                     continue
 
-                event_type = event.get("event")
+                if event_type != "media":
+                    _log_ws_event(f"INCOMING EVENT [{event_type}]: {message}")
+                else:
+                    if not hasattr(voicelink_media_stream, "_media_count"):
+                        voicelink_media_stream._media_count = 0
+                    voicelink_media_stream._media_count += 1
+                    if voicelink_media_stream._media_count <= 3:
+                        _log_ws_event(f"INCOMING MEDIA #{voicelink_media_stream._media_count}: {message[:400]}")
 
                 # ── connected ────────────────────────────────────────────────
                 if event_type == "connected":
