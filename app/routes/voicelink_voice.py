@@ -404,45 +404,48 @@ def register_voicelink_websocket(sock_instance) -> None:
                     # will drop the connection if no events arrive quickly.
                     welcome_msg = str(script_config.get("welcome_message") or "").strip()
                     if welcome_msg and stream_sid:
-                        def _play_welcome(_ws=ws, _lock=send_lock, _sid=stream_sid,
+                        from flask import current_app
+                        flask_app = current_app._get_current_object()
+                        def _play_welcome(_app=flask_app, _ws=ws, _lock=send_lock, _sid=stream_sid,
                                           _msg=welcome_msg, _cfg=script_config,
                                           _call_sid=call_sid):
-                            try:
-                                from flask import current_app
-                                if 'WS_LOGS' in current_app.config:
-                                    current_app.config['WS_LOGS'].append(f"WELCOME: Starting welcome playback for call_sid={_call_sid}...")
-                                from app.services.tts_service import TTSService
-                                from pathlib import Path as _Path
-                                primary_lang = _cfg.get("primary_language", "Hindi")
-                                voice_id = str(_cfg.get("voice_id") or "").strip() or None
-                                gender = _cfg.get("voice_style", "female")
-                                
-                                if 'WS_LOGS' in current_app.config:
-                                    current_app.config['WS_LOGS'].append(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
-                                
-                                welcome_alaw = TTSService.generate_alaw_8k(
-                                    _msg, voice_id=voice_id, language=primary_lang, gender=gender
-                                )
-                                # Short delay to ensure VoiceLink WS is fully ready
-                                time.sleep(0.5)
-                                if welcome_alaw:
+                            with _app.app_context():
+                                try:
+                                    from flask import current_app
                                     if 'WS_LOGS' in current_app.config:
-                                        current_app.config['WS_LOGS'].append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes. Starting playback...")
-                                    _start_playback(_ws, _lock, _sid, welcome_alaw)
-                                    logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
-                                else:
+                                        current_app.config['WS_LOGS'].append(f"WELCOME: Starting welcome playback for call_sid={_call_sid}...")
+                                    from app.services.tts_service import TTSService
+                                    from pathlib import Path as _Path
+                                    primary_lang = _cfg.get("primary_language", "Hindi")
+                                    voice_id = str(_cfg.get("voice_id") or "").strip() or None
+                                    gender = _cfg.get("voice_style", "female")
+                                    
                                     if 'WS_LOGS' in current_app.config:
-                                        current_app.config['WS_LOGS'].append("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
-                                    logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
-                            except Exception as e:
-                                import traceback
-                                error_tb = traceback.format_exc()
-                                logger.exception(
-                                    "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid
-                                )
-                                from flask import current_app
-                                if 'WS_LOGS' in current_app.config:
-                                    current_app.config['WS_LOGS'].append(f"WELCOME THREAD ERROR: {error_tb}")
+                                        current_app.config['WS_LOGS'].append(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
+                                    
+                                    welcome_alaw = TTSService.generate_alaw_8k(
+                                        _msg, voice_id=voice_id, language=primary_lang, gender=gender
+                                    )
+                                    # Short delay to ensure VoiceLink WS is fully ready
+                                    time.sleep(0.5)
+                                    if welcome_alaw:
+                                        if 'WS_LOGS' in current_app.config:
+                                            current_app.config['WS_LOGS'].append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes. Starting playback...")
+                                        _start_playback(_ws, _lock, _sid, welcome_alaw)
+                                        logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
+                                    else:
+                                        if 'WS_LOGS' in current_app.config:
+                                            current_app.config['WS_LOGS'].append("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
+                                        logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
+                                except Exception as e:
+                                    import traceback
+                                    error_tb = traceback.format_exc()
+                                    logger.exception(
+                                        "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid
+                                    )
+                                    from flask import current_app
+                                    if 'WS_LOGS' in current_app.config:
+                                        current_app.config['WS_LOGS'].append(f"WELCOME THREAD ERROR: {error_tb}")
 
                         threading.Thread(target=_play_welcome, daemon=True).start()
                     continue
