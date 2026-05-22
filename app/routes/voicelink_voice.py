@@ -324,192 +324,218 @@ def register_voicelink_websocket(sock_instance) -> None:
         logger.info("[VoiceLink] WebSocket connected from %s", request.remote_addr)
 
         while True:
-            message = ws.receive()
-            if message is None:
-                logger.info("[VoiceLink] WebSocket disconnected call_sid=%s", call_sid)
-                break
-            
-            from flask import current_app
-            if 'WS_LOGS' in current_app.config:
-                current_app.config['WS_LOGS'].append(message[:200] + ("..." if len(message) > 200 else ""))
-
             try:
-                event = json.loads(message)
-            except Exception:
-                logger.warning("[VoiceLink] Invalid JSON frame ignored")
-                continue
+                message = ws.receive()
+                if message is None:
+                    logger.info("[VoiceLink] WebSocket disconnected call_sid=%s", call_sid)
+                    break
+                
+                from flask import current_app
+                if 'WS_LOGS' in current_app.config:
+                    current_app.config['WS_LOGS'].append(f"INCOMING: {message[:200]}" + ("..." if len(message) > 200 else ""))
 
-            event_type = event.get("event")
-
-            # ── connected ────────────────────────────────────────────────
-            if event_type == "connected":
-                logger.info(
-                    "[VoiceLink] connected protocol=%s version=%s",
-                    event.get("protocol"), event.get("version"),
-                )
-                continue
-
-            # ── start ────────────────────────────────────────────────────
-            if event_type == "start":
-                start = event.get("start") or {}
-                stream_sid = str(start.get("streamSid") or start.get("stream_sid") or event.get("streamSid") or event.get("stream_sid") or "").strip()
-                call_sid = str(start.get("callSid") or start.get("call_sid") or "").strip() or None
-
-                # customParameters may arrive as a nested dict or JSON string
-                custom = start.get("customParameters") or start.get("custom_parameters") or {}
-                if isinstance(custom, str):
-                    try:
-                        custom = json.loads(custom)
-                    except Exception:
-                        custom = {}
-
-                kb_id = str(custom.get("kb_id") or "").strip()
-                temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
-
-                # Swap temp placeholder → real telephony callSid
-                if temp_call_sid and call_sid and temp_call_sid != call_sid:
-                    _update_lead_call_sid(temp_call_sid, call_sid)
-
-                # Load script config and lead name
-                script_config = _get_campaign_and_script_config(call_sid)[2] if call_sid else {}
-                if not script_config:
-                    script_config = {
-                        "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
-                        "primary_language": "Hindi",
-                        "voice_style": "female",
-                        "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
-                    }
                 try:
-                    from app.models.lead import Lead
-                    lead_obj = Lead.query.filter_by(call_sid=call_sid).first() if call_sid else None
-                    lead_name = getattr(lead_obj, "first_name", "") if lead_obj else ""
+                    event = json.loads(message)
                 except Exception:
-                    lead_name = ""
+                    logger.warning("[VoiceLink] Invalid JSON frame ignored")
+                    continue
 
-                logger.info(
-                    "[VoiceLink] start call_sid=%s stream_sid=%s kb_id=%s",
-                    call_sid, stream_sid, kb_id,
-                )
-                broadcast_live_event({
-                    "event": "call_start",
-                    "call_sid": call_sid,
-                    "kb_id": kb_id,
-                    "provider": "voicelink",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
+                event_type = event.get("event")
 
-                # ── Play welcome message in background thread ──────────
-                # We must NOT block the WS receive loop here — VoiceLink
-                # will drop the connection if no events arrive quickly.
-                welcome_msg = str(script_config.get("welcome_message") or "").strip()
-                if welcome_msg and stream_sid:
-                    def _play_welcome(_ws=ws, _lock=send_lock, _sid=stream_sid,
-                                      _msg=welcome_msg, _cfg=script_config,
-                                      _call_sid=call_sid):
+                # ── connected ────────────────────────────────────────────────
+                if event_type == "connected":
+                    logger.info(
+                        "[VoiceLink] connected protocol=%s version=%s",
+                        event.get("protocol"), event.get("version"),
+                    )
+                    continue
+
+                # ── start ────────────────────────────────────────────────────
+                if event_type == "start":
+                    start = event.get("start") or {}
+                    stream_sid = str(start.get("streamSid") or start.get("stream_sid") or event.get("streamSid") or event.get("stream_sid") or "").strip()
+                    call_sid = str(start.get("callSid") or start.get("call_sid") or "").strip() or None
+
+                    # customParameters may arrive as a nested dict or JSON string
+                    custom = start.get("customParameters") or start.get("custom_parameters") or {}
+                    if isinstance(custom, str):
                         try:
-                            from app.services.tts_service import TTSService
-                            from pathlib import Path as _Path
-                            primary_lang = _cfg.get("primary_language", "Hindi")
-                            voice_id = str(_cfg.get("voice_id") or "").strip() or None
-                            gender = _cfg.get("voice_style", "female")
-                            welcome_alaw = TTSService.generate_alaw_8k(
-                                _msg, voice_id=voice_id, language=primary_lang, gender=gender
-                            )
-                            # Short delay to ensure VoiceLink WS is fully ready
-                            time.sleep(0.5)
-                            if welcome_alaw:
-                                _start_playback(_ws, _lock, _sid, welcome_alaw)
-                                logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
-                            else:
-                                logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
+                            custom = json.loads(custom)
                         except Exception:
-                            logger.exception(
-                                "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid
-                            )
+                            custom = {}
 
-                    threading.Thread(target=_play_welcome, daemon=True).start()
-                continue
+                    kb_id = str(custom.get("kb_id") or "").strip()
+                    temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
 
-            # ── media (inbound customer audio) ───────────────────────────
-            if event_type == "media":
-                media = event.get("media") or {}
-                b64_payload = (media.get("payload") or "").strip()
-                if not b64_payload:
+                    # Swap temp placeholder → real telephony callSid
+                    if temp_call_sid and call_sid and temp_call_sid != call_sid:
+                        _update_lead_call_sid(temp_call_sid, call_sid)
+
+                    # Load script config and lead name
+                    script_config = _get_campaign_and_script_config(call_sid)[2] if call_sid else {}
+                    if not script_config:
+                        script_config = {
+                            "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
+                            "primary_language": "Hindi",
+                            "voice_style": "female",
+                            "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
+                        }
+                    try:
+                        from app.models.lead import Lead
+                        lead_obj = Lead.query.filter_by(call_sid=call_sid).first() if call_sid else None
+                        lead_name = getattr(lead_obj, "first_name", "") if lead_obj else ""
+                    except Exception:
+                        lead_name = ""
+
+                    logger.info(
+                        "[VoiceLink] start call_sid=%s stream_sid=%s kb_id=%s",
+                        call_sid, stream_sid, kb_id,
+                    )
+                    broadcast_live_event({
+                        "event": "call_start",
+                        "call_sid": call_sid,
+                        "kb_id": kb_id,
+                        "provider": "voicelink",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+
+                    # ── Play welcome message in background thread ──────────
+                    # We must NOT block the WS receive loop here — VoiceLink
+                    # will drop the connection if no events arrive quickly.
+                    welcome_msg = str(script_config.get("welcome_message") or "").strip()
+                    if welcome_msg and stream_sid:
+                        def _play_welcome(_ws=ws, _lock=send_lock, _sid=stream_sid,
+                                          _msg=welcome_msg, _cfg=script_config,
+                                          _call_sid=call_sid):
+                            try:
+                                from flask import current_app
+                                if 'WS_LOGS' in current_app.config:
+                                    current_app.config['WS_LOGS'].append(f"WELCOME: Starting welcome playback for call_sid={_call_sid}...")
+                                from app.services.tts_service import TTSService
+                                from pathlib import Path as _Path
+                                primary_lang = _cfg.get("primary_language", "Hindi")
+                                voice_id = str(_cfg.get("voice_id") or "").strip() or None
+                                gender = _cfg.get("voice_style", "female")
+                                
+                                if 'WS_LOGS' in current_app.config:
+                                    current_app.config['WS_LOGS'].append(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
+                                
+                                welcome_alaw = TTSService.generate_alaw_8k(
+                                    _msg, voice_id=voice_id, language=primary_lang, gender=gender
+                                )
+                                # Short delay to ensure VoiceLink WS is fully ready
+                                time.sleep(0.5)
+                                if welcome_alaw:
+                                    if 'WS_LOGS' in current_app.config:
+                                        current_app.config['WS_LOGS'].append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes. Starting playback...")
+                                    _start_playback(_ws, _lock, _sid, welcome_alaw)
+                                    logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
+                                else:
+                                    if 'WS_LOGS' in current_app.config:
+                                        current_app.config['WS_LOGS'].append("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
+                                    logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
+                            except Exception as e:
+                                import traceback
+                                error_tb = traceback.format_exc()
+                                logger.exception(
+                                    "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid
+                                )
+                                from flask import current_app
+                                if 'WS_LOGS' in current_app.config:
+                                    current_app.config['WS_LOGS'].append(f"WELCOME THREAD ERROR: {error_tb}")
+
+                        threading.Thread(target=_play_welcome, daemon=True).start()
                     continue
 
-                try:
-                    alaw_chunk = base64.b64decode(b64_payload)
-                    pcm_chunk = _alaw2lin(alaw_chunk)
-                except Exception:
-                    logger.debug("[VoiceLink] Failed to decode media chunk, skipping")
-                    continue
+                # ── media (inbound customer audio) ───────────────────────────
+                if event_type == "media":
+                    media = event.get("media") or {}
+                    b64_payload = (media.get("payload") or "").strip()
+                    if not b64_payload:
+                        continue
 
-                utterance.extend(pcm_chunk)
-                chunk_rms = _pcm_rms(pcm_chunk)
-                chunk_ms = int((len(pcm_chunk) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000))
+                    try:
+                        alaw_chunk = base64.b64decode(b64_payload)
+                        pcm_chunk = _alaw2lin(alaw_chunk)
+                    except Exception:
+                        logger.debug("[VoiceLink] Failed to decode media chunk, skipping")
+                        continue
 
-                if chunk_rms >= _SILENCE_RMS:
-                    # Barge-in: caller speaks while AI is playing → interrupt
-                    if playback_thread and playback_thread.is_alive():
-                        if playback_stop:
-                            playback_stop.set()
-                        if stream_sid:
-                            _ws_send(ws, send_lock, {"event": "clear", "streamSid": stream_sid})
-                    speech_seen = True
-                    silence_ms = 0
-                else:
-                    silence_ms += max(chunk_ms, 20)
+                    utterance.extend(pcm_chunk)
+                    chunk_rms = _pcm_rms(pcm_chunk)
+                    chunk_ms = int((len(pcm_chunk) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000))
 
-                utterance_ms = int(
-                    (len(utterance) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000)
-                )
+                    if chunk_rms >= _SILENCE_RMS:
+                        # Barge-in: caller speaks while AI is playing → interrupt
+                        if playback_thread and playback_thread.is_alive():
+                            if playback_stop:
+                                playback_stop.set()
+                            if stream_sid:
+                                _ws_send(ws, send_lock, {"event": "clear", "streamSid": stream_sid})
+                        speech_seen = True
+                        silence_ms = 0
+                    else:
+                        silence_ms += max(chunk_ms, 20)
 
-                # End-of-utterance detection
-                if (
-                    speech_seen
-                    and silence_ms >= _END_SILENCE_MS
-                    and utterance_ms >= _MIN_UTTERANCE_MS
-                    and kb_id
-                ):
-                    captured = bytes(utterance)
-                    utterance.clear()
-                    speech_seen = False
-                    silence_ms = 0
-
-                    alaw_reply, analysis = _build_reply_audio(
-                        call_sid=call_sid,
-                        kb_id=kb_id,
-                        lead_name=lead_name,
-                        script_config=script_config,
-                        pcm16_audio=captured,
+                    utterance_ms = int(
+                        (len(utterance) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000)
                     )
 
-                    # Handoff detection
-                    handoff_number = str(script_config.get("handoff_number") or "").strip()
-                    if analysis.get("should_handoff") and handoff_number and call_sid:
-                        logger.info("[VoiceLink] Handoff triggered call_sid=%s", call_sid)
-                        break  # VoiceLink side will disconnect; status callback finalizes the log
+                    # End-of-utterance detection
+                    if (
+                        speech_seen
+                        and silence_ms >= _END_SILENCE_MS
+                        and utterance_ms >= _MIN_UTTERANCE_MS
+                        and kb_id
+                    ):
+                        captured = bytes(utterance)
+                        utterance.clear()
+                        speech_seen = False
+                        silence_ms = 0
 
-                    # Stream reply back to caller
-                    if alaw_reply and stream_sid:
-                        playback_thread, playback_stop = _start_playback(
-                            ws, send_lock, stream_sid, alaw_reply
+                        alaw_reply, analysis = _build_reply_audio(
+                            call_sid=call_sid,
+                            kb_id=kb_id,
+                            lead_name=lead_name,
+                            script_config=script_config,
+                            pcm16_audio=captured,
                         )
 
-                continue
+                        # Handoff detection
+                        handoff_number = str(script_config.get("handoff_number") or "").strip()
+                        if analysis.get("should_handoff") and handoff_number and call_sid:
+                            logger.info("[VoiceLink] Handoff triggered call_sid=%s", call_sid)
+                            break  # VoiceLink side will disconnect; status callback finalizes the log
 
-            # ── stop ─────────────────────────────────────────────────────
-            if event_type == "stop":
-                logger.info("[VoiceLink] stop event call_sid=%s", call_sid)
-                if playback_stop:
-                    playback_stop.set()
-                _finalize_call_log(call_sid, status="completed")
-                broadcast_live_event({
-                    "event": "call_end",
-                    "call_sid": call_sid,
-                    "provider": "voicelink",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
+                        # Stream reply back to caller
+                        if alaw_reply and stream_sid:
+                            playback_thread, playback_stop = _start_playback(
+                                ws, send_lock, stream_sid, alaw_reply
+                            )
+
+                    continue
+
+                # ── stop ─────────────────────────────────────────────────────
+                if event_type == "stop":
+                    logger.info("[VoiceLink] stop event call_sid=%s", call_sid)
+                    if playback_stop:
+                        playback_stop.set()
+                    _finalize_call_log(call_sid, status="completed")
+                    broadcast_live_event({
+                        "event": "call_end",
+                        "call_sid": call_sid,
+                        "provider": "voicelink",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                    break
+
+            except Exception as e:
+                import traceback
+                error_tb = traceback.format_exc()
+                logger.exception("[VoiceLink] Error in WebSocket loop")
+                from flask import current_app
+                if 'WS_LOGS' in current_app.config:
+                    current_app.config['WS_LOGS'].append(f"WS LOOP ERROR: {error_tb}")
                 break
 
         # Cleanup on unexpected disconnect
