@@ -145,7 +145,7 @@ def get_config():
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
         # Fallback to the one defined in render.yaml if missing from environment
-        db_url = "postgresql://ai_voice_calling_db_user:6G9yRTmaPXXEOLguD7ZJnl03B1DWt3nW@dpg-d885kh99rddc73b6cntg-a/ai_voice_calling_db"
+        db_url = "postgresql://ai_voice_calling_db_user:6G9yRTmaPXXEOLguD7ZJnl03B1DWt3nW@dpg-d885kh99rddc73b6cntg-a.singapore-postgres.render.com/ai_voice_calling_db"
         
     if db_url:
         if db_url.startswith("postgres://"):
