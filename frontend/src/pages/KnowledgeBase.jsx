@@ -320,6 +320,12 @@ export default function KnowledgeBase() {
   const [creatingKb, setCreatingKb]       = useState(false);
   const [refreshingJobs, setRefreshingJobs] = useState(false);
 
+  const selectedKb = knowledgeBases.find(k => k.id === selectedKbId);
+  const selectedKbName = selectedKb?.name || '';
+  const filteredDocuments = selectedKbId
+    ? documents.filter(doc => doc.knowledge_base_id === selectedKbId)
+    : documents;
+
   const fetchDocuments = async () => {
     try {
       setLoading(true);
@@ -566,9 +572,9 @@ export default function KnowledgeBase() {
       <div className="bg-white dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-2xl overflow-hidden">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-[#0b1120]/50">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Database className="text-amber-500 dark:text-amber-400" /> Indexed Data Sources
+            <Database className="text-amber-500 dark:text-amber-400" /> Indexed Data Sources {selectedKbName && `(${selectedKbName})`}
           </h2>
-          <span className="text-sm text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-[#E2E8F0] dark:border-slate-700/50">{documents.length} Items</span>
+          <span className="text-sm text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-[#E2E8F0] dark:border-slate-700/50">{filteredDocuments.length} Items</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -589,15 +595,15 @@ export default function KnowledgeBase() {
                     Loading documents...
                   </td>
                 </tr>
-              ) : documents.length === 0 ? (
+              ) : filteredDocuments.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-16 text-center">
                     <BookOpen size={32} className="mx-auto mb-3 text-slate-300 dark:text-slate-700" />
-                    <p className="text-slate-500 dark:text-slate-500 text-sm">No documents yet.</p>
-                    <p className="text-slate-400 dark:text-slate-600 text-xs mt-1">Upload a file or add a URL above to get started.</p>
+                    <p className="text-slate-500 dark:text-slate-500 text-sm">No documents yet in this folder.</p>
+                    <p className="text-slate-400 dark:text-slate-600 text-xs mt-1">Upload a file or add a URL above to add a document to this folder.</p>
                   </td>
                 </tr>
-              ) : documents.map(doc => (
+              ) : filteredDocuments.map(doc => (
                 <tr key={doc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">

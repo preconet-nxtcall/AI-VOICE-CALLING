@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv(override=True)
 
@@ -10,6 +11,32 @@ def _env_bool(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _ensure_writable_dir(dir_path: str, default_fallback: str) -> str:
+    if not dir_path:
+        return default_fallback
+    try:
+        path = Path(dir_path)
+        path.mkdir(parents=True, exist_ok=True)
+        # Test write permission by creating a temporary file
+        test_file = path / f".write_test_{os.getpid()}"
+        test_file.touch()
+        test_file.unlink()
+        return dir_path
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Directory '%s' is not writable or cannot be created. Falling back to '%s'.",
+            dir_path,
+            default_fallback,
+        )
+        try:
+            fallback_path = Path(default_fallback)
+            fallback_path.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+        return default_fallback
 
 
 class Config:
@@ -94,6 +121,25 @@ def get_config():
             env = "development"
             
     config_obj = config_map.get(env, DevelopmentConfig)
+    
+    # Ensure writable directories for storage
+    config_obj.FAISS_INDEX_DIR = _ensure_writable_dir(
+        os.environ.get("FAISS_INDEX_DIR", config_obj.FAISS_INDEX_DIR),
+        "./faiss_indices"
+    )
+    config_obj.RECORDINGS_DIR = _ensure_writable_dir(
+        os.environ.get("RECORDINGS_DIR", config_obj.RECORDINGS_DIR),
+        "./recordings"
+    )
+    config_obj.TTS_AUDIO_DIR = _ensure_writable_dir(
+        os.environ.get("TTS_AUDIO_DIR", config_obj.TTS_AUDIO_DIR),
+        "./tts_audio"
+    )
+    
+    # Keep os.environ up-to-date so os.environ.get() matches the validated writable paths
+    os.environ["FAISS_INDEX_DIR"] = config_obj.FAISS_INDEX_DIR
+    os.environ["RECORDINGS_DIR"] = config_obj.RECORDINGS_DIR
+    os.environ["TTS_AUDIO_DIR"] = config_obj.TTS_AUDIO_DIR
     
     # Fix Render's 'postgres://' to 'postgresql://' for SQLAlchemy 1.4+
     db_url = os.environ.get("DATABASE_URL")
