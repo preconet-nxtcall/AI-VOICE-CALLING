@@ -160,7 +160,7 @@ def create_app(config_override=None):
 
     @app.get("/api/v1/ws-logs")
     def ws_logs():
-        return {"logs": app.config.get('WS_LOGS', [])[-20:]}
+        return {"logs": app.config.get('WS_LOGS', [])[-200:]}
 
     @app.get("/api/v1/webhook-logs")
     def webhook_logs():
