@@ -155,9 +155,16 @@ def create_app(config_override=None):
     global_ws_logs = []
     app.config['WS_LOGS'] = global_ws_logs
 
+    global_webhook_logs = []
+    app.config['WEBHOOK_LOGS'] = global_webhook_logs
+
     @app.get("/api/v1/ws-logs")
     def ws_logs():
         return {"logs": app.config.get('WS_LOGS', [])[-20:]}
+
+    @app.get("/api/v1/webhook-logs")
+    def webhook_logs():
+        return {"logs": app.config.get('WEBHOOK_LOGS', [])[-25:]}
 
     @app.get("/api/v1/debug-logs")
     def get_debug_logs():
@@ -166,5 +173,29 @@ def create_app(config_override=None):
                 return f.read(), 200, {"Content-Type": "text/plain"}
         except Exception as e:
             return str(e), 500
+
+    def pre_warm_tts():
+        with app.app_context():
+            try:
+                app.logger.info("[TTS Pre-warm] Starting pre-warm of default Hindi welcome message...")
+                from app.services.tts_service import TTSService, _get_config
+                welcome_msg = "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?"
+                female_voice = _get_config("ELEVENLABS_VOICE_ID_HINDI_FEMALE")
+                male_voice = _get_config("ELEVENLABS_VOICE_ID_HINDI_MALE")
+                default_voice = _get_config("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM"
+
+                TTSService.generate_alaw_8k(welcome_msg, voice_id=None, language="Hindi", gender="female")
+                TTSService.generate_alaw_8k(welcome_msg, voice_id=None, language="Hindi", gender="male")
+                if female_voice:
+                    TTSService.generate_alaw_8k(welcome_msg, voice_id=female_voice, language="Hindi", gender="female")
+                if default_voice:
+                    TTSService.generate_alaw_8k(welcome_msg, voice_id=default_voice, language="Hindi", gender="female")
+
+                app.logger.info("[TTS Pre-warm] Cache pre-warm completed successfully.")
+            except Exception as e:
+                app.logger.error("[TTS Pre-warm] Failed to pre-warm cache: %s", e)
+
+    import threading
+    threading.Thread(target=pre_warm_tts, daemon=True).start()
 
     return app

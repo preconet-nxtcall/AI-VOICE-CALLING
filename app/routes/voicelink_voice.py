@@ -557,6 +557,14 @@ def voicelink_status_callback():
     """
     try:
         data = request.get_json(force=True, silent=True) or {}
+        
+        from flask import current_app
+        if 'WEBHOOK_LOGS' in current_app.config:
+            current_app.config['WEBHOOK_LOGS'].append({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "payload": data
+            })
+
         event_name = str(data.get("event") or data.get("status") or "").lower()
         call_sid = str(data.get("callSid") or data.get("call_sid") or "").strip()
         duration = int(data.get("duration") or 0)
