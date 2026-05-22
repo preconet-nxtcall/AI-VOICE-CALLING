@@ -261,33 +261,48 @@ def _build_reply_audio(
 
 # ─── WebSocket helpers ────────────────────────────────────────────────────────
 
-def _ws_send(ws, lock: threading.Lock, payload: dict) -> None:
+def _ws_send(ws, lock: threading.Lock, payload: dict, logs_list: Optional[list] = None) -> None:
     with lock:
         try:
             ws.send(json.dumps(payload))
-        except Exception:
+        except Exception as e:
             logger.debug("[VoiceLink] WS send error (connection may have closed)")
+            if logs_list is not None:
+                logs_list.append(f"SEND ERROR: {str(e)}")
 
 
 def _start_playback(
-    ws, lock: threading.Lock, stream_sid: str, alaw_audio: bytes
+    ws, lock: threading.Lock, stream_sid: str, alaw_audio: bytes, logs_list: Optional[list] = None
 ) -> tuple[threading.Thread, threading.Event]:
     """Stream G.711 A-law audio to VoiceLink in 20 ms chunks (160 bytes each)."""
     stop_event = threading.Event()
 
     def _runner():
         chunk_size = 160  # 20 ms at 8 kHz, 8-bit alaw
-        for i in range(0, len(alaw_audio), chunk_size):
-            if stop_event.is_set():
-                return
-            chunk = alaw_audio[i: i + chunk_size]
-            _ws_send(ws, lock, {
-                "event": "media",
-                "streamSid": stream_sid,
-                "stream_sid": stream_sid,
-                "media": {"payload": base64.b64encode(chunk).decode("ascii")},
-            })
-            time.sleep(0.02)
+        sent_count = 0
+        if logs_list is not None:
+            logs_list.append(f"PLAYBACK RUNNER START: total_bytes={len(alaw_audio)}")
+        try:
+            for i in range(0, len(alaw_audio), chunk_size):
+                if stop_event.is_set():
+                    if logs_list is not None:
+                        logs_list.append(f"PLAYBACK RUNNER INTERRUPTED: sent={sent_count} chunks")
+                    return
+                chunk = alaw_audio[i: i + chunk_size]
+                _ws_send(ws, lock, {
+                    "event": "media",
+                    "streamSid": stream_sid,
+                    "stream_sid": stream_sid,
+                    "media": {"payload": base64.b64encode(chunk).decode("ascii")},
+                }, logs_list)
+                sent_count += 1
+                time.sleep(0.02)
+            if logs_list is not None:
+                logs_list.append(f"PLAYBACK RUNNER COMPLETE: sent={sent_count} chunks")
+        except Exception as e:
+            if logs_list is not None:
+                logs_list.append(f"PLAYBACK RUNNER EXCEPTION: {str(e)}")
+            logger.exception("[VoiceLink] Error in playback runner thread")
 
     t = threading.Thread(target=_runner, daemon=True)
     t.start()
@@ -434,9 +449,10 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     # Short delay to ensure VoiceLink WS is fully ready
                                     time.sleep(0.5)
                                     if welcome_alaw:
-                                        if 'WS_LOGS' in current_app.config:
-                                            current_app.config['WS_LOGS'].append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Starting playback...")
-                                        _start_playback(_ws, _lock, _sid, welcome_alaw)
+                                        ws_logs = current_app.config.get('WS_LOGS')
+                                        if ws_logs is not None:
+                                            ws_logs.append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Starting playback...")
+                                        _start_playback(_ws, _lock, _sid, welcome_alaw, ws_logs)
                                         logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
                                     else:
                                         if 'WS_LOGS' in current_app.config:
@@ -517,8 +533,9 @@ def register_voicelink_websocket(sock_instance) -> None:
 
                         # Stream reply back to caller
                         if alaw_reply and stream_sid:
+                            ws_logs = current_app.config.get('WS_LOGS')
                             playback_thread, playback_stop = _start_playback(
-                                ws, send_lock, stream_sid, alaw_reply
+                                ws, send_lock, stream_sid, alaw_reply, ws_logs
                             )
 
                     continue
