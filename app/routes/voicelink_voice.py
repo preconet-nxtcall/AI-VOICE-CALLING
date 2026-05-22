@@ -284,6 +284,7 @@ def _start_playback(
             _ws_send(ws, lock, {
                 "event": "media",
                 "streamSid": stream_sid,
+                "stream_sid": stream_sid,
                 "media": {"payload": base64.b64encode(chunk).decode("ascii")},
             })
             time.sleep(0.02)
