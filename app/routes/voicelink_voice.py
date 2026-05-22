@@ -20,6 +20,7 @@ import audioop
 import base64
 import json
 import logging
+import queue
 import tempfile
 import threading
 import time
@@ -289,47 +290,99 @@ def _ws_send(ws, lock: threading.Lock, payload: dict) -> None:
             raise e
 
 
-def _start_playback(
-    ws, lock: threading.Lock, stream_sid: str, alaw_audio: bytes
-) -> tuple[threading.Thread, threading.Event]:
-    """Stream G.711 A-law audio to VoiceLink in 20 ms chunks (160 bytes each)."""
-    stop_event = threading.Event()
+class VoiceLinkPlaybackManager:
+    """
+    Manages continuous audio playback/streaming to VoiceLink.
+    Plays A-law silence chunks when there is no voice audio queued.
+    Prevents RTP timeouts (SIP Cause 32) on connection start.
+    """
+    def __init__(self, ws, lock: threading.Lock, stream_sid: str):
+        self.ws = ws
+        self.lock = lock
+        self.stream_sid = stream_sid
+        self.queue = queue.Queue()
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.sent_count = 0
+        # Pre-generate 160-byte G.711 A-law silence chunk
+        # 160 samples @ 8kHz = 20ms = 320 bytes PCM16
+        self.silence_chunk = _lin2alaw(b'\x00' * 320)
 
-    def _runner():
-        chunk_size = 160  # 20 ms at 8 kHz, 8-bit alaw
-        sent_count = 0
-        _log_ws_event(f"PLAYBACK RUNNER START: total_bytes={len(alaw_audio)}")
+    def start(self) -> None:
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+
+    def _run(self) -> None:
+        _log_ws_event(f"PLAYBACK MANAGER START: stream_sid={self.stream_sid}")
+        chunk_duration = 0.020
+        start_time = time.time()
+        
         try:
-            for i in range(0, len(alaw_audio), chunk_size):
-                if stop_event.is_set():
-                    _log_ws_event(f"PLAYBACK RUNNER INTERRUPTED: sent={sent_count} chunks")
-                    return
-                chunk = alaw_audio[i: i + chunk_size]
+            while not self.stop_event.is_set():
+                chunk = None
                 try:
-                    _ws_send(ws, lock, {
+                    chunk = self.queue.get_nowait()
+                except queue.Empty:
+                    pass
+
+                if chunk is None:
+                    chunk = self.silence_chunk
+
+                try:
+                    _ws_send(self.ws, self.lock, {
                         "event": "media",
-                        "streamSid": stream_sid,
-                        "stream_sid": stream_sid,
+                        "streamSid": self.stream_sid,
+                        "stream_sid": self.stream_sid,
                         "media": {
                             "payload": base64.b64encode(chunk).decode("ascii"),
                             "track": "outbound"
                         },
-                        "sequenceNumber": str(sent_count + 1),
-                        "sequence_number": sent_count + 1
+                        "sequenceNumber": str(self.sent_count + 1),
+                        "sequence_number": self.sent_count + 1
                     })
-                except Exception:
-                    _log_ws_event(f"PLAYBACK RUNNER STOPPED early due to SEND ERROR after sending {sent_count} chunks")
-                    return
-                sent_count += 1
-                time.sleep(0.02)
-            _log_ws_event(f"PLAYBACK RUNNER COMPLETE: sent={sent_count} chunks")
-        except Exception as e:
-            _log_ws_event(f"PLAYBACK RUNNER EXCEPTION: {str(e)}")
-            logger.exception("[VoiceLink] Error in playback runner thread")
+                except Exception as e:
+                    _log_ws_event(f"PLAYBACK MANAGER SEND ERROR: {e}")
+                    break
 
-    t = threading.Thread(target=_runner, daemon=True)
-    t.start()
-    return t, stop_event
+                self.sent_count += 1
+                
+                # Sleep with drift compensation to maintain precise 20ms intervals
+                expected_elapsed = self.sent_count * chunk_duration
+                next_time = start_time + expected_elapsed
+                sleep_time = next_time - time.time()
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                else:
+                    time.sleep(0.001)
+
+            _log_ws_event(f"PLAYBACK MANAGER COMPLETED: sent={self.sent_count} chunks")
+        except Exception as e:
+            _log_ws_event(f"PLAYBACK MANAGER EXCEPTION: {e}")
+            logger.exception("[VoiceLink] Error in PlaybackManager runner thread")
+
+    def add_audio(self, alaw_audio: bytes) -> None:
+        """Split raw A-law audio into 160-byte chunks and queue them."""
+        chunk_size = 160
+        for i in range(0, len(alaw_audio), chunk_size):
+            chunk = alaw_audio[i:i + chunk_size]
+            if len(chunk) < chunk_size:
+                # Pad the final chunk with silence
+                chunk = chunk + self.silence_chunk[len(chunk):]
+            self.queue.put(chunk)
+
+    def clear(self) -> None:
+        """Empty the queue of any pending speech chunks (for barge-in)."""
+        while not self.queue.empty():
+            try:
+                self.queue.get_nowait()
+            except queue.Empty:
+                break
+
+    def stop(self) -> None:
+        """Stop the continuous streaming thread."""
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=1.0)
 
 
 
@@ -359,8 +412,7 @@ def register_voicelink_websocket(sock_instance) -> None:
 
         # ── Playback control ─────────────────────────────────────────────
         send_lock = threading.Lock()
-        playback_thread: Optional[threading.Thread] = None
-        playback_stop: Optional[threading.Event] = None
+        playback_manager: Optional[VoiceLinkPlaybackManager] = None
 
         logger.info("[VoiceLink] WebSocket connected from %s", request.remote_addr)
 
@@ -467,21 +519,25 @@ def register_voicelink_websocket(sock_instance) -> None:
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
 
+                    # Start the precision-timed, continuous playback manager
+                    if stream_sid:
+                        playback_manager = VoiceLinkPlaybackManager(ws, send_lock, stream_sid)
+                        playback_manager.start()
+
                     # ── Play welcome message in background thread ──────────
                     # We must NOT block the WS receive loop here — VoiceLink
                     # will drop the connection if no events arrive quickly.
                     welcome_msg = str(script_config.get("welcome_message") or "").strip()
-                    if welcome_msg and stream_sid:
+                    if welcome_msg and stream_sid and playback_manager:
                         from flask import current_app
                         flask_app = current_app._get_current_object()
-                        def _play_welcome(_app=flask_app, _ws=ws, _lock=send_lock, _sid=stream_sid,
+                        def _play_welcome(_app=flask_app, _manager=playback_manager,
                                           _msg=welcome_msg, _cfg=script_config,
                                           _call_sid=call_sid):
                             with _app.app_context():
                                 try:
-                                    _log_ws_event(f"WELCOME: Starting welcome playback for call_sid={_call_sid}...")
+                                    _log_ws_event(f"WELCOME: Starting welcome generation for call_sid={_call_sid}...")
                                     from app.services.tts_service import TTSService
-                                    from pathlib import Path as _Path
                                     primary_lang = _cfg.get("primary_language", "Hindi")
                                     voice_id = str(_cfg.get("voice_id") or "").strip() or None
                                     gender = _cfg.get("voice_style", "female")
@@ -495,12 +551,10 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     )
                                     _dur = _time.time() - _t0
                                     
-                                    # Short delay to ensure VoiceLink WS is fully ready
-                                    time.sleep(0.5)
                                     if welcome_alaw:
-                                        _log_ws_event(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Starting playback...")
-                                        _start_playback(_ws, _lock, _sid, welcome_alaw)
-                                        logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
+                                        _log_ws_event(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Adding to playback queue...")
+                                        _manager.add_audio(welcome_alaw)
+                                        logger.info("[VoiceLink] Welcome message added to queue call_sid=%s", _call_sid)
                                     else:
                                         _log_ws_event("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
                                         logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
@@ -535,11 +589,13 @@ def register_voicelink_websocket(sock_instance) -> None:
 
                     if chunk_rms >= _SILENCE_RMS:
                         # Barge-in: caller speaks while AI is playing → interrupt
-                        if playback_thread and playback_thread.is_alive():
-                            if playback_stop:
-                                playback_stop.set()
+                        if playback_manager:
+                            playback_manager.clear()
                             if stream_sid:
-                                _ws_send(ws, send_lock, {"event": "clear", "streamSid": stream_sid})
+                                try:
+                                    _ws_send(ws, send_lock, {"event": "clear", "streamSid": stream_sid})
+                                except Exception as ce:
+                                    _log_ws_event(f"BARGE-IN CLEAR SEND ERROR: {ce}")
                         speech_seen = True
                         silence_ms = 0
                     else:
@@ -576,18 +632,16 @@ def register_voicelink_websocket(sock_instance) -> None:
                             break  # VoiceLink side will disconnect; status callback finalizes the log
 
                         # Stream reply back to caller
-                        if alaw_reply and stream_sid:
-                            playback_thread, playback_stop = _start_playback(
-                                ws, send_lock, stream_sid, alaw_reply
-                            )
+                        if alaw_reply and stream_sid and playback_manager:
+                            playback_manager.add_audio(alaw_reply)
 
                     continue
 
                 # ── stop ─────────────────────────────────────────────────────
                 if event_type == "stop":
                     logger.info("[VoiceLink] stop event call_sid=%s", call_sid)
-                    if playback_stop:
-                        playback_stop.set()
+                    if playback_manager:
+                        playback_manager.stop()
                     _finalize_call_log(call_sid, status="completed")
                     broadcast_live_event({
                         "event": "call_end",
@@ -605,8 +659,8 @@ def register_voicelink_websocket(sock_instance) -> None:
                 break
 
         # Cleanup on unexpected disconnect
-        if playback_stop:
-            playback_stop.set()
+        if playback_manager:
+            playback_manager.stop()
 
 
 # ─── Status Callback Webhook ──────────────────────────────────────────────────
