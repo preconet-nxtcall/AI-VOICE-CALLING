@@ -35,3 +35,8 @@ gunicorn==23.0.0
 # Queue / workers
 celery==5.4.0
 redis==5.1.1
+
+# Production WSGI Server for WebSockets
+gevent==24.11.1
+gevent-websocket==0.10.1
+

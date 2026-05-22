@@ -162,6 +162,21 @@ def create_app(config_override=None):
     def ws_logs():
         return {"logs": app.config.get('WS_LOGS', [])[-200:]}
 
+    @app.get("/api/v1/ws-file-logs")
+    def ws_file_logs():
+        from pathlib import Path
+        paths_to_try = [Path("/data/voicelink_ws.log"), Path("./voicelink_ws.log")]
+        lines = []
+        for path in paths_to_try:
+            if path.exists():
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                    break
+                except Exception:
+                    continue
+        return {"logs": [line.rstrip("\n") for line in lines[-200:]]}
+
     @app.get("/api/v1/webhook-logs")
     def webhook_logs():
         return {"logs": app.config.get('WEBHOOK_LOGS', [])[-25:]}

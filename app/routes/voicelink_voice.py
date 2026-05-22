@@ -54,6 +54,24 @@ _END_SILENCE_MS = 800      # trailing silence to end utterance (slightly more pa
 _MIN_UTTERANCE_MS = 400    # minimum utterance duration to process (lowered to catch short replies)
 _PCM_SAMPLE_WIDTH = 2      # bytes per sample (16-bit PCM)
 
+_log_lock = threading.Lock()
+
+def _log_ws_event(message: str) -> None:
+    """Thread-safe persistent file-based logging for VoiceLink events."""
+    timestamp = datetime.now(timezone.utc).isoformat()
+    log_line = f"[{timestamp}] {message}\n"
+    paths_to_try = [Path("/data/voicelink_ws.log"), Path("./voicelink_ws.log")]
+    with _log_lock:
+        for path in paths_to_try:
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "a", encoding="utf-8") as f:
+                    f.write(log_line)
+                break
+            except Exception:
+                continue
+
+
 
 # ─── G.711 A-law ↔ PCM 16-bit helpers ────────────────────────────────────────
 
@@ -261,18 +279,17 @@ def _build_reply_audio(
 
 # ─── WebSocket helpers ────────────────────────────────────────────────────────
 
-def _ws_send(ws, lock: threading.Lock, payload: dict, logs_list: Optional[list] = None) -> None:
+def _ws_send(ws, lock: threading.Lock, payload: dict) -> None:
     with lock:
         try:
             ws.send(json.dumps(payload))
         except Exception as e:
             logger.debug("[VoiceLink] WS send error (connection may have closed)")
-            if logs_list is not None:
-                logs_list.append(f"SEND ERROR: {str(e)}")
+            _log_ws_event(f"SEND ERROR: {str(e)}")
 
 
 def _start_playback(
-    ws, lock: threading.Lock, stream_sid: str, alaw_audio: bytes, logs_list: Optional[list] = None
+    ws, lock: threading.Lock, stream_sid: str, alaw_audio: bytes
 ) -> tuple[threading.Thread, threading.Event]:
     """Stream G.711 A-law audio to VoiceLink in 20 ms chunks (160 bytes each)."""
     stop_event = threading.Event()
@@ -280,13 +297,11 @@ def _start_playback(
     def _runner():
         chunk_size = 160  # 20 ms at 8 kHz, 8-bit alaw
         sent_count = 0
-        if logs_list is not None:
-            logs_list.append(f"PLAYBACK RUNNER START: total_bytes={len(alaw_audio)}")
+        _log_ws_event(f"PLAYBACK RUNNER START: total_bytes={len(alaw_audio)}")
         try:
             for i in range(0, len(alaw_audio), chunk_size):
                 if stop_event.is_set():
-                    if logs_list is not None:
-                        logs_list.append(f"PLAYBACK RUNNER INTERRUPTED: sent={sent_count} chunks")
+                    _log_ws_event(f"PLAYBACK RUNNER INTERRUPTED: sent={sent_count} chunks")
                     return
                 chunk = alaw_audio[i: i + chunk_size]
                 _ws_send(ws, lock, {
@@ -294,19 +309,18 @@ def _start_playback(
                     "streamSid": stream_sid,
                     "stream_sid": stream_sid,
                     "media": {"payload": base64.b64encode(chunk).decode("ascii")},
-                }, logs_list)
+                })
                 sent_count += 1
                 time.sleep(0.02)
-            if logs_list is not None:
-                logs_list.append(f"PLAYBACK RUNNER COMPLETE: sent={sent_count} chunks")
+            _log_ws_event(f"PLAYBACK RUNNER COMPLETE: sent={sent_count} chunks")
         except Exception as e:
-            if logs_list is not None:
-                logs_list.append(f"PLAYBACK RUNNER EXCEPTION: {str(e)}")
+            _log_ws_event(f"PLAYBACK RUNNER EXCEPTION: {str(e)}")
             logger.exception("[VoiceLink] Error in playback runner thread")
 
     t = threading.Thread(target=_runner, daemon=True)
     t.start()
     return t, stop_event
+
 
 
 # ─── WebSocket registration ───────────────────────────────────────────────────
@@ -344,11 +358,10 @@ def register_voicelink_websocket(sock_instance) -> None:
                 message = ws.receive()
                 if message is None:
                     logger.info("[VoiceLink] WebSocket disconnected call_sid=%s", call_sid)
+                    _log_ws_event(f"DISCONNECT: WebSocket connection closed for call_sid={call_sid}")
                     break
                 
-                from flask import current_app
-                if 'WS_LOGS' in current_app.config:
-                    current_app.config['WS_LOGS'].append(f"INCOMING: {message[:200]}" + ("..." if len(message) > 200 else ""))
+                _log_ws_event(f"INCOMING: {message[:200]}" + ("..." if len(message) > 200 else ""))
 
                 try:
                     event = json.loads(message)
@@ -427,17 +440,14 @@ def register_voicelink_websocket(sock_instance) -> None:
                                           _call_sid=call_sid):
                             with _app.app_context():
                                 try:
-                                    from flask import current_app
-                                    if 'WS_LOGS' in current_app.config:
-                                        current_app.config['WS_LOGS'].append(f"WELCOME: Starting welcome playback for call_sid={_call_sid}...")
+                                    _log_ws_event(f"WELCOME: Starting welcome playback for call_sid={_call_sid}...")
                                     from app.services.tts_service import TTSService
                                     from pathlib import Path as _Path
                                     primary_lang = _cfg.get("primary_language", "Hindi")
                                     voice_id = str(_cfg.get("voice_id") or "").strip() or None
                                     gender = _cfg.get("voice_style", "female")
                                     
-                                    if 'WS_LOGS' in current_app.config:
-                                        current_app.config['WS_LOGS'].append(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
+                                    _log_ws_event(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
                                     
                                     import time as _time
                                     _t0 = _time.time()
@@ -449,14 +459,11 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     # Short delay to ensure VoiceLink WS is fully ready
                                     time.sleep(0.5)
                                     if welcome_alaw:
-                                        ws_logs = current_app.config.get('WS_LOGS')
-                                        if ws_logs is not None:
-                                            ws_logs.append(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Starting playback...")
-                                        _start_playback(_ws, _lock, _sid, welcome_alaw, ws_logs)
+                                        _log_ws_event(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Starting playback...")
+                                        _start_playback(_ws, _lock, _sid, welcome_alaw)
                                         logger.info("[VoiceLink] Welcome message played call_sid=%s", _call_sid)
                                     else:
-                                        if 'WS_LOGS' in current_app.config:
-                                            current_app.config['WS_LOGS'].append("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
+                                        _log_ws_event("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
                                         logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
                                 except Exception as e:
                                     import traceback
@@ -464,9 +471,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     logger.exception(
                                         "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid
                                     )
-                                    from flask import current_app
-                                    if 'WS_LOGS' in current_app.config:
-                                        current_app.config['WS_LOGS'].append(f"WELCOME THREAD ERROR: {error_tb}")
+                                    _log_ws_event(f"WELCOME THREAD ERROR: {error_tb}")
 
                         threading.Thread(target=_play_welcome, daemon=True).start()
                     continue
@@ -533,9 +538,8 @@ def register_voicelink_websocket(sock_instance) -> None:
 
                         # Stream reply back to caller
                         if alaw_reply and stream_sid:
-                            ws_logs = current_app.config.get('WS_LOGS')
                             playback_thread, playback_stop = _start_playback(
-                                ws, send_lock, stream_sid, alaw_reply, ws_logs
+                                ws, send_lock, stream_sid, alaw_reply
                             )
 
                     continue
@@ -558,9 +562,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                 import traceback
                 error_tb = traceback.format_exc()
                 logger.exception("[VoiceLink] Error in WebSocket loop")
-                from flask import current_app
-                if 'WS_LOGS' in current_app.config:
-                    current_app.config['WS_LOGS'].append(f"WS LOOP ERROR: {error_tb}")
+                _log_ws_event(f"WS LOOP ERROR: {error_tb}")
                 break
 
         # Cleanup on unexpected disconnect
@@ -579,6 +581,9 @@ def voicelink_status_callback():
     """
     try:
         data = request.get_json(force=True, silent=True) or {}
+        
+        # Log to file-based persistent logs
+        _log_ws_event(f"WEBHOOK RECEIVED: {json.dumps(data)}")
         
         from flask import current_app
         if 'WEBHOOK_LOGS' in current_app.config:
