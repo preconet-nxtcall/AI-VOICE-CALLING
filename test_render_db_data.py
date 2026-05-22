@@ -1,7 +1,7 @@
 import os
 from sqlalchemy import create_engine, MetaData, Table, select
 
-db_url = "postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a.oregon-postgres.render.com/ai_voice_calling"
+db_url = "postgresql://ai_voice_calling_db_user:6G9yRTmaPXXEOLguD7ZJnl03B1DWt3nW@dpg-d885kh99rddc73b6cntg-a.singapore-postgres.render.com/ai_voice_calling_db"
 print(f"Connecting to Render DB: {db_url}")
 
 try:

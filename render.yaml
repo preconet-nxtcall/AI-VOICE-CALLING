@@ -14,7 +14,7 @@ services:
       - key: PYTHONPATH
         value: .
       - key: DATABASE_URL
-        value: postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a/ai_voice_calling
+        value: postgresql://ai_voice_calling_db_user:6G9yRTmaPXXEOLguD7ZJnl03B1DWt3nW@dpg-d885kh99rddc73b6cntg-a/ai_voice_calling_db
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
@@ -65,7 +65,7 @@ services:
       - key: APP_ENV
         value: production
       - key: DATABASE_URL
-        value: postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a/ai_voice_calling
+        value: postgresql://ai_voice_calling_db_user:6G9yRTmaPXXEOLguD7ZJnl03B1DWt3nW@dpg-d885kh99rddc73b6cntg-a/ai_voice_calling_db
       - key: FAISS_INDEX_DIR
         value: /data/faiss_indices
       - key: VOICELINK_DID_NUMBER

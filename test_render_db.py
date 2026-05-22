@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, MetaData, Table, select
 regions = ["oregon-postgres.render.com", "singapore-postgres.render.com", "frankfurt-postgres.render.com", "ohio-postgres.render.com"]
 
 for region in regions:
-    db_url = f"postgresql://ai_voice_calling_user:KUAWPmFAhXjggtKiEUEUnww8hIBTYs3w@dpg-d7sssk67r5hc738j8ogg-a.{region}/ai_voice_calling"
+    db_url = f"postgresql://ai_voice_calling_db_user:6G9yRTmaPXXEOLguD7ZJnl03B1DWt3nW@dpg-d885kh99rddc73b6cntg-a.{region}/ai_voice_calling_db"
     print(f"\nTrying to connect to Render DB in region: {region}...")
     try:
         engine = create_engine(db_url, connect_args={"connect_timeout": 5})
