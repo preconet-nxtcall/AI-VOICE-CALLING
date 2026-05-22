@@ -310,7 +310,12 @@ def _start_playback(
                         "event": "media",
                         "streamSid": stream_sid,
                         "stream_sid": stream_sid,
-                        "media": {"payload": base64.b64encode(chunk).decode("ascii")},
+                        "media": {
+                            "payload": base64.b64encode(chunk).decode("ascii"),
+                            "track": "outbound"
+                        },
+                        "sequenceNumber": str(sent_count + 1),
+                        "sequence_number": sent_count + 1
                     })
                 except Exception:
                     _log_ws_event(f"PLAYBACK RUNNER STOPPED early due to SEND ERROR after sending {sent_count} chunks")
@@ -399,6 +404,18 @@ def register_voicelink_websocket(sock_instance) -> None:
                     start = event.get("start") or {}
                     stream_sid = str(start.get("streamSid") or start.get("stream_sid") or event.get("streamSid") or event.get("stream_sid") or "").strip()
                     call_sid = str(start.get("callSid") or start.get("call_sid") or "").strip() or None
+
+                    # Send start confirmation immediately to let the gateway know we accepted the stream
+                    if stream_sid:
+                        try:
+                            _log_ws_event(f"START CONFIRMATION: Sending start acknowledgment for stream_sid={stream_sid}")
+                            _ws_send(ws, send_lock, {
+                                "event": "start",
+                                "streamSid": stream_sid,
+                                "stream_sid": stream_sid
+                            })
+                        except Exception as sce:
+                            _log_ws_event(f"START CONFIRMATION ERROR: {sce}")
 
                     # customParameters may arrive as a nested dict or JSON string
                     custom = start.get("customParameters") or start.get("custom_parameters") or {}
