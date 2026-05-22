@@ -3,6 +3,7 @@ services:
   - type: web
     name: ai-voice-backend
     env: python
+    region: singapore
     buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
     startCommand: flask db upgrade && gunicorn --worker-class gevent --workers 2 --bind 0.0.0.0:$PORT --timeout 300 run:app
     envVars:
@@ -57,6 +58,7 @@ services:
   - type: worker
     name: ai-voice-dialer
     env: python
+    region: singapore
     buildCommand: pip install -r requirements.txt
     startCommand: python run_dialer.py
     envVars:
