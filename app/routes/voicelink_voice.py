@@ -501,16 +501,24 @@ def register_voicelink_websocket(sock_instance) -> None:
                                 kb_id = str(_custom_params.get("kb_id") or "").strip()
 
                                 # C. Load script config
-                                loaded_config = _get_campaign_and_script_config(_call_sid)[2] if _call_sid else {}
-                                if loaded_config:
-                                    script_config = loaded_config
-                                else:
+                                if any(k in _custom_params for k in ["welcome_message", "primary_language", "voice_style", "prompt"]):
                                     script_config = {
-                                        "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
-                                        "primary_language": "Hindi",
-                                        "voice_style": "female",
-                                        "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
+                                        "welcome_message": _custom_params.get("welcome_message", "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?"),
+                                        "primary_language": _custom_params.get("primary_language", "Hindi"),
+                                        "voice_style": _custom_params.get("voice_style", "female"),
+                                        "prompt": _custom_params.get("prompt", "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base.")
                                     }
+                                else:
+                                    loaded_config = _get_campaign_and_script_config(_call_sid)[2] if _call_sid else {}
+                                    if loaded_config:
+                                        script_config = loaded_config
+                                    else:
+                                        script_config = {
+                                            "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
+                                            "primary_language": "Hindi",
+                                            "voice_style": "female",
+                                            "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
+                                        }
 
                                 # D. Load lead name
                                 try:
