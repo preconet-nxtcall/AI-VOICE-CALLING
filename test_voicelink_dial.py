@@ -31,11 +31,7 @@ def make_call(to_number, country_code_val):
     
     custom_params = json.dumps({
         "kb_id": "test-kb-uuid", 
-        "temp_call_sid": "test-temp-sid",
-        "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
-        "primary_language": "Hindi",
-        "voice_style": "female",
-        "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
+        "temp_call_sid": "test-temp-sid"
     })
     
     payload = {

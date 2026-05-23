@@ -332,9 +332,13 @@ class VoiceLinkPlaybackManager:
                     _ws_send(self.ws, self.lock, {
                         "event": "media",
                         "streamSid": self.stream_sid,
+                        "stream_sid": self.stream_sid,
                         "media": {
-                            "payload": base64.b64encode(chunk).decode("ascii")
-                        }
+                            "payload": base64.b64encode(chunk).decode("ascii"),
+                            "track": "outbound"
+                        },
+                        "sequenceNumber": str(self.sent_count + 1),
+                        "sequence_number": self.sent_count + 1
                     })
                 except Exception as e:
                     _log_ws_event(f"PLAYBACK MANAGER SEND ERROR: {e}")
@@ -581,7 +585,11 @@ def register_voicelink_websocket(sock_instance) -> None:
                             playback_manager.clear()
                             if stream_sid:
                                 try:
-                                    _ws_send(ws, send_lock, {"event": "clear", "streamSid": stream_sid})
+                                    _ws_send(ws, send_lock, {
+                                        "event": "clear",
+                                        "streamSid": stream_sid,
+                                        "stream_sid": stream_sid
+                                    })
                                 except Exception as ce:
                                     _log_ws_event(f"BARGE-IN CLEAR SEND ERROR: {ce}")
                         speech_seen = True

@@ -17,7 +17,7 @@ class Lead(db.Model):
     first_name = db.Column(db.String(100), nullable=True)
     last_name = db.Column(db.String(100), nullable=True)
     status = db.Column(db.String(50), nullable=False, default="pending")  # pending, calling, completed, failed
-    call_sid = db.Column(db.String(255), nullable=True)
+    call_sid = db.Column(db.String(255), nullable=True, index=True)
     error_message = db.Column(db.Text, nullable=True)
     
     created_at = db.Column(
