@@ -69,14 +69,32 @@ class TTSService:
     def generate_alaw_8k(text: str, voice_id: Optional[str] = None, language: Optional[str] = None, gender: Optional[str] = None) -> bytes:
         """Convert text to speech, and return raw G.711 A-law 8kHz bytes for VoiceLink."""
         import audioop
+        import hashlib
         if not text or not text.strip():
             raise ValueError("Text cannot be empty")
 
+        # 1. Memory cache check
         cache_key = (text.strip(), voice_id or "", language or "", gender or "")
         if cache_key in TTSService._alaw_cache:
-            logger.info("TTS Cache HIT for: %r", text[:40])
+            logger.info("TTS Memory Cache HIT for: %r", text[:40])
             return TTSService._alaw_cache[cache_key]
 
+        # 2. File-based cache check (persists across worker restarts)
+        key_str = f"{text.strip()}|{voice_id or ''}|{language or ''}|{gender or ''}"
+        key_hash = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
+        cache_dir = Path(_get_config("TTS_AUDIO_DIR") or _DEFAULT_TTS_DIR).resolve()
+        cache_file = cache_dir / f"alaw_{key_hash}.bin"
+
+        if cache_file.exists():
+            try:
+                alaw_bytes = cache_file.read_bytes()
+                TTSService._alaw_cache[cache_key] = alaw_bytes
+                logger.info("TTS File Cache HIT for: %r", text[:40])
+                return alaw_bytes
+            except Exception:
+                pass
+
+        # 3. Cache Miss — generate audio from ElevenLabs
         eleven_key = _get_config("ELEVENLABS_API_KEY")
         if eleven_key:
             try:
@@ -88,8 +106,16 @@ class TTSService:
                 pcm8k_bytes, _ = audioop.ratecv(pcm16k_bytes, 2, 1, 16000, 8000, None)
                 # Convert PCM 16-bit to A-law
                 alaw_bytes = audioop.lin2alaw(pcm8k_bytes, 2)
+                
+                # Save to memory and file cache
                 TTSService._alaw_cache[cache_key] = alaw_bytes
-                logger.info("TTS Cache MISS. Cached generated audio for: %r", text[:40])
+                try:
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    cache_file.write_bytes(alaw_bytes)
+                    logger.info("TTS Cache MISS. Saved generated audio to file: %s", cache_file.name)
+                except Exception:
+                    logger.exception("Failed to write TTS file cache")
+                
                 return alaw_bytes
             except Exception:
                 logger.exception("ElevenLabs TTS failed, cannot return ALAW audio without ffmpeg")

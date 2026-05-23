@@ -332,13 +332,9 @@ class VoiceLinkPlaybackManager:
                     _ws_send(self.ws, self.lock, {
                         "event": "media",
                         "streamSid": self.stream_sid,
-                        "stream_sid": self.stream_sid,
                         "media": {
-                            "payload": base64.b64encode(chunk).decode("ascii"),
-                            "track": "outbound"
-                        },
-                        "sequenceNumber": str(self.sent_count + 1),
-                        "sequence_number": self.sent_count + 1
+                            "payload": base64.b64encode(chunk).decode("ascii")
+                        }
                     })
                 except Exception as e:
                     _log_ws_event(f"PLAYBACK MANAGER SEND ERROR: {e}")
