@@ -464,7 +464,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                     stream_sid = str(start.get("streamSid") or start.get("stream_sid") or event.get("streamSid") or event.get("stream_sid") or "").strip()
                     call_sid = str(start.get("callSid") or start.get("call_sid") or "").strip() or None
 
-                    # Send start confirmation immediately to let the gateway know we accepted the stream
+                    # 1. Send start confirmation immediately
                     if stream_sid:
                         try:
                             _log_ws_event(f"START CONFIRMATION: Sending start acknowledgment for stream_sid={stream_sid}")
@@ -476,7 +476,12 @@ def register_voicelink_websocket(sock_instance) -> None:
                         except Exception as sce:
                             _log_ws_event(f"START CONFIRMATION ERROR: {sce}")
 
-                    # customParameters may arrive as a nested dict or JSON string
+                    # 2. Start the PlaybackManager immediately to send silence and keep RTP alive
+                    if stream_sid:
+                        playback_manager = VoiceLinkPlaybackManager(ws, send_lock, stream_sid)
+                        playback_manager.start()
+
+                    # Parse custom parameters from start event
                     custom = start.get("customParameters") or start.get("custom_parameters") or {}
                     if isinstance(custom, str):
                         try:
@@ -484,70 +489,73 @@ def register_voicelink_websocket(sock_instance) -> None:
                         except Exception:
                             custom = {}
 
-                    kb_id = str(custom.get("kb_id") or "").strip()
                     temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
 
-                    # Swap temp placeholder → real telephony callSid
-                    if temp_call_sid and call_sid and temp_call_sid != call_sid:
-                        _update_lead_call_sid(temp_call_sid, call_sid)
+                    # 3. Offload all database queries, swaps, and welcome TTS generation to a background thread
+                    from flask import current_app
+                    flask_app = current_app._get_current_object()
 
-                    # Load script config and lead name
-                    script_config = _get_campaign_and_script_config(call_sid)[2] if call_sid else {}
-                    if not script_config:
-                        script_config = {
-                            "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
-                            "primary_language": "Hindi",
-                            "voice_style": "female",
-                            "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
-                        }
-                    try:
-                        from app.models.lead import Lead
-                        lead_obj = Lead.query.filter_by(call_sid=call_sid).first() if call_sid else None
-                        lead_name = getattr(lead_obj, "first_name", "") if lead_obj else ""
-                    except Exception:
-                        lead_name = ""
+                    def _async_init_and_welcome(_app=flask_app, _manager=playback_manager, _call_sid=call_sid, _temp_call_sid=temp_call_sid, _custom_params=custom):
+                        nonlocal kb_id, lead_name, script_config
+                        
+                        # Run DB queries inside app context
+                        with _app.app_context():
+                            try:
+                                _log_ws_event(f"ASYNC INIT: Starting DB initialization for call_sid={_call_sid}")
+                                
+                                # A. Swap temp placeholder → real telephony callSid
+                                if _temp_call_sid and _call_sid and _temp_call_sid != _call_sid:
+                                    _update_lead_call_sid(_temp_call_sid, _call_sid)
 
-                    logger.info(
-                        "[VoiceLink] start call_sid=%s stream_sid=%s kb_id=%s",
-                        call_sid, stream_sid, kb_id,
-                    )
-                    broadcast_live_event({
-                        "event": "call_start",
-                        "call_sid": call_sid,
-                        "kb_id": kb_id,
-                        "provider": "voicelink",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
+                                # B. Resolve kb_id
+                                kb_id = str(_custom_params.get("kb_id") or "").strip()
 
-                    # Start the precision-timed, continuous playback manager
-                    if stream_sid:
-                        playback_manager = VoiceLinkPlaybackManager(ws, send_lock, stream_sid)
-                        playback_manager.start()
+                                # C. Load script config
+                                loaded_config = _get_campaign_and_script_config(_call_sid)[2] if _call_sid else {}
+                                if loaded_config:
+                                    script_config = loaded_config
+                                else:
+                                    script_config = {
+                                        "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
+                                        "primary_language": "Hindi",
+                                        "voice_style": "female",
+                                        "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
+                                    }
 
-                    # ── Play welcome message in background thread ──────────
-                    # We must NOT block the WS receive loop here — VoiceLink
-                    # will drop the connection if no events arrive quickly.
-                    welcome_msg = str(script_config.get("welcome_message") or "").strip()
-                    if welcome_msg and stream_sid and playback_manager:
-                        from flask import current_app
-                        flask_app = current_app._get_current_object()
-                        def _play_welcome(_app=flask_app, _manager=playback_manager,
-                                          _msg=welcome_msg, _cfg=script_config,
-                                          _call_sid=call_sid):
-                            with _app.app_context():
+                                # D. Load lead name
                                 try:
+                                    from app.models.lead import Lead
+                                    lead_obj = Lead.query.filter_by(call_sid=_call_sid).first() if _call_sid else None
+                                    lead_name = getattr(lead_obj, "first_name", "") if lead_obj else ""
+                                    _log_ws_event(f"ASYNC INIT: Lead name resolved to '{lead_name}'")
+                                except Exception as le:
+                                    _log_ws_event(f"ASYNC INIT: Lead resolution failed: {le}")
+                                    lead_name = ""
+
+                                # E. Live Event start
+                                broadcast_live_event({
+                                    "event": "call_start",
+                                    "call_sid": _call_sid,
+                                    "kb_id": kb_id,
+                                    "provider": "voicelink",
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                })
+
+                                # F. Generate and stream welcome message
+                                welcome_msg = str(script_config.get("welcome_message") or "").strip()
+                                if welcome_msg and _manager:
                                     _log_ws_event(f"WELCOME: Starting welcome generation for call_sid={_call_sid}...")
                                     from app.services.tts_service import TTSService
-                                    primary_lang = _cfg.get("primary_language", "Hindi")
-                                    voice_id = str(_cfg.get("voice_id") or "").strip() or None
-                                    gender = _cfg.get("voice_style", "female")
+                                    primary_lang = script_config.get("primary_language", "Hindi")
+                                    voice_id = str(script_config.get("voice_id") or "").strip() or None
+                                    gender = script_config.get("voice_style", "female")
                                     
                                     _log_ws_event(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
                                     
                                     import time as _time
                                     _t0 = _time.time()
                                     welcome_alaw = TTSService.generate_alaw_8k(
-                                        _msg, voice_id=voice_id, language=primary_lang, gender=gender
+                                        welcome_msg, voice_id=voice_id, language=primary_lang, gender=gender
                                     )
                                     _dur = _time.time() - _t0
                                     
@@ -557,16 +565,12 @@ def register_voicelink_websocket(sock_instance) -> None:
                                         logger.info("[VoiceLink] Welcome message added to queue call_sid=%s", _call_sid)
                                     else:
                                         _log_ws_event("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
-                                        logger.error("[VoiceLink] Failed to generate welcome ALAW bytes call_sid=%s", _call_sid)
-                                except Exception as e:
-                                    import traceback
-                                    error_tb = traceback.format_exc()
-                                    logger.exception(
-                                        "[VoiceLink] Failed to play welcome message call_sid=%s", _call_sid
-                                    )
-                                    _log_ws_event(f"WELCOME THREAD ERROR: {error_tb}")
+                            except Exception as ex:
+                                import traceback
+                                error_tb = traceback.format_exc()
+                                _log_ws_event(f"ASYNC INIT THREAD ERROR: {error_tb}")
 
-                        threading.Thread(target=_play_welcome, daemon=True).start()
+                    threading.Thread(target=_async_init_and_welcome, daemon=True).start()
                     continue
 
                 # ── media (inbound customer audio) ───────────────────────────
