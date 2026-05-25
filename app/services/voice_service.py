@@ -85,10 +85,71 @@ class VoiceService:
         # Generate a temporary placeholder SID; replaced by the real callSid in the WS 'start' event
         temp_call_sid = f"vl_{uuid.uuid4().hex}"
 
+        # Resolve script configuration and welcome message text
+        welcome_message = "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?"
+        primary_language = "Hindi"
+        voice_style = "female"
+        voice_id = None
+        lead_name = ""
+
+        try:
+            from app.models.lead import Lead
+            from app.models.campaign import Campaign
+            from app.models import db
+            from app.routes.twilio_voice import _parse_script_config
+
+            clean_to_10 = to_number.strip()[-10:]
+            lead = Lead.query.filter(
+                Lead.phone_number.like(f"%{clean_to_10}"),
+                Lead.status.in_(["pending", "calling"])
+            ).order_by(Lead.created_at.desc()).first()
+            if lead:
+                lead_name = lead.first_name or ""
+                campaign = db.session.get(Campaign, lead.campaign_id) if lead.campaign_id else None
+                script = getattr(campaign, "script", None) if campaign else None
+                script_config = _parse_script_config(getattr(script, "content", None))
+                if script_config:
+                    welcome_message = str(script_config.get("welcome_message") or welcome_message).strip()
+                    primary_language = str(script_config.get("primary_language") or primary_language).strip()
+                    voice_style = str(script_config.get("voice_style") or voice_style).strip()
+                    voice_id = str(script_config.get("voice_id") or "").strip() or None
+        except Exception:
+            logger.exception("[VoiceService] Failed to pre-query script config for outbound call")
+
+        # Pre-generate welcome message TTS to persistent file cache
+        tts_key = ""
+        if welcome_message:
+            try:
+                from app.services.tts_service import TTSService
+                import hashlib
+                
+                # Generate/cache welcome audio
+                TTSService.generate_alaw_8k(
+                    welcome_message, voice_id=voice_id, language=primary_language, gender=voice_style
+                )
+                
+                # Compute the exact cache key hash
+                key_str = f"{welcome_message.strip()}|{voice_id or ''}|{primary_language or ''}|{voice_style or ''}"
+                tts_key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
+                logger.info("[VoiceService] Pre-generated welcome TTS cache with key: %s", tts_key)
+            except Exception:
+                logger.exception("[VoiceService] Failed to pre-generate welcome TTS audio")
+
         # custom_parameters max 255 chars
-        custom_params = json.dumps({"kb_id": kb_id, "temp_call_sid": temp_call_sid})
+        custom_params_dict = {
+            "kb_id": kb_id,
+            "temp_call_sid": temp_call_sid,
+        }
+        if tts_key:
+            custom_params_dict["tts_key"] = tts_key
+        if lead_name:
+            custom_params_dict["name"] = lead_name
+
+        custom_params = json.dumps(custom_params_dict)
         if len(custom_params) > 255:
-            custom_params = json.dumps({"kb_id": kb_id})
+            # Fallback to minimal parameters if limit exceeded
+            custom_params = json.dumps({"kb_id": kb_id, "temp_call_sid": temp_call_sid})
+
 
         # VoiceLink requires wss:// for the media stream
         ws_base = base_url.replace("https://", "wss://").replace("http://", "ws://")

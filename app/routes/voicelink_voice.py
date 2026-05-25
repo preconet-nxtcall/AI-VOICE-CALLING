@@ -478,49 +478,96 @@ def register_voicelink_websocket(sock_instance) -> None:
                             custom = {}
 
                     temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
+                    tts_key = str(custom.get("tts_key") or "").strip()
+                    lead_name = str(custom.get("name") or "").strip()
 
-                    # 3. Offload all database queries, swaps, and welcome TTS generation to a background thread
+                    # Set initial placeholder config
+                    script_config = {
+                        "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
+                        "primary_language": "Hindi",
+                        "voice_style": "female",
+                        "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
+                    }
+
+                    # 2. Try to stream the welcome audio INSTANTLY from the pre-generated cache file
+                    welcome_played_instantly = False
+                    if stream_sid and playback_manager:
+                        from app.services.tts_service import _get_config, _DEFAULT_TTS_DIR
+                        import hashlib
+                        
+                        # Resolve key file path
+                        resolved_key = tts_key
+                        if not resolved_key:
+                            # Fallback: compute hash for default Hindi female greeting
+                            default_welcome = "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?"
+                            key_str = f"{default_welcome}|{''}|{'Hindi'}|{'female'}"
+                            resolved_key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
+                            
+                        cache_dir = Path(_get_config("TTS_AUDIO_DIR") or _DEFAULT_TTS_DIR).resolve()
+                        cache_file = cache_dir / f"alaw_{resolved_key}.bin"
+                        
+                        if cache_file.exists():
+                            try:
+                                _log_ws_event(f"WELCOME: Instant loading pre-generated welcome audio for key={resolved_key}...")
+                                welcome_alaw = cache_file.read_bytes()
+                                if welcome_alaw:
+                                    playback_manager.add_audio(welcome_alaw)
+                                    welcome_played_instantly = True
+                                    _log_ws_event(f"WELCOME: Loaded {len(welcome_alaw)} A-law bytes instantly. Welcome streaming started.")
+                            except Exception as fe:
+                                _log_ws_event(f"WELCOME INSTANT LOAD ERROR: {fe}")
+
+                    # 3. Offload all database queries, swaps, prompt configs, and fallback welcome playing to a background thread
                     from flask import current_app
                     flask_app = current_app._get_current_object()
 
-                    def _async_init_and_welcome(_app=flask_app, _manager=playback_manager, _call_sid=call_sid, _temp_call_sid=temp_call_sid, _custom_params=custom):
+                    def _async_init_and_welcome(
+                        _app=flask_app, 
+                        _manager=playback_manager, 
+                        _call_sid=call_sid, 
+                        _temp_call_sid=temp_call_sid, 
+                        _custom_params=custom,
+                        _played_instantly=welcome_played_instantly
+                    ):
                         nonlocal kb_id, lead_name, script_config
                         
-                        # Run DB queries inside app context
                         with _app.app_context():
                             try:
                                 _log_ws_event(f"ASYNC INIT: Starting DB initialization for call_sid={_call_sid}")
+                                from app.models.lead import Lead
+                                from app.models.campaign import Campaign
+                                from app.models import db
+                                from app.routes.twilio_voice import _parse_script_config
                                 
-                                # A. Swap temp placeholder → real telephony callSid
-                                if _temp_call_sid and _call_sid and _temp_call_sid != _call_sid:
-                                    _update_lead_call_sid(_temp_call_sid, _call_sid)
-
-                                # B. Resolve kb_id
-                                kb_id = str(_custom_params.get("kb_id") or "").strip()
-
-                                # C. Load script config
-                                loaded_config = _get_campaign_and_script_config(_call_sid)[2] if _call_sid else {}
-                                if loaded_config:
-                                    script_config = loaded_config
-                                else:
-                                    script_config = {
-                                        "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
-                                        "primary_language": "Hindi",
-                                        "voice_style": "female",
-                                        "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
-                                    }
-
-                                # D. Load lead name
-                                try:
-                                    from app.models.lead import Lead
-                                    lead_obj = Lead.query.filter_by(call_sid=_call_sid).first() if _call_sid else None
-                                    lead_name = getattr(lead_obj, "first_name", "") if lead_obj else ""
+                                # Consolidate Lead lookup and SID swap
+                                lead_obj = None
+                                if _call_sid:
+                                    lead_obj = Lead.query.filter_by(call_sid=_call_sid).first()
+                                if not lead_obj and _temp_call_sid:
+                                    lead_obj = Lead.query.filter_by(call_sid=_temp_call_sid).first()
+                                    if lead_obj and _call_sid:
+                                        lead_obj.call_sid = _call_sid
+                                        db.session.commit()
+                                        _log_ws_event(f"ASYNC INIT: Swapped temp_call_sid={_temp_call_sid} to real_call_sid={_call_sid}")
+                                
+                                if lead_obj:
+                                    lead_name = getattr(lead_obj, "first_name", "") or ""
                                     _log_ws_event(f"ASYNC INIT: Lead name resolved to '{lead_name}'")
-                                except Exception as le:
-                                    _log_ws_event(f"ASYNC INIT: Lead resolution failed: {le}")
-                                    lead_name = ""
+                                    
+                                    # Load script config from campaign
+                                    if lead_obj.campaign_id:
+                                        campaign = db.session.get(Campaign, lead_obj.campaign_id)
+                                        if campaign and campaign.script:
+                                            parsed_cfg = _parse_script_config(campaign.script.content)
+                                            if parsed_cfg:
+                                                script_config = parsed_cfg
+                                                _log_ws_event("ASYNC INIT: Custom script config loaded successfully")
+                                
+                                # Resolve kb_id if not set
+                                if not kb_id:
+                                    kb_id = str(_custom_params.get("kb_id") or "").strip()
 
-                                # E. Live Event start
+                                # Live Event start
                                 broadcast_live_event({
                                     "event": "call_start",
                                     "call_sid": _call_sid,
@@ -529,30 +576,24 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     "timestamp": datetime.now(timezone.utc).isoformat(),
                                 })
 
-                                # F. Generate and stream welcome message
-                                welcome_msg = str(script_config.get("welcome_message") or "").strip()
-                                if welcome_msg and _manager:
-                                    _log_ws_event(f"WELCOME: Starting welcome generation for call_sid={_call_sid}...")
-                                    from app.services.tts_service import TTSService
-                                    primary_lang = script_config.get("primary_language", "Hindi")
-                                    voice_id = str(script_config.get("voice_id") or "").strip() or None
-                                    gender = script_config.get("voice_style", "female")
-                                    
-                                    _log_ws_event(f"WELCOME: Generating TTS for language={primary_lang}, voice_id={voice_id}, gender={gender}...")
-                                    
-                                    import time as _time
-                                    _t0 = _time.time()
-                                    welcome_alaw = TTSService.generate_alaw_8k(
-                                        welcome_msg, voice_id=voice_id, language=primary_lang, gender=gender
-                                    )
-                                    _dur = _time.time() - _t0
-                                    
-                                    if welcome_alaw:
-                                        _log_ws_event(f"WELCOME: Generated {len(welcome_alaw)} ALAW bytes in {_dur:.4f}s. Adding to playback queue...")
-                                        _manager.add_audio(welcome_alaw)
-                                        logger.info("[VoiceLink] Welcome message added to queue call_sid=%s", _call_sid)
-                                    else:
-                                        _log_ws_event("WELCOME ERROR: Failed to generate welcome ALAW bytes (returned empty)")
+                                # Fallback welcome playback if not played instantly
+                                if not _played_instantly:
+                                    welcome_msg = str(script_config.get("welcome_message") or "").strip()
+                                    if welcome_msg and _manager:
+                                        _log_ws_event(f"WELCOME: Starting fallback welcome generation for call_sid={_call_sid}...")
+                                        from app.services.tts_service import TTSService
+                                        primary_lang = script_config.get("primary_language", "Hindi")
+                                        voice_id = str(script_config.get("voice_id") or "").strip() or None
+                                        gender = script_config.get("voice_style", "female")
+                                        
+                                        welcome_alaw = TTSService.generate_alaw_8k(
+                                            welcome_msg, voice_id=voice_id, language=primary_lang, gender=gender
+                                        )
+                                        if welcome_alaw:
+                                            _manager.add_audio(welcome_alaw)
+                                            _log_ws_event(f"WELCOME: Fallback welcome generated and added to playback queue.")
+                                        else:
+                                            _log_ws_event("WELCOME ERROR: Fallback generation returned empty")
                             except Exception as ex:
                                 import traceback
                                 error_tb = traceback.format_exc()
