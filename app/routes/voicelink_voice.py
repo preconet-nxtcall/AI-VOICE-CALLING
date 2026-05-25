@@ -65,7 +65,7 @@ voicelink_voice_bp = Blueprint("voicelink_voice", __name__)
 
 # ─── Audio constants ──────────────────────────────────────────────────────────
 _SAMPLE_RATE = 8000        # VoiceLink streams 8 kHz
-_SILENCE_RMS = 300         # RMS below this = silence (lowered for better sensitivity)
+_SILENCE_RMS = 700         # RMS below this = silence (lowered for better sensitivity)
 _END_SILENCE_MS = 800      # trailing silence to end utterance (slightly more patient)
 _MIN_UTTERANCE_MS = 400    # minimum utterance duration to process (lowered to catch short replies)
 _PCM_SAMPLE_WIDTH = 2      # bytes per sample (16-bit PCM)
@@ -329,7 +329,8 @@ class VoiceLinkPlaybackManager:
                     pass
 
                 if chunk is None:
-                    chunk = self.silence_chunk
+                    gevent.sleep(0.02)
+                    continue
 
                 try:
                     _ws_send(self.ws, self.lock, {
@@ -416,6 +417,7 @@ def register_voicelink_websocket(sock_instance) -> None:
         # ── Playback control ─────────────────────────────────────────────
         send_lock = threading.Lock()
         playback_manager: Optional[VoiceLinkPlaybackManager] = None
+        response_counter = 0
 
         logger.info("[VoiceLink] WebSocket connected from %s", request.remote_addr)
 
@@ -427,6 +429,22 @@ def register_voicelink_websocket(sock_instance) -> None:
             _log_ws_event(f"WS CONNECT HEADERS: {', '.join(headers_list)}")
         except Exception as he:
             _log_ws_event(f"WS CONNECT HEADERS ERROR: {he}")
+
+        # Start keep-alive loop to prevent Render free tier idle timeout
+        def _websocket_keep_alive():
+            _log_ws_event("KEEP-ALIVE: Start keep-alive loop.")
+            while True:
+                gevent.sleep(25)
+                try:
+                    _ws_send(ws, send_lock, {
+                        "event": "ping",
+                        "timestamp": int(time.time())
+                    })
+                except Exception as ke:
+                    _log_ws_event(f"KEEP-ALIVE ERROR: {ke}")
+                    break
+
+        keepalive_greenlet = gevent.spawn(_websocket_keep_alive)
 
         while True:
             try:
@@ -442,6 +460,15 @@ def register_voicelink_websocket(sock_instance) -> None:
                 except Exception:
                     _log_ws_event(f"INCOMING RAW INVALID JSON: {message[:200]}")
                     logger.warning("[VoiceLink] Invalid JSON frame ignored")
+                    continue
+
+                if event_type in ["ping", "heartbeat"]:
+                    try:
+                        _ws_send(ws, send_lock, {
+                            "event": "pong"
+                        })
+                    except:
+                        pass
                     continue
 
                 if event_type != "media":
@@ -535,6 +562,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                             _log_ws_event("WELCOME: Pre-filled playback queue with 100ms silence + welcome audio. Starting manager.")
                         else:
                             _log_ws_event("WELCOME: No cache found. PlaybackManager starting with silence (will generate welcome in background).")
+                        gevent.sleep(0.3)
                         playback_manager.start()
 
                     # ── Offload DB queries and fallback welcome to a background greenlet ──
@@ -639,11 +667,13 @@ def register_voicelink_websocket(sock_instance) -> None:
                     utterance.extend(pcm_chunk)
                     chunk_rms = _pcm_rms(pcm_chunk)
                     chunk_ms = int((len(pcm_chunk) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000))
+                    _log_ws_event(f"MEDIA RECEIVED RMS={chunk_rms} SIZE={len(pcm_chunk)}")
 
                     if chunk_rms >= _SILENCE_RMS:
                         # Barge-in: caller speaks while AI is playing → interrupt
-                        if playback_manager:
+                        if playback_manager and playback_manager.sent_count > 80:
                             playback_manager.clear()
+                            response_counter += 1  # Invalidate any ongoing background response generations
                             if stream_sid:
                                 try:
                                     _ws_send(ws, send_lock, {
@@ -674,23 +704,46 @@ def register_voicelink_websocket(sock_instance) -> None:
                         speech_seen = False
                         silence_ms = 0
 
-                        alaw_reply, analysis = _build_reply_audio(
-                            call_sid=call_sid,
-                            kb_id=kb_id,
-                            lead_name=lead_name,
-                            script_config=script_config,
-                            pcm16_audio=captured,
-                        )
+                        # Increment response counter for new response generation
+                        response_counter += 1
+                        current_resp_id = response_counter
 
-                        # Handoff detection
-                        handoff_number = str(script_config.get("handoff_number") or "").strip()
-                        if analysis.get("should_handoff") and handoff_number and call_sid:
-                            logger.info("[VoiceLink] Handoff triggered call_sid=%s", call_sid)
-                            break  # VoiceLink side will disconnect; status callback finalizes the log
+                        # Run the slow STT/LLM/TTS pipeline asynchronously in a background greenlet
+                        # to prevent blocking the WebSocket receiver (keeps pings/pongs and heartbeats active).
+                        from flask import current_app
+                        flask_app = current_app._get_current_object()
 
-                        # Stream reply back to caller
-                        if alaw_reply and stream_sid and playback_manager:
-                            playback_manager.add_audio(alaw_reply)
+                        def _process_utterance_async(captured_audio, current_script_config, resp_id, app_instance):
+                            with app_instance.app_context():
+                                try:
+                                    alaw_reply, analysis = _build_reply_audio(
+                                        call_sid=call_sid,
+                                        kb_id=kb_id,
+                                        lead_name=lead_name,
+                                        script_config=current_script_config,
+                                        pcm16_audio=captured_audio,
+                                    )
+
+                                    # Only queue the audio if the caller hasn't interrupted/spoken again
+                                    if resp_id == response_counter:
+                                        if alaw_reply and stream_sid and playback_manager:
+                                            playback_manager.add_audio(alaw_reply)
+
+                                        # Handoff detection
+                                        handoff_number = str(current_script_config.get("handoff_number") or "").strip()
+                                        if analysis.get("should_handoff") and handoff_number and call_sid:
+                                            logger.info("[VoiceLink] Handoff triggered call_sid=%s", call_sid)
+                                            try:
+                                                ws.close()
+                                            except Exception:
+                                                pass
+                                    else:
+                                        _log_ws_event(f"DISCARDED: Response ID {resp_id} discarded due to new user speech.")
+                                except Exception as pe:
+                                    logger.exception("[VoiceLink] Async pipeline processing failed")
+                                    _log_ws_event(f"ASYNC PIPELINE ERROR: {pe}")
+
+                        gevent.spawn(_process_utterance_async, captured, script_config, current_resp_id, flask_app)
 
                     continue
 
@@ -709,15 +762,18 @@ def register_voicelink_websocket(sock_instance) -> None:
                     break
 
             except Exception as e:
-                import traceback
-                error_tb = traceback.format_exc()
-                logger.exception("[VoiceLink] Error in WebSocket loop")
-                _log_ws_event(f"WS LOOP ERROR: {error_tb}")
-                break
+                logger.exception("WS LOOP ERROR")
+                _log_ws_event(f"WS LOOP ERROR: {e}")
+                gevent.sleep(0.1)
+                continue
 
         # Cleanup on unexpected disconnect
         if playback_manager:
             playback_manager.stop()
+        try:
+            keepalive_greenlet.kill()
+        except Exception:
+            pass
 
 
 # ─── Status Callback Webhook ──────────────────────────────────────────────────
