@@ -92,7 +92,13 @@ class AgentAskResource(Resource):
             return {"success": False, "error": str(ve)}, 400
         except Exception as e:
             import logging
+            import traceback
             logging.getLogger(__name__).exception("Agent chat failed")
+            try:
+                with open("debug.log", "a") as f:
+                    f.write(f"\n--- Agent Chat Exception Traceback ---\n{traceback.format_exc()}\n")
+            except Exception:
+                pass
             return {"success": False, "error": "An error occurred while generating the answer."}, 500
 
 class AgentVoiceResource(Resource):
@@ -214,6 +220,12 @@ class AgentOutboundCallResource(Resource):
             return {"success": False, "error": str(ve)}, 400
         except Exception as e:
             import logging
+            import traceback
             logging.getLogger(__name__).exception("Failed to initiate outbound call to %s", phone_number)
+            try:
+                with open("debug.log", "a") as f:
+                    f.write(f"\n--- Outbound Call Exception Traceback ---\n{traceback.format_exc()}\n")
+            except Exception:
+                pass
             return {"success": False, "error": f"Failed to initiate call: {str(e)}"}, 500
 
