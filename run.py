@@ -1,4 +1,10 @@
 try:
+    from gevent import monkey
+    monkey.patch_all()
+except ImportError:
+    pass
+
+try:
     from psycogreen.gevent import make_psycopg_green
     make_psycopg_green()
 except ImportError:

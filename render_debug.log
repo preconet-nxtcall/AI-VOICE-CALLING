@@ -1210,3 +1210,103 @@ connection to server at "localhost" (127.0.0.1), port 5432 failed: Connection re
 	Is the server running on that host and accepting TCP/IP connections?
 
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+--- Agent Chat Exception Traceback ---
+Traceback (most recent call last):
+  File "/opt/render/project/src/app/routes/agent.py", line 75, in post
+    audio_file_path = TTSService.generate_audio(answer_text, language=detected_lang)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/app/services/tts_service.py", line 61, in generate_audio
+    tts.save(str(file_path))
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gtts/tts.py", line 335, in save
+    self.write_to_fp(f)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gtts/tts.py", line 316, in write_to_fp
+    for idx, decoded in enumerate(self.stream()):
+                        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gtts/tts.py", line 268, in stream
+    r = s.send(
+        ^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 788, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 1106, in _validate_conn
+    conn.connect()
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 796, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 928, in _ssl_wrap_socket_and_match_hostname
+    context = create_urllib3_context(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/util/ssl_.py", line 256, in create_urllib3_context
+    context.minimum_version = TLSVersion.TLSv1_2
+    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 545, in minimum_version
+    super(SSLContext, SSLContext).minimum_version.__set__(self, value)
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 545, in minimum_version
+    super(SSLContext, SSLContext).minimum_version.__set__(self, value)
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 545, in minimum_version
+    super(SSLContext, SSLContext).minimum_version.__set__(self, value)
+  [Previous line repeated 957 more times]
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 543, in minimum_version
+    if value == TLSVersion.SSLv3:
+                ^^^^^^^^^^^^^^^^
+RecursionError: maximum recursion depth exceeded
+
+
+--- Agent Chat Exception Traceback ---
+Traceback (most recent call last):
+  File "/opt/render/project/src/app/routes/agent.py", line 75, in post
+    audio_file_path = TTSService.generate_audio(answer_text, language=detected_lang)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/app/services/tts_service.py", line 61, in generate_audio
+    tts.save(str(file_path))
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gtts/tts.py", line 335, in save
+    self.write_to_fp(f)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gtts/tts.py", line 316, in write_to_fp
+    for idx, decoded in enumerate(self.stream()):
+                        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gtts/tts.py", line 268, in stream
+    r = s.send(
+        ^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 788, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 1106, in _validate_conn
+    conn.connect()
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 796, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 928, in _ssl_wrap_socket_and_match_hostname
+    context = create_urllib3_context(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/urllib3/util/ssl_.py", line 256, in create_urllib3_context
+    context.minimum_version = TLSVersion.TLSv1_2
+    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 545, in minimum_version
+    super(SSLContext, SSLContext).minimum_version.__set__(self, value)
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 545, in minimum_version
+    super(SSLContext, SSLContext).minimum_version.__set__(self, value)
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 545, in minimum_version
+    super(SSLContext, SSLContext).minimum_version.__set__(self, value)
+  [Previous line repeated 957 more times]
+  File "/opt/render/project/python/Python-3.12.9/lib/python3.12/ssl.py", line 543, in minimum_version
+    if value == TLSVersion.SSLv3:
+                ^^^^^^^^^^^^^^^^
+RecursionError: maximum recursion depth exceeded
+
