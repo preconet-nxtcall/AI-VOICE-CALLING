@@ -467,11 +467,6 @@ def register_voicelink_websocket(sock_instance) -> None:
                     stream_sid = str(start.get("streamSid") or start.get("stream_sid") or event.get("streamSid") or event.get("stream_sid") or "").strip()
                     call_sid = str(start.get("callSid") or start.get("call_sid") or "").strip() or None
 
-                    # 1. Start the PlaybackManager immediately to send silence and keep RTP alive
-                    if stream_sid:
-                        playback_manager = VoiceLinkPlaybackManager(ws, send_lock, stream_sid)
-                        playback_manager.start()
-
                     # Parse custom parameters from start event
                     custom = start.get("customParameters") or start.get("custom_parameters") or {}
                     if isinstance(custom, str):
@@ -483,6 +478,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                     temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
                     tts_key = str(custom.get("tts_key") or "").strip()
                     lead_name = str(custom.get("name") or "").strip()
+                    kb_id = str(custom.get("kb_id") or "").strip()
 
                     # Set initial placeholder config
                     script_config = {
@@ -492,55 +488,79 @@ def register_voicelink_websocket(sock_instance) -> None:
                         "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
                     }
 
-                    # 2. Try to stream the welcome audio INSTANTLY from the pre-generated cache file
+                    # ── CRITICAL FIX: Load welcome audio BEFORE starting PlaybackManager ──
+                    # SIP Cause 32 (RTP timeout) was triggered because the PlaybackManager
+                    # was sending ~460ms of silence before any real speech, causing VoiceLink
+                    # to treat the bot as unresponsive and disconnect immediately.
+                    # Solution: pre-load welcome audio into the queue, THEN start the manager
+                    # so the very first RTP packets contain real speech audio.
+
                     welcome_played_instantly = False
-                    if stream_sid and playback_manager:
-                        from app.services.tts_service import _get_config, _DEFAULT_TTS_DIR
+                    welcome_alaw_preloaded = b""
+
+                    if stream_sid:
                         import hashlib
-                        
-                        # Resolve key file path
+
+                        # Resolve TTS cache key
                         resolved_key = tts_key
                         if not resolved_key:
-                            # Fallback: compute hash for default Hindi female greeting
                             default_welcome = "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?"
                             key_str = f"{default_welcome}|{''}|{'Hindi'}|{'female'}"
                             resolved_key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
-                            
+
                         cache_dir = Path(_get_config("TTS_AUDIO_DIR") or _DEFAULT_TTS_DIR).resolve()
                         cache_file = cache_dir / f"alaw_{resolved_key}.bin"
-                        
+
                         if cache_file.exists():
                             try:
-                                _log_ws_event(f"WELCOME: Instant loading pre-generated welcome audio for key={resolved_key}...")
-                                welcome_alaw = cache_file.read_bytes()
-                                if welcome_alaw:
-                                    playback_manager.add_audio(welcome_alaw)
+                                _log_ws_event(f"WELCOME: Loading cached welcome audio key={resolved_key[:16]}...")
+                                welcome_alaw_preloaded = cache_file.read_bytes()
+                                if welcome_alaw_preloaded:
                                     welcome_played_instantly = True
-                                    _log_ws_event(f"WELCOME: Loaded {len(welcome_alaw)} A-law bytes instantly. Welcome streaming started.")
+                                    _log_ws_event(f"WELCOME: Loaded {len(welcome_alaw_preloaded)} A-law bytes from cache.")
+                                else:
+                                    _log_ws_event("WELCOME: Cache file was empty, will generate in background.")
                             except Exception as fe:
-                                _log_ws_event(f"WELCOME INSTANT LOAD ERROR: {fe}")
+                                _log_ws_event(f"WELCOME CACHE LOAD ERROR: {fe}")
 
-                    # 3. Offload all database queries, swaps, prompt configs, and fallback welcome playing to a background thread
+                        # Create PlaybackManager and pre-fill queue with welcome audio
+                        # BEFORE starting so first packets are speech, not silence
+                        playback_manager = VoiceLinkPlaybackManager(ws, send_lock, stream_sid)
+                        if welcome_alaw_preloaded:
+                            # Add a 100ms silence pre-roll (400 bytes A-law @ 8kHz)
+                            # to give VoiceLink RTP channel time to open before speech
+                            silence_preroll = playback_manager.silence_chunk * 5  # 5 × 20ms = 100ms
+                            playback_manager.add_audio(silence_preroll)
+                            playback_manager.add_audio(welcome_alaw_preloaded)
+                            _log_ws_event("WELCOME: Pre-filled playback queue with 100ms silence + welcome audio. Starting manager.")
+                        else:
+                            _log_ws_event("WELCOME: No cache found. PlaybackManager starting with silence (will generate welcome in background).")
+                        playback_manager.start()
+
+                    # ── Offload DB queries and fallback welcome to a background greenlet ──
+                    # NO sleep delay here — let it run immediately so kb_id and script_config
+                    # are resolved as fast as possible before the caller speaks.
                     from flask import current_app
                     flask_app = current_app._get_current_object()
 
                     def _async_init_and_welcome(
-                        _app=flask_app, 
-                        _manager=playback_manager, 
-                        _call_sid=call_sid, 
-                        _temp_call_sid=temp_call_sid, 
+                        _app=flask_app,
+                        _manager=playback_manager,
+                        _call_sid=call_sid,
+                        _temp_call_sid=temp_call_sid,
                         _custom_params=custom,
                         _played_instantly=welcome_played_instantly
                     ):
                         nonlocal kb_id, lead_name, script_config
-                        
-                        # Cooperatively sleep for 2 seconds to allow the PlaybackManager to run unimpeded
-                        gevent.sleep(2.0)
-                        
+
+                        # Small cooperative yield so PlaybackManager greenlet can start
+                        # and get its first chunks into the wire before we hit the DB.
+                        gevent.sleep(0.1)
+
                         with _app.app_context():
                             try:
                                 _log_ws_event(f"ASYNC INIT: Starting DB initialization for call_sid={_call_sid}")
-                                
+
                                 # Consolidate Lead lookup and SID swap
                                 lead_obj = None
                                 if _call_sid:
@@ -551,11 +571,11 @@ def register_voicelink_websocket(sock_instance) -> None:
                                         lead_obj.call_sid = _call_sid
                                         db.session.commit()
                                         _log_ws_event(f"ASYNC INIT: Swapped temp_call_sid={_temp_call_sid} to real_call_sid={_call_sid}")
-                                
+
                                 if lead_obj:
                                     lead_name = getattr(lead_obj, "first_name", "") or ""
                                     _log_ws_event(f"ASYNC INIT: Lead name resolved to '{lead_name}'")
-                                    
+
                                     # Load script config from campaign
                                     if lead_obj.campaign_id:
                                         campaign = db.session.get(Campaign, lead_obj.campaign_id)
@@ -564,12 +584,12 @@ def register_voicelink_websocket(sock_instance) -> None:
                                             if parsed_cfg:
                                                 script_config = parsed_cfg
                                                 _log_ws_event("ASYNC INIT: Custom script config loaded successfully")
-                                
-                                # Resolve kb_id if not set
+
+                                # Resolve kb_id from params if still not set
                                 if not kb_id:
                                     kb_id = str(_custom_params.get("kb_id") or "").strip()
 
-                                # Live Event start
+                                # Broadcast live event
                                 broadcast_live_event({
                                     "event": "call_start",
                                     "call_sid": _call_sid,
@@ -578,27 +598,26 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     "timestamp": datetime.now(timezone.utc).isoformat(),
                                 })
 
-                                # Fallback welcome playback if not played instantly
+                                # Fallback welcome: generate now if cache was missing
                                 if not _played_instantly:
                                     welcome_msg = str(script_config.get("welcome_message") or "").strip()
                                     if welcome_msg and _manager:
-                                        _log_ws_event(f"WELCOME: Starting fallback welcome generation for call_sid={_call_sid}...")
+                                        _log_ws_event(f"WELCOME: Generating fallback welcome for call_sid={_call_sid}...")
                                         primary_lang = script_config.get("primary_language", "Hindi")
-                                        voice_id = str(script_config.get("voice_id") or "").strip() or None
+                                        voice_id_cfg = str(script_config.get("voice_id") or "").strip() or None
                                         gender = script_config.get("voice_style", "female")
-                                        
+
                                         welcome_alaw = TTSService.generate_alaw_8k(
-                                            welcome_msg, voice_id=voice_id, language=primary_lang, gender=gender
+                                            welcome_msg, voice_id=voice_id_cfg, language=primary_lang, gender=gender
                                         )
                                         if welcome_alaw:
                                             _manager.add_audio(welcome_alaw)
-                                            _log_ws_event(f"WELCOME: Fallback welcome generated and added to playback queue.")
+                                            _log_ws_event(f"WELCOME: Fallback welcome added ({len(welcome_alaw)} bytes).")
                                         else:
-                                            _log_ws_event("WELCOME ERROR: Fallback generation returned empty")
-                            except Exception as ex:
+                                            _log_ws_event("WELCOME ERROR: Fallback TTS returned empty bytes")
+                            except Exception:
                                 import traceback
-                                error_tb = traceback.format_exc()
-                                _log_ws_event(f"ASYNC INIT THREAD ERROR: {error_tb}")
+                                _log_ws_event(f"ASYNC INIT THREAD ERROR: {traceback.format_exc()}")
 
                     gevent.spawn(_async_init_and_welcome)
                     continue
