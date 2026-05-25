@@ -54,7 +54,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
         <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
-        <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
+        {/* forgot-password is accessible to ALL users — logged-in users can also reset password */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         
         {/* Protected Routes inside Layout */}
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>

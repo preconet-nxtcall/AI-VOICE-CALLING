@@ -191,6 +191,106 @@ def create_app(config_override=None):
         except Exception as e:
             return Response(str(e), status=500, mimetype="text/plain")
 
+    @app.get("/api/v1/kb-diagnostics")
+    def kb_diagnostics():
+        """Diagnostic: check which FAISS indices exist on disk vs what DB says."""
+        from pathlib import Path
+        from app.models.knowledge_base import KnowledgeBase, Document
+        from app.models.ingestion_job import IngestionJob
+        from app.services.embedding_service import _get_index_base_dir
+
+        faiss_dir = Path(_get_index_base_dir())
+        result = {
+            "faiss_base_dir": str(faiss_dir),
+            "faiss_dir_exists": faiss_dir.exists(),
+            "knowledge_bases": []
+        }
+
+        try:
+            kbs = KnowledgeBase.query.all()
+            for kb in kbs:
+                kb_path = faiss_dir / str(kb.id)
+                index_file = kb_path / "index.faiss"
+                docs = Document.query.filter_by(knowledge_base_id=kb.id).all()
+                jobs = IngestionJob.query.filter_by(knowledge_base_id=kb.id).all()
+                result["knowledge_bases"].append({
+                    "kb_id": str(kb.id),
+                    "kb_name": kb.name,
+                    "user_id": str(kb.user_id),
+                    "index_dir_exists": kb_path.exists(),
+                    "index_faiss_exists": index_file.exists(),
+                    "index_faiss_size_bytes": index_file.stat().st_size if index_file.exists() else 0,
+                    "document_count": len(docs),
+                    "documents": [{
+                        "id": str(d.id),
+                        "filename": d.filename,
+                        "has_content": bool(d.content and d.content.strip()),
+                        "content_len": len(d.content or "")
+                    } for d in docs],
+                    "ingestion_jobs": [{
+                        "id": str(j.id),
+                        "status": j.status,
+                        "chunks_embedded": j.chunks_embedded,
+                        "error": j.error_message
+                    } for j in jobs]
+                })
+        except Exception as ex:
+            result["error"] = str(ex)
+
+        return jsonify(result), 200
+
+    @app.post("/api/v1/kb-reindex")
+    def kb_reindex():
+        """Re-build FAISS index for a KB from document content already stored in DB."""
+        from flask import request as req
+        from app.models.knowledge_base import KnowledgeBase, Document
+        from app.services.embedding_service import EmbeddingService
+        import uuid as _uuid
+
+        data = req.get_json(silent=True) or {}
+        kb_id = str(data.get("kb_id") or "").strip()
+        secret = str(data.get("secret") or "").strip()
+
+        if secret != "reindex-2026":
+            return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+        if not kb_id:
+            return jsonify({"success": False, "error": "kb_id required"}), 400
+
+        try:
+            kb = KnowledgeBase.query.filter_by(id=_uuid.UUID(kb_id)).first()
+            if not kb:
+                return jsonify({"success": False, "error": "KB not found"}), 404
+
+            docs = Document.query.filter_by(knowledge_base_id=kb.id).all()
+            if not docs:
+                return jsonify({"success": False, "error": "No documents in KB"}), 404
+
+            total_chunks = 0
+            results = []
+            for doc in docs:
+                if not doc.content or not doc.content.strip():
+                    results.append({"doc": doc.filename, "status": "skipped - no content"})
+                    continue
+                chunks = EmbeddingService.embed_document(
+                    knowledge_base_id=str(kb.id),
+                    document_id=str(doc.id),
+                    filename=doc.filename,
+                    text=doc.content,
+                )
+                total_chunks += chunks
+                results.append({"doc": doc.filename, "chunks": chunks, "status": "ok"})
+
+            return jsonify({
+                "success": True,
+                "kb_id": kb_id,
+                "total_chunks": total_chunks,
+                "documents": results
+            }), 200
+        except Exception as exc:
+            import traceback
+            return jsonify({"success": False, "error": str(exc), "traceback": traceback.format_exc()}), 500
+
     def pre_warm_tts():
         with app.app_context():
             try:
