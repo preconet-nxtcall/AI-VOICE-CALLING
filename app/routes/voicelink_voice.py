@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import audioop
 import base64
+import hashlib
 import json
 import logging
 import queue
@@ -29,7 +30,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from flask import Blueprint, jsonify, request
+import gevent
+import gevent.event
+from gevent.queue import Queue as GeventQueue
+
+from flask import Blueprint, jsonify, request, current_app
 from app.extensions import sock
 
 # Shared voice utilities (live-events, DB helpers, RAG context)
@@ -42,7 +47,17 @@ from app.routes.twilio_voice import (
     _send_appointment_email,
     _log_voice_call_event,
     _update_lead_status_obj,
+    _parse_script_config,
 )
+
+# Core models and services
+from app.models import db
+from app.models.lead import Lead
+from app.models.campaign import Campaign
+from app.models.call_log import CallLog
+from app.services.stt_service import STTService
+from app.services.ai_service import AIService, _get_error_fallback_message, _get_repeat_request_message
+from app.services.tts_service import TTSService, _get_config, _DEFAULT_TTS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +123,6 @@ def _write_pcm16_wav(dest_path: Path, pcm16_data: bytes) -> None:
 def _update_lead_call_sid(temp_call_sid: str, real_call_sid: str) -> None:
     """Replace a lead's temporary placeholder call_sid with the real VoiceLink callSid."""
     try:
-        from app.models import db
-        from app.models.lead import Lead
-
         lead = Lead.query.filter_by(call_sid=temp_call_sid).first()
         if lead:
             lead.call_sid = real_call_sid
@@ -129,10 +141,6 @@ def _finalize_call_log(call_sid: Optional[str], status: str = "completed") -> No
     if not call_sid:
         return
     try:
-        from app.models import db
-        from app.models.call_log import CallLog
-        from app.models.lead import Lead
-
         log = CallLog.query.filter_by(call_sid=call_sid).first()
         if log:
             log.status = status
@@ -166,10 +174,6 @@ def _build_reply_audio(
         wav_path = Path(tmp.name)
     try:
         _write_pcm16_wav(wav_path, pcm16_audio)
-
-        from app.services.stt_service import STTService
-        from app.services.ai_service import AIService, _get_error_fallback_message, _get_repeat_request_message
-        from app.services.tts_service import TTSService
 
         primary_lang = script_config.get("primary_language", "English")
         secondary_lang = script_config.get("secondary_language")
@@ -300,17 +304,16 @@ class VoiceLinkPlaybackManager:
         self.ws = ws
         self.lock = lock
         self.stream_sid = stream_sid
-        self.queue = queue.Queue()
-        self.stop_event = threading.Event()
-        self.thread = None
+        self.queue = GeventQueue()
+        self.stop_event = gevent.event.Event()
+        self.greenlet = None
         self.sent_count = 0
         # Pre-generate 160-byte G.711 A-law silence chunk
         # 160 samples @ 8kHz = 20ms = 320 bytes PCM16
         self.silence_chunk = _lin2alaw(b'\x00' * 320)
 
     def start(self) -> None:
-        self.thread = threading.Thread(target=self._run, daemon=True)
-        self.thread.start()
+        self.greenlet = gevent.spawn(self._run)
 
     def _run(self) -> None:
         _log_ws_event(f"PLAYBACK MANAGER START: stream_sid={self.stream_sid}")
@@ -322,7 +325,7 @@ class VoiceLinkPlaybackManager:
                 chunk = None
                 try:
                     chunk = self.queue.get_nowait()
-                except queue.Empty:
+                except Exception:
                     pass
 
                 if chunk is None:
@@ -351,14 +354,14 @@ class VoiceLinkPlaybackManager:
                 next_time = start_time + expected_elapsed
                 sleep_time = next_time - time.time()
                 if sleep_time > 0:
-                    time.sleep(sleep_time)
+                    gevent.sleep(sleep_time)
                 else:
-                    time.sleep(0.001)
+                    gevent.sleep(0.001)
 
             _log_ws_event(f"PLAYBACK MANAGER COMPLETED: sent={self.sent_count} chunks")
         except Exception as e:
             _log_ws_event(f"PLAYBACK MANAGER EXCEPTION: {e}")
-            logger.exception("[VoiceLink] Error in PlaybackManager runner thread")
+            logger.exception("[VoiceLink] Error in PlaybackManager runner greenlet")
 
     def add_audio(self, alaw_audio: bytes) -> None:
         """Split raw A-law audio into 160-byte chunks and queue them."""
@@ -375,14 +378,14 @@ class VoiceLinkPlaybackManager:
         while not self.queue.empty():
             try:
                 self.queue.get_nowait()
-            except queue.Empty:
+            except Exception:
                 break
 
     def stop(self) -> None:
-        """Stop the continuous streaming thread."""
+        """Stop the continuous streaming greenlet."""
         self.stop_event.set()
-        if self.thread:
-            self.thread.join(timeout=1.0)
+        if self.greenlet:
+            self.greenlet.join(timeout=1.0)
 
 
 
@@ -531,13 +534,12 @@ def register_voicelink_websocket(sock_instance) -> None:
                     ):
                         nonlocal kb_id, lead_name, script_config
                         
+                        # Cooperatively sleep for 2 seconds to allow the PlaybackManager to run unimpeded
+                        gevent.sleep(2.0)
+                        
                         with _app.app_context():
                             try:
                                 _log_ws_event(f"ASYNC INIT: Starting DB initialization for call_sid={_call_sid}")
-                                from app.models.lead import Lead
-                                from app.models.campaign import Campaign
-                                from app.models import db
-                                from app.routes.twilio_voice import _parse_script_config
                                 
                                 # Consolidate Lead lookup and SID swap
                                 lead_obj = None
@@ -581,7 +583,6 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     welcome_msg = str(script_config.get("welcome_message") or "").strip()
                                     if welcome_msg and _manager:
                                         _log_ws_event(f"WELCOME: Starting fallback welcome generation for call_sid={_call_sid}...")
-                                        from app.services.tts_service import TTSService
                                         primary_lang = script_config.get("primary_language", "Hindi")
                                         voice_id = str(script_config.get("voice_id") or "").strip() or None
                                         gender = script_config.get("voice_style", "female")
@@ -599,7 +600,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                                 error_tb = traceback.format_exc()
                                 _log_ws_event(f"ASYNC INIT THREAD ERROR: {error_tb}")
 
-                    threading.Thread(target=_async_init_and_welcome, daemon=True).start()
+                    gevent.spawn(_async_init_and_welcome)
                     continue
 
                 # ── media (inbound customer audio) ───────────────────────────
