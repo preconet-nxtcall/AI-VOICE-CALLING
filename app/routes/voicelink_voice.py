@@ -468,6 +468,17 @@ def register_voicelink_websocket(sock_instance) -> None:
                     if stream_sid:
                         playback_manager = VoiceLinkPlaybackManager(ws, send_lock, stream_sid)
                         playback_manager.start()
+                        
+                        # Send start confirmation immediately to acknowledge the stream
+                        try:
+                            _log_ws_event(f"START CONFIRMATION: Sending start acknowledgment for stream_sid={stream_sid}")
+                            _ws_send(ws, send_lock, {
+                                "event": "start",
+                                "streamSid": stream_sid,
+                                "stream_sid": stream_sid
+                            })
+                        except Exception as sce:
+                            _log_ws_event(f"START CONFIRMATION ERROR: {sce}")
 
                     # Parse custom parameters from start event
                     custom = start.get("customParameters") or start.get("custom_parameters") or {}
