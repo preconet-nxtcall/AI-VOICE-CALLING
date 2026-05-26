@@ -163,7 +163,6 @@ class VoiceService:
             "custom_parameters": custom_params,
             "websocket_url": websocket_url,
             "webhook_url": webhook_url,
-            "call_limit": 1,
         }
 
 

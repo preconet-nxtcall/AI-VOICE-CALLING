@@ -41,7 +41,6 @@ def make_call(to_number, country_code_val):
         "custom_parameters": custom_params,
         "websocket_url": websocket_url,
         "webhook_url": webhook_url,
-        "call_limit": 1,
     }
     
     headers = {

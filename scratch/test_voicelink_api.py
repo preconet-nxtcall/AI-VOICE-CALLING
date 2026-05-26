@@ -13,7 +13,6 @@ payload = {
     "custom_parameters": json.dumps({"kb_id": "test_kb", "temp_call_sid": "test_sid"}),
     "websocket_url": "wss://ai-voice-calling-bz0z.onrender.com/voice/voicelink-stream",
     "webhook_url": "https://ai-voice-calling-bz0z.onrender.com/voice/voicelink-status-callback",
-    "call_limit": 1
 }
 
 headers = {
