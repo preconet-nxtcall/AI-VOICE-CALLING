@@ -5,7 +5,7 @@ services:
     env: python
     region: singapore
     buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
-    startCommand: flask db upgrade && gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 --timeout 0 --bind 0.0.0.0:$PORT run:app
+    startCommand: flask db upgrade && gunicorn -k gevent -w 1 --timeout 0 --bind 0.0.0.0:$PORT run:app
     envVars:
       - key: APP_ENV
         value: production

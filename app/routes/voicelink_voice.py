@@ -448,10 +448,15 @@ def register_voicelink_websocket(sock_instance) -> None:
 
         while True:
             try:
-                message = ws.receive()
-                if message is None:
-                    logger.info("[VoiceLink] WebSocket disconnected call_sid=%s", call_sid)
-                    _log_ws_event(f"DISCONNECT: WebSocket connection closed for call_sid={call_sid}")
+                try:
+                    message = ws.receive()
+                    if message is None:
+                        logger.info("[VoiceLink] WebSocket disconnected call_sid=%s", call_sid)
+                        _log_ws_event(f"DISCONNECT: WebSocket connection closed for call_sid={call_sid}")
+                        break
+                except Exception as ws_err:
+                    logger.info("[VoiceLink] WebSocket connection exception call_sid=%s: %s", call_sid, ws_err)
+                    _log_ws_event(f"DISCONNECT: WS receive exception: {ws_err}")
                     break
                 
                 try:
