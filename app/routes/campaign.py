@@ -257,19 +257,45 @@ class CampaignLeadUploadResource(Resource):
         try:
             stream = io.StringIO(file.stream.read().decode("utf-8"))
             reader = csv.reader(stream)
+            rows = list(reader)
         except Exception:
             return error("Failed to read CSV file. Ensure it is valid UTF-8.", 400)
+
+        if not rows:
+            return error("CSV file is empty.", 400)
+
+        # Parse headers to identify column indices
+        first_row = [col.strip().lower() for col in rows[0]]
+        phone_idx = 0
+        first_name_idx = -1
+        last_name_idx = -1
+        is_header = False
+
+        for idx, col in enumerate(first_row):
+            cleaned_col = re.sub(r'["\'\s\-_().]', '', col)
+            if cleaned_col in {"phone", "phonenumber", "number", "mobile", "tel", "phoneno"}:
+                phone_idx = idx
+                is_header = True
+            elif cleaned_col in {"firstname", "first", "name", "fullname"}:
+                first_name_idx = idx
+                is_header = True
+            elif cleaned_col in {"lastname", "last"}:
+                last_name_idx = idx
+                is_header = True
+
+        start_row_idx = 1 if is_header else 0
 
         added = 0
         skipped = 0
         errors_list = []
         
         batch_size = 5000
+        current_batch_leads = []
         current_batch_phones = set()
 
         def process_batch():
-            nonlocal added, skipped, current_batch_phones
-            if not current_batch_phones:
+            nonlocal added, skipped
+            if not current_batch_leads:
                 return
             
             # Query existing phones in this batch
@@ -280,13 +306,16 @@ class CampaignLeadUploadResource(Resource):
             existing_phones = {r[0] for r in existing_records}
             
             new_leads = []
-            for phone in current_batch_phones:
+            for item in current_batch_leads:
+                phone = item["phone"]
                 if phone in existing_phones:
                     skipped += 1
                 else:
                     new_leads.append(Lead(
                         campaign_id=campaign_uuid,
                         phone_number=phone,
+                        first_name=item["first_name"],
+                        last_name=item["last_name"],
                         status="pending"
                     ))
                     
@@ -294,25 +323,21 @@ class CampaignLeadUploadResource(Resource):
                 db.session.bulk_save_objects(new_leads)
                 added += len(new_leads)
                 
+            current_batch_leads.clear()
             current_batch_phones.clear()
 
-        for row_idx, row in enumerate(reader, start=1):
-            if not row:
+        for row_idx in range(start_row_idx, len(rows)):
+            row = rows[row_idx]
+            if not row or len(row) <= phone_idx:
                 continue
 
-            # Take the first column as the phone number
-            raw_phone = row[0].strip() if row else ""
+            raw_phone = row[phone_idx].strip()
             if not raw_phone:
                 continue
 
             # Clean the number: remove quotes, spaces, and common separators
             phone = re.sub(r'["\'\s\(\)\-]', '', raw_phone)
-            
             if not phone:
-                continue
-
-            # Skip header-like rows
-            if row_idx == 1 and phone.lower() in {"phone", "phone_number", "number", "mobile", "tel"}:
                 continue
 
             # Normalize: add + if it does not have it
@@ -322,7 +347,7 @@ class CampaignLeadUploadResource(Resource):
             if not _PHONE_RE.match(phone):
                 skipped += 1
                 if len(errors_list) < 10:
-                    errors_list.append(f"Row {row_idx}: Invalid number format '{raw_phone}'")
+                    errors_list.append(f"Row {row_idx + 1}: Invalid number format '{raw_phone}'")
                 continue
 
             # Handle duplicates within the CSV itself
@@ -330,9 +355,22 @@ class CampaignLeadUploadResource(Resource):
                 skipped += 1
                 continue
 
+            first_name = None
+            if first_name_idx != -1 and len(row) > first_name_idx:
+                first_name = row[first_name_idx].strip() or None
+                
+            last_name = None
+            if last_name_idx != -1 and len(row) > last_name_idx:
+                last_name = row[last_name_idx].strip() or None
+
             current_batch_phones.add(phone)
+            current_batch_leads.append({
+                "phone": phone,
+                "first_name": first_name,
+                "last_name": last_name
+            })
             
-            if len(current_batch_phones) >= batch_size:
+            if len(current_batch_leads) >= batch_size:
                 process_batch()
 
         # Process any remaining leads

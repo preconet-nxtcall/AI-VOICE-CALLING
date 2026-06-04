@@ -78,6 +78,7 @@ class Config:
     CELERY_DIALER_RETRY_BACKOFF_MAX = int(os.environ.get("CELERY_DIALER_RETRY_BACKOFF_MAX", "120"))
     CELERY_DIALER_RETRY_JITTER = _env_bool("CELERY_DIALER_RETRY_JITTER", True)
     CELERY_DIALER_MAX_RETRIES = int(os.environ.get("CELERY_DIALER_MAX_RETRIES", "8"))
+    DIALER_TIMEZONE = os.environ.get("DIALER_TIMEZONE", "Asia/Kolkata")
 
 
 class DevelopmentConfig(Config):

@@ -12,7 +12,7 @@ print(f"API Key: {api_key}")
 print(f"Hindi Female Voice ID: {voice_id_hindi_female}")
 print(f"Default Voice ID: {voice_id_default}")
 
-def test_pcm_format(v_id, name):
+def run_pcm_format_test(v_id, name):
     print(f"\nTesting voice {name} ({v_id}) with pcm_16000 format...")
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{v_id}?output_format=pcm_16000"
     headers = {
@@ -44,5 +44,5 @@ def test_pcm_format(v_id, name):
     except Exception as e:
         print(f"ERROR: {e}")
 
-test_pcm_format(voice_id_default, "Default")
-test_pcm_format(voice_id_hindi_female, "Hindi Female")
+run_pcm_format_test(voice_id_default, "Default")
+run_pcm_format_test(voice_id_hindi_female, "Hindi Female")

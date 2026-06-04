@@ -160,6 +160,7 @@ def _build_reply_audio(
     call_sid: Optional[str],
     kb_id: str,
     lead_name: Optional[str],
+    lead_phone: str,
     script_config: dict[str, Any],
     pcm16_audio: bytes,
 ) -> tuple[bytes, dict[str, Any]]:
@@ -186,7 +187,6 @@ def _build_reply_audio(
         if not transcription.strip():
             # Caller mumbled or there was noise — politely ask them to repeat
             logger.info("[VoiceLink] STT returned empty call_sid=%s — requesting repeat", call_sid)
-            repeat_msg = _get_repeat_request_message(primary_lang)
             repeat_msg = _get_repeat_request_message(primary_lang)
             alaw_bytes = TTSService.generate_alaw_8k(
                 repeat_msg, voice_id=voice_id, language=primary_lang, gender=gender
@@ -224,7 +224,7 @@ def _build_reply_audio(
         _save_conversation_turn(
             call_sid=call_sid,
             kb_id=kb_id,
-            phone_number="unknown",
+            phone_number=lead_phone,
             customer_text=transcription,
             ai_text=ai_reply,
         )
@@ -244,7 +244,7 @@ def _build_reply_audio(
             if analysis.get("appointment_detected") and call_sid:
                 _send_appointment_email(
                     kb_id=kb_id,
-                    lead_phone="unknown",
+                    lead_phone=lead_phone,
                     details=analysis.get("appointment_details", "No details provided"),
                     call_sid=call_sid,
                 )
@@ -407,7 +407,9 @@ def register_voicelink_websocket(sock_instance) -> None:
         call_sid: Optional[str] = None
         kb_id: str = ""
         lead_name: Optional[str] = None
+        lead_phone: str = "unknown"
         script_config: dict[str, Any] = {}
+        media_count = 0
 
         # ── Audio buffering ──────────────────────────────────────────────
         utterance = bytearray()
@@ -479,11 +481,9 @@ def register_voicelink_websocket(sock_instance) -> None:
                 if event_type != "media":
                     _log_ws_event(f"INCOMING EVENT [{event_type}]: {message}")
                 else:
-                    if not hasattr(voicelink_media_stream, "_media_count"):
-                        voicelink_media_stream._media_count = 0
-                    voicelink_media_stream._media_count += 1
-                    if voicelink_media_stream._media_count <= 3:
-                        _log_ws_event(f"INCOMING MEDIA #{voicelink_media_stream._media_count}: {message[:400]}")
+                    media_count += 1
+                    if media_count <= 3:
+                        _log_ws_event(f"INCOMING MEDIA #{media_count}: {message[:400]}")
 
                 # ── connected ────────────────────────────────────────────────
                 if event_type == "connected":
@@ -510,6 +510,8 @@ def register_voicelink_websocket(sock_instance) -> None:
                     temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
                     tts_key = str(custom.get("tts_key") or "").strip()
                     lead_name = str(custom.get("name") or "").strip()
+                    lead_phone = str(custom.get("phone") or "unknown").strip()
+                    script_id_param = str(custom.get("script_id") or "").strip() or None
                     kb_id = str(custom.get("kb_id") or "").strip()
 
                     # Set initial placeholder config
@@ -582,9 +584,10 @@ def register_voicelink_websocket(sock_instance) -> None:
                         _call_sid=call_sid,
                         _temp_call_sid=temp_call_sid,
                         _custom_params=custom,
-                        _played_instantly=welcome_played_instantly
+                        _played_instantly=welcome_played_instantly,
+                        _script_id_param=script_id_param,
                     ):
-                        nonlocal kb_id, lead_name, script_config
+                        nonlocal kb_id, lead_name, lead_phone, script_config
 
                         # Small cooperative yield so PlaybackManager greenlet can start
                         # and get its first chunks into the wire before we hit the DB.
@@ -607,7 +610,8 @@ def register_voicelink_websocket(sock_instance) -> None:
 
                                 if lead_obj:
                                     lead_name = getattr(lead_obj, "first_name", "") or ""
-                                    _log_ws_event(f"ASYNC INIT: Lead name resolved to '{lead_name}'")
+                                    lead_phone = getattr(lead_obj, "phone_number", "") or lead_phone
+                                    _log_ws_event(f"ASYNC INIT: Lead name resolved to '{lead_name}', phone to '{lead_phone}'")
 
                                     # Load script config from campaign
                                     if lead_obj.campaign_id:
@@ -617,6 +621,19 @@ def register_voicelink_websocket(sock_instance) -> None:
                                             if parsed_cfg:
                                                 script_config = parsed_cfg
                                                 _log_ws_event("ASYNC INIT: Custom script config loaded successfully")
+
+                                # If no config loaded (e.g. manual test call) and script_id is in params:
+                                if not script_config and _script_id_param:
+                                    from app.models.script import Script
+                                    try:
+                                        script_obj = db.session.get(Script, uuid.UUID(_script_id_param))
+                                        if script_obj:
+                                            parsed_cfg = _parse_script_config(script_obj.content)
+                                            if parsed_cfg:
+                                                script_config = parsed_cfg
+                                                _log_ws_event("ASYNC INIT: Custom script config loaded from customParameters")
+                                    except Exception:
+                                        _log_ws_event(f"ASYNC INIT: Failed to load script {_script_id_param}")
 
                                 # Resolve kb_id from params if still not set
                                 if not kb_id:
@@ -725,6 +742,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                                         call_sid=call_sid,
                                         kb_id=kb_id,
                                         lead_name=lead_name,
+                                        lead_phone=lead_phone,
                                         script_config=current_script_config,
                                         pcm16_audio=captured_audio,
                                     )

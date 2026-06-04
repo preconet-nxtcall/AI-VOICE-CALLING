@@ -84,6 +84,8 @@ class IngestionService:
                 logger.exception("File ingestion job failed job_id=%s", job_id)
                 db.session.rollback()
                 IngestionService._mark_failed(job, str(exc))
+            finally:
+                db.session.remove()
 
     @staticmethod
     def _process_url_job(app, job_id: str, url: str) -> None:
@@ -110,3 +112,5 @@ class IngestionService:
                 logger.exception("URL ingestion job failed job_id=%s", job_id)
                 db.session.rollback()
                 IngestionService._mark_failed(job, str(exc))
+            finally:
+                db.session.remove()

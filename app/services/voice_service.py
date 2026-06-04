@@ -43,6 +43,7 @@ class VoiceService:
         to_number: str,
         kb_id: str,
         from_number_override: Optional[str] = None,
+        script_id: Optional[str] = None,
     ) -> str:
         """
         Initiate an outbound AI call via VoiceLink.
@@ -73,14 +74,17 @@ class VoiceService:
         # Normalize phone numbers for VoiceLink:
         # VoiceLink expects numbers WITHOUT the leading '+' (it uses country_code separately)
         # e.g. "+919876543210" → "919876543210"
-        def _normalize_for_voicelink(number: str) -> str:
+        # We also strip the country code prefix if it matches to prevent double country code dialing
+        def _normalize_for_voicelink(number: str, cc: str) -> str:
             n = number.strip()
             if n.startswith("+"):
                 n = n[1:]
+            if cc and n.startswith(cc):
+                n = n[len(cc):]
             return n
 
-        did_number_clean = _normalize_for_voicelink(did_number)
-        customer_number_clean = _normalize_for_voicelink(to_number)
+        did_number_clean = _normalize_for_voicelink(did_number, "")
+        customer_number_clean = _normalize_for_voicelink(to_number, country_code)
 
         # Generate a temporary placeholder SID; replaced by the real callSid in the WS 'start' event
         temp_call_sid = f"vl_{uuid.uuid4().hex}"
@@ -95,8 +99,17 @@ class VoiceService:
         try:
             from app.models.lead import Lead
             from app.models.campaign import Campaign
+            from app.models.script import Script
             from app.models import db
             from app.routes.twilio_voice import _parse_script_config
+
+            script = None
+            if script_id:
+                try:
+                    script_uuid = uuid.UUID(str(script_id))
+                    script = db.session.get(Script, script_uuid)
+                except ValueError:
+                    pass
 
             clean_to_10 = to_number.strip()[-10:]
             lead = Lead.query.filter(
@@ -105,8 +118,11 @@ class VoiceService:
             ).order_by(Lead.created_at.desc()).first()
             if lead:
                 lead_name = lead.first_name or ""
-                campaign = db.session.get(Campaign, lead.campaign_id) if lead.campaign_id else None
-                script = getattr(campaign, "script", None) if campaign else None
+                if not script:
+                    campaign = db.session.get(Campaign, lead.campaign_id) if lead.campaign_id else None
+                    script = getattr(campaign, "script", None) if campaign else None
+
+            if script:
                 script_config = _parse_script_config(getattr(script, "content", None))
                 if script_config:
                     welcome_message = str(script_config.get("welcome_message") or welcome_message).strip()
@@ -139,7 +155,10 @@ class VoiceService:
         custom_params_dict = {
             "kb_id": kb_id,
             "temp_call_sid": temp_call_sid,
+            "phone": to_number,
         }
+        if script_id:
+            custom_params_dict["script_id"] = str(script_id)
         if tts_key:
             custom_params_dict["tts_key"] = tts_key
         if lead_name:
@@ -148,7 +167,11 @@ class VoiceService:
         custom_params = json.dumps(custom_params_dict)
         if len(custom_params) > 255:
             # Fallback to minimal parameters if limit exceeded
-            custom_params = json.dumps({"kb_id": kb_id, "temp_call_sid": temp_call_sid})
+            custom_params = json.dumps({
+                "kb_id": kb_id, 
+                "temp_call_sid": temp_call_sid,
+                "phone": to_number,
+            })
 
 
         # VoiceLink requires wss:// for the media stream

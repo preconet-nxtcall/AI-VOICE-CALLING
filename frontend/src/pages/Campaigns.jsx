@@ -260,19 +260,24 @@ export default function Campaigns() {
                     <table className="w-full text-left text-sm">
                       <thead className="bg-slate-50 dark:bg-slate-900/80 sticky top-0">
                         <tr>
+                          <th className="px-4 py-2 text-slate-600 dark:text-slate-400 text-xs font-medium">Name</th>
                           <th className="px-4 py-2 text-slate-600 dark:text-slate-400 text-xs font-medium">Phone Number</th>
                           <th className="px-4 py-2 text-slate-600 dark:text-slate-400 text-xs font-medium">Status</th>
                           <th className="px-4 py-2 text-slate-600 dark:text-slate-400 text-xs font-medium">Call SID</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {leads.map((lead) => (
-                          <tr key={lead.id} className="border-t border-slate-200/50 dark:border-slate-800/50">
-                            <td className="px-4 py-2 text-slate-900 dark:text-slate-200 font-mono">{lead.phone_number}</td>
-                            <td className="px-4 py-2 text-slate-700 dark:text-slate-300 uppercase text-xs">{lead.status}</td>
-                            <td className="px-4 py-2 text-slate-600 dark:text-slate-400 text-xs font-mono truncate max-w-[200px]">{lead.call_sid || '-'}</td>
-                          </tr>
-                        ))}
+                        {leads.map((lead) => {
+                          const fullName = [lead.first_name, lead.last_name].filter(Boolean).join(' ').trim();
+                          return (
+                            <tr key={lead.id} className="border-t border-slate-200/50 dark:border-slate-800/50">
+                              <td className="px-4 py-2 text-slate-900 dark:text-slate-200">{fullName || '-'}</td>
+                              <td className="px-4 py-2 text-slate-900 dark:text-slate-200 font-mono">{lead.phone_number}</td>
+                              <td className="px-4 py-2 text-slate-700 dark:text-slate-300 uppercase text-xs">{lead.status}</td>
+                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400 text-xs font-mono truncate max-w-[200px]">{lead.call_sid || '-'}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

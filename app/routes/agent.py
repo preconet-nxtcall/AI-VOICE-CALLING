@@ -172,7 +172,7 @@ class AgentOutboundCallResource(Resource):
     def post(self):
         """
         Trigger an outbound AI call via VoiceLink to a specific phone number.
-        Expects JSON: { "phone_number": "+1234567890", "knowledge_base_id": "..." }
+        Expects JSON: { "phone_number": "+1234567890", "knowledge_base_id": "...", "script_id": "..." }
         """
         data = request.get_json(silent=True)
         if not data:
@@ -180,6 +180,7 @@ class AgentOutboundCallResource(Resource):
             
         phone_number = data.get("phone_number")
         knowledge_base_id = data.get("knowledge_base_id")
+        script_id = data.get("script_id")
         
         if not phone_number or not str(phone_number).strip():
             return {"success": False, "error": "'phone_number' is required."}, 400
@@ -203,12 +204,27 @@ class AgentOutboundCallResource(Resource):
         if not kb:
             return {"success": False, "error": "Knowledge base not found or access denied."}, 404
             
+        script_uuid = None
+        if script_id:
+            try:
+                script_uuid = uuid.UUID(str(script_id))
+            except ValueError:
+                return {"success": False, "error": "Invalid script ID format."}, 400
+            from app.models.script import Script
+            script_obj = Script.query.filter_by(id=script_uuid, user_id=user_uuid, is_active=True).first()
+            if not script_obj:
+                return {"success": False, "error": "Script not found or access denied."}, 404
+            
         from app.routes.twilio_voice import _is_kb_available_for_voice
         if not _is_kb_available_for_voice(str(kb_uuid)):
             return {"success": False, "error": "Active subscription required to make voice calls."}, 403
             
         try:
-            call_sid = VoiceService.make_outbound_call(str(phone_number), str(knowledge_base_id))
+            call_sid = VoiceService.make_outbound_call(
+                str(phone_number),
+                str(knowledge_base_id),
+                script_id=(str(script_uuid) if script_uuid else None)
+            )
             return {
                 "success": True,
                 "data": {

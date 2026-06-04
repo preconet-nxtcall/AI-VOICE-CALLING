@@ -30,7 +30,23 @@ def _within_campaign_schedule(campaign: Campaign, now_utc: datetime) -> bool:
         return False
 
     if campaign.daily_start_time or campaign.daily_end_time:
-        now_time = now_utc.time()
+        # Convert UTC to local timezone for daily start/end naive time comparisons
+        tz_str = "Asia/Kolkata"
+        try:
+            from flask import current_app
+            tz_str = current_app.config.get("DIALER_TIMEZONE", "Asia/Kolkata")
+        except RuntimeError:
+            pass
+
+        try:
+            from zoneinfo import ZoneInfo
+            local_tz = ZoneInfo(tz_str)
+            now_time = now_utc.astimezone(local_tz).time()
+        except Exception:
+            # Fallback to IST (+05:30) if zoneinfo is not available
+            ist_offset = timezone(timedelta(hours=5, minutes=30))
+            now_time = now_utc.astimezone(ist_offset).time()
+
         start = campaign.daily_start_time
         end = campaign.daily_end_time
         if start and end:
@@ -80,12 +96,15 @@ def _eligible_pending_lead(campaign: Campaign) -> Lead | None:
     if not pending_leads:
         return None
 
+    retry_limit = max(int(campaign.retry_attempts or 0), 0)
     retry_after = timedelta(seconds=max(int(campaign.retry_interval_seconds or 0), 0))
     now_utc = datetime.now(timezone.utc)
     for lead in pending_leads:
         attempts = _attempts_from_error(lead.error_message or "")
         if attempts <= 0:
             return lead
+        if attempts > retry_limit:
+            continue
         if lead.updated_at and (now_utc - lead.updated_at) < retry_after:
             continue
         return lead

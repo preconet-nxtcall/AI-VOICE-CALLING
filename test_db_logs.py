@@ -19,8 +19,8 @@ try:
     for table_name in metadata.tables.keys():
         print(f"  - {table_name}")
         
-    if 'call_log' in metadata.tables:
-        call_log = metadata.tables['call_log']
+    if 'call_logs' in metadata.tables:
+        call_log = metadata.tables['call_logs']
         with engine.connect() as conn:
             # Query latest 5 call logs
             stmt = select(call_log).order_by(call_log.c.created_at.desc()).limit(5)
@@ -38,7 +38,7 @@ try:
                 print(f"  Conversation: {row_dict.get('conversation')}")
                 print(f"  Tags: {row_dict.get('tags')}")
     else:
-        print("\nTable 'call_log' not found in metadata.")
+        print("\nTable 'call_logs' not found in metadata.")
         
     if 'lead' in metadata.tables:
         lead = metadata.tables['lead']
