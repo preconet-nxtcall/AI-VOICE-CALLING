@@ -29,14 +29,15 @@ def create_app(config_override=None):
     Migrate(app, db)
     
     # Programmatically run migrations on startup to keep DB in sync
-    try:
-        from flask_migrate import upgrade
-        with app.app_context():
-            app.logger.info("Programmatically running database upgrade...")
-            upgrade()
-            app.logger.info("Database upgrade completed successfully.")
-    except Exception as e:
-        app.logger.error("Failed to run database upgrade: %s", e)
+    if os.environ.get("SKIP_MIGRATIONS") != "true":
+        try:
+            from flask_migrate import upgrade
+            with app.app_context():
+                app.logger.info("Programmatically running database upgrade...")
+                upgrade()
+                app.logger.info("Database upgrade completed successfully.")
+        except Exception as e:
+            app.logger.error("Failed to run database upgrade: %s", e)
 
     jwt = JWTManager(app)
 
