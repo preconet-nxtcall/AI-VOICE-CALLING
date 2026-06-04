@@ -26,7 +26,7 @@ import tempfile
 import threading
 import time
 import wave
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -74,7 +74,8 @@ _log_lock = threading.Lock()
 
 def _log_ws_event(message: str) -> None:
     """Thread-safe persistent file-based logging for VoiceLink events."""
-    timestamp = datetime.now(timezone.utc).isoformat()
+    ist = timezone(timedelta(hours=5, minutes=30))
+    timestamp = datetime.now(ist).isoformat()
     log_line = f"[{timestamp}] {message}\n"
     paths_to_try = [Path("/data/voicelink_ws.log"), Path("./voicelink_ws.log")]
     with _log_lock:
@@ -261,7 +262,7 @@ def _build_reply_audio(
                 "ai_text": ai_reply,
                 "analysis": analysis,
                 "provider": "voicelink",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
             })
         except Exception:
             pass
@@ -645,7 +646,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     "call_sid": _call_sid,
                                     "kb_id": kb_id,
                                     "provider": "voicelink",
-                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    "timestamp": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
                                 })
 
                                 # Fallback welcome: generate now if cache was missing
@@ -780,7 +781,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                         "event": "call_end",
                         "call_sid": call_sid,
                         "provider": "voicelink",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
                     })
                     break
 
@@ -816,8 +817,9 @@ def voicelink_status_callback():
         
         from flask import current_app
         if 'WEBHOOK_LOGS' in current_app.config:
+            ist = timezone(timedelta(hours=5, minutes=30))
             current_app.config['WEBHOOK_LOGS'].append({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(ist).isoformat(),
                 "payload": data
             })
 
