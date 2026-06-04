@@ -65,7 +65,7 @@ voicelink_voice_bp = Blueprint("voicelink_voice", __name__)
 
 # ─── Audio constants ──────────────────────────────────────────────────────────
 _SAMPLE_RATE = 8000        # VoiceLink streams 8 kHz
-_SILENCE_RMS = 700         # RMS below this = silence (lowered for better sensitivity)
+_SILENCE_RMS = 250         # RMS below this = silence (lowered from 700 for better sensitivity on telephone lines)
 _END_SILENCE_MS = 800      # trailing silence to end utterance (slightly more patient)
 _MIN_UTTERANCE_MS = 400    # minimum utterance duration to process (lowered to catch short replies)
 _PCM_SAMPLE_WIDTH = 2      # bytes per sample (16-bit PCM)
@@ -690,7 +690,6 @@ def register_voicelink_websocket(sock_instance) -> None:
                     utterance.extend(pcm_chunk)
                     chunk_rms = _pcm_rms(pcm_chunk)
                     chunk_ms = int((len(pcm_chunk) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000))
-                    _log_ws_event(f"MEDIA RECEIVED RMS={chunk_rms} SIZE={len(pcm_chunk)}")
 
                     if chunk_rms >= _SILENCE_RMS:
                         # Barge-in: caller speaks while AI is playing → interrupt
@@ -710,6 +709,13 @@ def register_voicelink_websocket(sock_instance) -> None:
                         silence_ms = 0
                     else:
                         silence_ms += max(chunk_ms, 20)
+
+                    # Sliding pre-roll window when user is silent to avoid accumulating hours of silence/noise
+                    if not speech_seen:
+                        # Keep only the last 400ms of pre-roll silence (8000 Hz * 2 bytes * 0.4s = 6400 bytes)
+                        max_pre_roll_bytes = 6400
+                        if len(utterance) > max_pre_roll_bytes:
+                            del utterance[:-max_pre_roll_bytes]
 
                     utterance_ms = int(
                         (len(utterance) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000)

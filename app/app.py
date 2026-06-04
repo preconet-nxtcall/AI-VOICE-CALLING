@@ -175,7 +175,8 @@ def create_app(config_override=None):
                     break
                 except Exception:
                     continue
-        return {"logs": [line.rstrip("\n") for line in lines[-1000:]]}
+        filtered = [line.rstrip("\n") for line in lines if "MEDIA RECEIVED" not in line]
+        return {"logs": filtered[-1000:]}
 
     @app.get("/api/v1/webhook-logs")
     def webhook_logs():
