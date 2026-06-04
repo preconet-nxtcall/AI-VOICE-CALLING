@@ -1,38 +1,34 @@
-import os
-from twilio.rest import Client
-from dotenv import load_dotenv
+import requests
+import json
 
-load_dotenv()
+BASE = "https://ai-voice-calling-bz0z.onrender.com"
+creds = {"email": "final_test@example.com", "password": "Password123!"}
 
-account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-from_number = os.environ.get("TWILIO_PHONE_NUMBER")
-base_url = os.environ.get("PUBLIC_BASE_URL")
-
-to_number = "+918918523121"
-kb_id = "00000000-0000-0000-0000-000000000000" # Placeholder
-
-if not all([account_sid, auth_token, from_number, base_url]):
-    print("Error: Missing Twilio configuration in .env")
+print("1. Logging in...")
+resp = requests.post(f"{BASE}/api/v1/auth/login", json=creds, timeout=30)
+if resp.status_code != 200:
+    print(f"Failed to log in: {resp.text}")
     exit(1)
 
-client = Client(account_sid, auth_token)
+token = resp.json().get("access_token") or resp.json().get("token") or resp.json().get("data", {}).get("access_token")
+if not token:
+    print("Could not obtain access token.")
+    exit(1)
+print("Login successful.")
 
-webhook_url = f"{base_url}/voice?kb_id={kb_id}"
-status_callback = f"{base_url}/voice/status-callback?kb_id={kb_id}"
+headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-try:
-    call = client.calls.create(
-        to=to_number,
-        from_=from_number,
-        url=webhook_url,
-        status_callback=status_callback,
-        status_callback_event=["completed", "failed", "busy", "no-answer", "canceled"],
-        status_callback_method="POST",
-    )
-    print(f"Test call initiated successfully!")
-    print(f"Call SID: {call.sid}")
-    print(f"To: {to_number}")
-    print(f"Webhook URL: {webhook_url}")
-except Exception as e:
-    print(f"Failed to initiate call: {e}")
+kb_id = "e18d2e37-be7a-4fff-81a7-a3deddb114e9"
+script_id = "59dc8a1c-def9-4c13-befb-cbfdaa656954"
+target_phone = "+918918523121"
+
+print(f"\nTriggering outbound call to {target_phone}...")
+call_payload = {
+    "phone_number": target_phone,
+    "knowledge_base_id": kb_id,
+    "script_id": script_id
+}
+
+resp = requests.post(f"{BASE}/api/v1/agent/call", json=call_payload, headers=headers, timeout=30)
+print(f"Status: {resp.status_code}")
+print(f"Response: {json.dumps(resp.json(), indent=2)}")

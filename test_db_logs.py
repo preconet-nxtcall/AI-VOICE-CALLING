@@ -1,8 +1,14 @@
 import os
+import sys
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, MetaData, Table, select
 
+# Force UTF-8 for Windows console
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 load_dotenv(override=True)
+
 
 db_url = os.environ.get("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):

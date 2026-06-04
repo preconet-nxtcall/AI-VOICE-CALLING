@@ -29,6 +29,8 @@ import wave
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Optional
+import uuid
+
 
 import gevent
 import gevent.event
