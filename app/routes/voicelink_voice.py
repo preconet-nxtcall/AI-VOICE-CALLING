@@ -164,13 +164,13 @@ def _build_reply_audio(
     lead_phone: str,
     script_config: dict[str, Any],
     pcm16_audio: bytes,
-) -> tuple[bytes, dict[str, Any]]:
+) -> tuple[bytes, str, str]:
     """
-    Full pipeline: PCM16 audio → STT → RAG → LLM → TTS → G.711 A-law.
-    Returns (alaw_bytes, analysis_dict).
+    Fast pipeline: PCM16 audio → STT → RAG (no reranker) → LLM reply → TTS.
+    Returns (alaw_bytes, transcription, ai_reply).
     """
     if not pcm16_audio:
-        return b"", {}
+        return b"", "", ""
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         wav_path = Path(tmp.name)
@@ -192,11 +192,11 @@ def _build_reply_audio(
             alaw_bytes = TTSService.generate_alaw_8k(
                 repeat_msg, voice_id=voice_id, language=primary_lang, gender=gender
             )
-            return alaw_bytes, {}
+            return alaw_bytes, "", repeat_msg
         logger.info("[VoiceLink] STT call_sid=%s text=%r", call_sid, transcription[:80])
 
-        # 2 — RAG context
-        raw_context = _get_context(transcription, kb_id)
+        # 2 — RAG context (explicitly setting use_reranker=False for speed)
+        raw_context = _get_context(transcription, kb_id, use_reranker=False)
         if lead_name:
             raw_context = (
                 f"IMPORTANT: The caller's name is {lead_name}. "
@@ -219,7 +219,7 @@ def _build_reply_audio(
             ai_reply = _get_error_fallback_message(primary_lang)
 
         if not ai_reply.strip():
-            return b"", {}
+            return b"", transcription, ""
 
         # 4 — Persist turn
         _save_conversation_turn(
@@ -230,52 +230,15 @@ def _build_reply_audio(
             ai_text=ai_reply,
         )
 
-        # 5 — Analyse for tags / handoff / appointment
-        analysis: dict[str, Any] = {}
-        try:
-            analysis = AIService.analyze_transcript_for_tags(
-                transcript=transcription,
-                script_config=script_config,
-            )
-            _save_tags_and_forwarding(
-                call_sid=call_sid,
-                tags=analysis.get("tags") or {},
-                is_forwarded=bool(analysis.get("should_handoff")),
-            )
-            if analysis.get("appointment_detected") and call_sid:
-                _send_appointment_email(
-                    kb_id=kb_id,
-                    lead_phone=lead_phone,
-                    details=analysis.get("appointment_details", "No details provided"),
-                    call_sid=call_sid,
-                )
-        except Exception:
-            logger.exception("[VoiceLink] Tagging failed call_sid=%s", call_sid)
-
-        # 6 — Broadcast live event
-        try:
-            broadcast_live_event({
-                "event": "transcript",
-                "call_sid": call_sid,
-                "kb_id": kb_id,
-                "customer_text": transcription,
-                "ai_text": ai_reply,
-                "analysis": analysis,
-                "provider": "voicelink",
-                "timestamp": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
-            })
-        except Exception:
-            pass
-
-        # 7 — TTS → A-law
+        # 5 — TTS → A-law
         alaw_reply = TTSService.generate_alaw_8k(
             ai_reply, voice_id=voice_id, language=primary_lang, gender=gender
         )
-        return alaw_reply, analysis
+        return alaw_reply, transcription, ai_reply
 
     except Exception:
         logger.exception("[VoiceLink] Pipeline failed call_sid=%s", call_sid)
-        return b"", {}
+        return b"", "", ""
     finally:
         try:
             wav_path.unlink(missing_ok=True)
@@ -743,7 +706,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                             def _process_utterance_async(captured_audio, current_script_config, resp_id, app_instance):
                                 with app_instance.app_context():
                                     try:
-                                        alaw_reply, analysis = _build_reply_audio(
+                                        alaw_reply, transcription, ai_reply = _build_reply_audio(
                                             call_sid=call_sid,
                                             kb_id=kb_id,
                                             lead_name=lead_name,
@@ -757,14 +720,57 @@ def register_voicelink_websocket(sock_instance) -> None:
                                             if alaw_reply and stream_sid and playback_manager:
                                                 playback_manager.add_audio(alaw_reply)
 
-                                            # Handoff detection
-                                            handoff_number = str(current_script_config.get("handoff_number") or "").strip()
-                                            if analysis.get("should_handoff") and handoff_number and call_sid:
-                                                logger.info("[VoiceLink] Handoff triggered call_sid=%s", call_sid)
-                                                try:
-                                                    ws.close()
-                                                except Exception:
-                                                    pass
+                                            # Run CRM tag extraction & event broadcasting in an async background greenlet
+                                            def _async_post_reply_tasks(_app=app_instance, _transcription=transcription, _ai_reply=ai_reply):
+                                                with _app.app_context():
+                                                    try:
+                                                        analysis = {}
+                                                        if _transcription and _transcription.strip():
+                                                            analysis = AIService.analyze_transcript_for_tags(
+                                                                transcript=_transcription,
+                                                                script_config=current_script_config,
+                                                            )
+                                                            _save_tags_and_forwarding(
+                                                                call_sid=call_sid,
+                                                                tags=analysis.get("tags") or {},
+                                                                is_forwarded=bool(analysis.get("should_handoff")),
+                                                            )
+                                                            if analysis.get("appointment_detected") and call_sid:
+                                                                _send_appointment_email(
+                                                                    kb_id=kb_id,
+                                                                    lead_phone=lead_phone,
+                                                                    details=analysis.get("appointment_details", "No details provided"),
+                                                                    call_sid=call_sid,
+                                                                )
+
+                                                        # Broadcast live dashboard transcript event
+                                                        broadcast_live_event({
+                                                            "event": "transcript",
+                                                            "call_sid": call_sid,
+                                                            "kb_id": kb_id,
+                                                            "customer_text": _transcription,
+                                                            "ai_text": _ai_reply,
+                                                            "analysis": analysis,
+                                                            "provider": "voicelink",
+                                                            "timestamp": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
+                                                        })
+
+                                                        # Handoff detection
+                                                        handoff_number = str(current_script_config.get("handoff_number") or "").strip()
+                                                        if analysis.get("should_handoff") and handoff_number and call_sid:
+                                                            logger.info("[VoiceLink] Handoff triggered call_sid=%s, scheduling WS close", call_sid)
+                                                            try:
+                                                                # Give time for the generated TTS audio to stream before closing the socket.
+                                                                gevent.sleep(6.0)
+                                                                ws.close()
+                                                            except Exception:
+                                                                pass
+                                                    except Exception as ae:
+                                                        logger.exception("[VoiceLink] Async post-reply tasks failed")
+                                                        _log_ws_event(f"ASYNC POST-REPLY ERROR: {ae}")
+
+                                            gevent.spawn(_async_post_reply_tasks)
+
                                         else:
                                             _log_ws_event(f"DISCARDED: Response ID {resp_id} discarded due to new user speech.")
                                     except Exception as pe:

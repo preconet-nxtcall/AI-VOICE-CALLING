@@ -109,8 +109,8 @@ def live_events_stream(ws):
 
 # ─── Knowledge Base context lookup ───────────────────────────────────────────
 
-def _get_context(speech_text: str, kb_id: str) -> str:
-    """Fetch relevant context chunks from the Knowledge Base (no LLM call)."""
+def _get_context(speech_text: str, kb_id: str, use_reranker: bool = False) -> str:
+    """Fetch relevant context chunks from the Knowledge Base (no LLM call by default)."""
     if not kb_id:
         logger.error("No KB configured for this call")
         return ""
@@ -122,7 +122,7 @@ def _get_context(speech_text: str, kb_id: str) -> str:
             k=3,
             vector_k=24,
             keyword_weight=0.5,
-            use_reranker=True,
+            use_reranker=use_reranker,
             rerank_pool=10,
         )
         if not chunks:
@@ -136,6 +136,7 @@ def _get_context(speech_text: str, kb_id: str) -> str:
     except Exception:
         logger.exception("Failed to retrieve context for query: %.50s", speech_text)
         return ""
+
 
 
 # ─── Script config helpers ────────────────────────────────────────────────────
