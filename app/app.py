@@ -185,12 +185,18 @@ def create_app(config_override=None):
     @app.get("/api/v1/debug-logs")
     def get_debug_logs():
         from flask import Response
-        try:
-            with open("debug.log", "r") as f:
-                content = f.read()
-            return Response(content, mimetype="text/plain")
-        except Exception as e:
-            return Response(str(e), status=500, mimetype="text/plain")
+        output = []
+        for fn in ["gunicorn_error.log", "gunicorn_access.log", "debug.log"]:
+            if os.path.exists(fn):
+                try:
+                    with open(fn, "r", encoding="utf-8", errors="ignore") as f:
+                        output.append(f"=== {fn} ===\n" + f.read()[-10000:])
+                except Exception as e:
+                    output.append(f"=== {fn} error: {e} ===")
+            else:
+                output.append(f"=== {fn} does not exist ===")
+        return Response("\n\n".join(output), mimetype="text/plain")
+
 
     @app.get("/api/v1/kb-diagnostics")
     def kb_diagnostics():
