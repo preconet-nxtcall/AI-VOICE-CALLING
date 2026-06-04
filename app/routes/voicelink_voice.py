@@ -188,12 +188,14 @@ def _build_reply_audio(
         if not transcription.strip():
             # Caller mumbled or there was noise — politely ask them to repeat
             logger.info("[VoiceLink] STT returned empty call_sid=%s — requesting repeat", call_sid)
+            _log_ws_event(f"STT: Empty transcription — requesting repeat (call_sid={call_sid})")
             repeat_msg = _get_repeat_request_message(primary_lang)
             alaw_bytes = TTSService.generate_alaw_8k(
                 repeat_msg, voice_id=voice_id, language=primary_lang, gender=gender
             )
             return alaw_bytes, "", repeat_msg
         logger.info("[VoiceLink] STT call_sid=%s text=%r", call_sid, transcription[:80])
+        _log_ws_event(f"STT: {transcription[:120]}")
 
         # 2 — RAG context (explicitly setting use_reranker=False for speed)
         raw_context = _get_context(transcription, kb_id, use_reranker=False)
@@ -220,6 +222,8 @@ def _build_reply_audio(
 
         if not ai_reply.strip():
             return b"", transcription, ""
+
+        _log_ws_event(f"AI REPLY: {ai_reply[:150]}")
 
         # 4 — Persist turn
         _save_conversation_turn(
@@ -483,8 +487,10 @@ def register_voicelink_websocket(sock_instance) -> None:
                     script_id_param = str(custom.get("script_id") or "").strip() or None
                     kb_id = str(custom.get("kb_id") or "").strip()
 
-                    # Set initial placeholder config
-                    script_config = {
+                    # script_config starts as None so the async init can detect "no real script loaded yet".
+                    # The placeholder dict is only applied as a final fallback inside _async_init_and_welcome.
+                    script_config = None
+                    _DEFAULT_SCRIPT_CONFIG = {
                         "welcome_message": "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?",
                         "primary_language": "Hindi",
                         "voice_style": "female",
@@ -591,8 +597,10 @@ def register_voicelink_websocket(sock_instance) -> None:
                                                 script_config = parsed_cfg
                                                 _log_ws_event("ASYNC INIT: Custom script config loaded successfully")
 
-                                # If no config loaded (e.g. manual test call) and script_id is in params:
-                                if not script_config and _script_id_param:
+                                # ALWAYS load script_id from custom params when present —
+                                # it has higher priority than a campaign script so the API caller
+                                # can override per-call agent persona.
+                                if _script_id_param:
                                     from app.models.script import Script
                                     try:
                                         script_obj = db.session.get(Script, uuid.UUID(_script_id_param))
@@ -600,9 +608,14 @@ def register_voicelink_websocket(sock_instance) -> None:
                                             parsed_cfg = _parse_script_config(script_obj.content)
                                             if parsed_cfg:
                                                 script_config = parsed_cfg
-                                                _log_ws_event("ASYNC INIT: Custom script config loaded from customParameters")
+                                                _log_ws_event(f"ASYNC INIT: Script '{script_obj.name}' loaded from customParameters script_id")
                                     except Exception:
                                         _log_ws_event(f"ASYNC INIT: Failed to load script {_script_id_param}")
+
+                                # Final fallback: if neither campaign nor script_id resolved a config, use the default placeholder
+                                if not script_config:
+                                    script_config = _DEFAULT_SCRIPT_CONFIG
+                                    _log_ws_event("ASYNC INIT: Using default placeholder script config (no campaign/script_id found)")
 
                                 # Resolve kb_id from params if still not set
                                 if not kb_id:
@@ -776,6 +789,17 @@ def register_voicelink_websocket(sock_instance) -> None:
                                     except Exception as pe:
                                         logger.exception("[VoiceLink] Async pipeline processing failed")
                                         _log_ws_event(f"ASYNC PIPELINE ERROR: {pe}")
+
+                            # If script_config is still None (async init still running), wait briefly for it.
+                            # This happens when the caller speaks extremely fast (before DB query finishes).
+                            _wait_ms = 0
+                            while script_config is None and _wait_ms < 3000:
+                                gevent.sleep(0.1)
+                                _wait_ms += 100
+                            if script_config is None:
+                                # Async init never completed — use default placeholder so we still reply
+                                script_config = _DEFAULT_SCRIPT_CONFIG
+                                _log_ws_event("SPEECH DETECTED: script_config still None after 3s wait — using placeholder config")
 
                             gevent.spawn(_process_utterance_async, captured, script_config, current_resp_id, flask_app)
                             _log_ws_event(f"SPEECH DETECTED: Triggered response generation ID {current_resp_id} (duration={speech_duration_ms}ms)")
