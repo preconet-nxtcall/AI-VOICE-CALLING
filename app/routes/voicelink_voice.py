@@ -292,14 +292,15 @@ class VoiceLinkPlaybackManager:
         try:
             while not self.stop_event.is_set():
                 chunk = None
+                is_silence = False
                 try:
                     chunk = self.queue.get_nowait()
                 except Exception:
                     pass
 
                 if chunk is None:
-                    gevent.sleep(0.02)
-                    continue
+                    chunk = self.silence_chunk
+                    is_silence = True
 
                 try:
                     _ws_send(self.ws, self.lock, {
@@ -318,7 +319,8 @@ class VoiceLinkPlaybackManager:
                     break
 
                 self.sent_count += 1
-                self.current_speech_chunks_sent += 1
+                if not is_silence:
+                    self.current_speech_chunks_sent += 1
                 
                 # Sleep with drift compensation to maintain precise 20ms intervals
                 expected_elapsed = self.sent_count * chunk_duration
