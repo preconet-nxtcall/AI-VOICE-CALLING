@@ -419,6 +419,7 @@ def register_voicelink_websocket(sock_instance) -> None:
         # ── Audio buffering ──────────────────────────────────────────────
         utterance = bytearray()
         speech_seen = False
+        speech_duration_ms = 0
         silence_ms = 0
 
         # ── Playback control ─────────────────────────────────────────────
@@ -710,6 +711,7 @@ def register_voicelink_websocket(sock_instance) -> None:
                                 except Exception as ce:
                                     _log_ws_event(f"BARGE-IN CLEAR SEND ERROR: {ce}")
                         speech_seen = True
+                        speech_duration_ms += max(chunk_ms, 20)
                         silence_ms = 0
                     else:
                         silence_ms += max(chunk_ms, 20)
@@ -721,63 +723,64 @@ def register_voicelink_websocket(sock_instance) -> None:
                         if len(utterance) > max_pre_roll_bytes:
                             del utterance[:-max_pre_roll_bytes]
 
-                    utterance_ms = int(
-                        (len(utterance) // _PCM_SAMPLE_WIDTH) / (_SAMPLE_RATE / 1000)
-                    )
-
                     # End-of-utterance detection
                     if (
                         speech_seen
                         and silence_ms >= _END_SILENCE_MS
-                        and utterance_ms >= _MIN_UTTERANCE_MS
                         and kb_id
                     ):
-                        captured = bytes(utterance)
+                        if speech_duration_ms >= _MIN_UTTERANCE_MS:
+                            captured = bytes(utterance)
+                            # Increment response counter for new response generation
+                            response_counter += 1
+                            current_resp_id = response_counter
+
+                            # Run the slow STT/LLM/TTS pipeline asynchronously in a background greenlet
+                            # to prevent blocking the WebSocket receiver (keeps pings/pongs and heartbeats active).
+                            from flask import current_app
+                            flask_app = current_app._get_current_object()
+
+                            def _process_utterance_async(captured_audio, current_script_config, resp_id, app_instance):
+                                with app_instance.app_context():
+                                    try:
+                                        alaw_reply, analysis = _build_reply_audio(
+                                            call_sid=call_sid,
+                                            kb_id=kb_id,
+                                            lead_name=lead_name,
+                                            lead_phone=lead_phone,
+                                            script_config=current_script_config,
+                                            pcm16_audio=captured_audio,
+                                        )
+
+                                        # Only queue the audio if the caller hasn't interrupted/spoken again
+                                        if resp_id == response_counter:
+                                            if alaw_reply and stream_sid and playback_manager:
+                                                playback_manager.add_audio(alaw_reply)
+
+                                            # Handoff detection
+                                            handoff_number = str(current_script_config.get("handoff_number") or "").strip()
+                                            if analysis.get("should_handoff") and handoff_number and call_sid:
+                                                logger.info("[VoiceLink] Handoff triggered call_sid=%s", call_sid)
+                                                try:
+                                                    ws.close()
+                                                except Exception:
+                                                    pass
+                                        else:
+                                            _log_ws_event(f"DISCARDED: Response ID {resp_id} discarded due to new user speech.")
+                                    except Exception as pe:
+                                        logger.exception("[VoiceLink] Async pipeline processing failed")
+                                        _log_ws_event(f"ASYNC PIPELINE ERROR: {pe}")
+
+                            gevent.spawn(_process_utterance_async, captured, script_config, current_resp_id, flask_app)
+                            _log_ws_event(f"SPEECH DETECTED: Triggered response generation ID {current_resp_id} (duration={speech_duration_ms}ms)")
+                        else:
+                            _log_ws_event(f"NOISE IGNORED: Speech duration {speech_duration_ms}ms was below minimum {_MIN_UTTERANCE_MS}ms")
+                        
+                        # Reset for next turn
                         utterance.clear()
                         speech_seen = False
+                        speech_duration_ms = 0
                         silence_ms = 0
-
-                        # Increment response counter for new response generation
-                        response_counter += 1
-                        current_resp_id = response_counter
-
-                        # Run the slow STT/LLM/TTS pipeline asynchronously in a background greenlet
-                        # to prevent blocking the WebSocket receiver (keeps pings/pongs and heartbeats active).
-                        from flask import current_app
-                        flask_app = current_app._get_current_object()
-
-                        def _process_utterance_async(captured_audio, current_script_config, resp_id, app_instance):
-                            with app_instance.app_context():
-                                try:
-                                    alaw_reply, analysis = _build_reply_audio(
-                                        call_sid=call_sid,
-                                        kb_id=kb_id,
-                                        lead_name=lead_name,
-                                        lead_phone=lead_phone,
-                                        script_config=current_script_config,
-                                        pcm16_audio=captured_audio,
-                                    )
-
-                                    # Only queue the audio if the caller hasn't interrupted/spoken again
-                                    if resp_id == response_counter:
-                                        if alaw_reply and stream_sid and playback_manager:
-                                            playback_manager.add_audio(alaw_reply)
-
-                                        # Handoff detection
-                                        handoff_number = str(current_script_config.get("handoff_number") or "").strip()
-                                        if analysis.get("should_handoff") and handoff_number and call_sid:
-                                            logger.info("[VoiceLink] Handoff triggered call_sid=%s", call_sid)
-                                            try:
-                                                ws.close()
-                                            except Exception:
-                                                pass
-                                    else:
-                                        _log_ws_event(f"DISCARDED: Response ID {resp_id} discarded due to new user speech.")
-                                except Exception as pe:
-                                    logger.exception("[VoiceLink] Async pipeline processing failed")
-                                    _log_ws_event(f"ASYNC PIPELINE ERROR: {pe}")
-
-                        gevent.spawn(_process_utterance_async, captured, script_config, current_resp_id, flask_app)
 
                     continue
 
