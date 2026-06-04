@@ -309,6 +309,7 @@ class VoiceLinkPlaybackManager:
         self.stop_event = gevent.event.Event()
         self.greenlet = None
         self.sent_count = 0
+        self.current_speech_chunks_sent = 0
         # Pre-generate 160-byte G.711 A-law silence chunk
         # 160 samples @ 8kHz = 20ms = 320 bytes PCM16
         self.silence_chunk = _lin2alaw(b'\x00' * 320)
@@ -350,6 +351,7 @@ class VoiceLinkPlaybackManager:
                     break
 
                 self.sent_count += 1
+                self.current_speech_chunks_sent += 1
                 
                 # Sleep with drift compensation to maintain precise 20ms intervals
                 expected_elapsed = self.sent_count * chunk_duration
@@ -367,6 +369,7 @@ class VoiceLinkPlaybackManager:
 
     def add_audio(self, alaw_audio: bytes) -> None:
         """Split raw A-law audio into 160-byte chunks and queue them."""
+        self.current_speech_chunks_sent = 0
         chunk_size = 160
         for i in range(0, len(alaw_audio), chunk_size):
             chunk = alaw_audio[i:i + chunk_size]
@@ -377,6 +380,7 @@ class VoiceLinkPlaybackManager:
 
     def clear(self) -> None:
         """Empty the queue of any pending speech chunks (for barge-in)."""
+        self.current_speech_chunks_sent = 0
         while not self.queue.empty():
             try:
                 self.queue.get_nowait()
@@ -693,7 +697,7 @@ def register_voicelink_websocket(sock_instance) -> None:
 
                     if chunk_rms >= _SILENCE_RMS:
                         # Barge-in: caller speaks while AI is playing → interrupt
-                        if playback_manager and playback_manager.sent_count > 80:
+                        if playback_manager and not playback_manager.queue.empty() and getattr(playback_manager, 'current_speech_chunks_sent', 0) > 80:
                             playback_manager.clear()
                             response_counter += 1  # Invalidate any ongoing background response generations
                             if stream_sid:
