@@ -86,8 +86,8 @@ class VoiceService:
         did_number_clean = _normalize_for_voicelink(did_number, "")
         customer_number_clean = _normalize_for_voicelink(to_number, country_code)
 
-        # Generate a temporary placeholder SID; replaced by the real callSid in the WS 'start' event
-        temp_call_sid = f"vl_{uuid.uuid4().hex}"
+        # Generate a shorter temporary placeholder SID to fit within 255-character custom parameters limit
+        temp_call_sid = f"vl_{uuid.uuid4().hex[:8]}"
 
         # Resolve script configuration and welcome message text
         welcome_message = "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?"
@@ -153,14 +153,14 @@ class VoiceService:
 
         # custom_parameters max 255 chars
         custom_params_dict = {
-            "kb_id": kb_id,
-            "temp_call_sid": temp_call_sid,
+            "kb": kb_id,
+            "sid": temp_call_sid,
             "phone": to_number,
         }
         if script_id:
-            custom_params_dict["script_id"] = str(script_id)
+            custom_params_dict["sc_id"] = str(script_id)
         if tts_key:
-            custom_params_dict["tts_key"] = tts_key
+            custom_params_dict["key"] = tts_key[:16]
         if lead_name:
             custom_params_dict["name"] = lead_name
 
@@ -168,8 +168,8 @@ class VoiceService:
         if len(custom_params) > 255:
             # Fallback to minimal parameters if limit exceeded
             custom_params = json.dumps({
-                "kb_id": kb_id, 
-                "temp_call_sid": temp_call_sid,
+                "kb": kb_id, 
+                "sid": temp_call_sid,
                 "phone": to_number,
             })
 

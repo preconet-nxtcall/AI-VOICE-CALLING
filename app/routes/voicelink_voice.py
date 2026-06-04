@@ -484,12 +484,12 @@ def register_voicelink_websocket(sock_instance) -> None:
                         except Exception:
                             custom = {}
 
-                    temp_call_sid = str(custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
-                    tts_key = str(custom.get("tts_key") or "").strip()
+                    temp_call_sid = str(custom.get("sid") or custom.get("temp_call_sid") or custom.get("tempCallSid") or "").strip()
+                    tts_key = str(custom.get("key") or custom.get("tts_key") or "").strip()
                     lead_name = str(custom.get("name") or "").strip()
                     lead_phone = str(custom.get("phone") or "unknown").strip()
-                    script_id_param = str(custom.get("script_id") or "").strip() or None
-                    kb_id = str(custom.get("kb_id") or "").strip()
+                    script_id_param = str(custom.get("sc_id") or custom.get("script_id") or "").strip() or None
+                    kb_id = str(custom.get("kb") or custom.get("kb_id") or "").strip()
 
                     # script_config starts as None so the async init can detect "no real script loaded yet".
                     # The placeholder dict is only applied as a final fallback inside _async_init_and_welcome.
@@ -522,9 +522,17 @@ def register_voicelink_websocket(sock_instance) -> None:
                             resolved_key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
 
                         cache_dir = Path(_get_config("TTS_AUDIO_DIR") or _DEFAULT_TTS_DIR).resolve()
-                        cache_file = cache_dir / f"alaw_{resolved_key}.bin"
+                        cache_file = None
+                        if resolved_key:
+                            if len(resolved_key) == 64:
+                                cache_file = cache_dir / f"alaw_{resolved_key}.bin"
+                            else:
+                                # Shortened key (16 chars) — search for matching file
+                                matches = list(cache_dir.glob(f"alaw_{resolved_key}*.bin"))
+                                if matches:
+                                    cache_file = matches[0]
 
-                        if cache_file.exists():
+                        if cache_file and cache_file.exists():
                             try:
                                 _log_ws_event(f"WELCOME: Loading cached welcome audio key={resolved_key[:16]}...")
                                 welcome_alaw_preloaded = cache_file.read_bytes()
