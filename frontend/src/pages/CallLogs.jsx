@@ -261,24 +261,31 @@ export default function CallLogs() {
       )}
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { label: 'Total Calls', value: summary.total_calls },
-            { label: 'Completed', value: summary.completed_calls },
-            { label: 'Failed', value: summary.failed_calls },
-            { label: 'Last 24h', value: summary.calls_last_24h },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl p-4">
-              <p className="text-slate-600 dark:text-slate-500 text-xs">{label}</p>
-              <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">{value}</p>
+            { label: 'Total Calls', value: summary.total_calls, color: 'bg-sky-500', glow: 'bg-sky-500/10' },
+            { label: 'Completed', value: summary.completed_calls, color: 'bg-emerald-500', glow: 'bg-emerald-500/10' },
+            { label: 'Failed', value: summary.failed_calls, color: 'bg-rose-500', glow: 'bg-rose-500/10' },
+            { label: 'Last 24h', value: summary.calls_last_24h, color: 'bg-amber-500', glow: 'bg-amber-500/10' },
+          ].map(({ label, value, color, glow }) => (
+            <div key={label} className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm hover:shadow-md hover:border-indigo-500/20 dark:hover:border-indigo-500/30 transition-all duration-300 relative overflow-hidden group flex flex-col justify-center min-h-[100px]">
+              {/* Accent colored line */}
+              <div className={`absolute top-0 left-0 right-0 h-[4px] ${color}`}></div>
+              {/* Radial soft glow */}
+              <div className={`absolute -top-6 -right-6 w-24 h-24 ${glow} rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none`}></div>
+              
+              <div className="relative z-10 flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest font-heading">{label}</span>
+                <span className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight font-heading">{value}</span>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-500">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-650 dark:text-slate-400">
         <div className="flex items-center gap-2">
-          <label className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Sentiment</label>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-heading">Sentiment</label>
           <select value={sentimentFilter} onChange={(e) => setSentimentFilter(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs text-slate-700 dark:text-slate-300">
             <option value="all">All</option>
             <option value="Positive">Positive</option>
@@ -287,7 +294,7 @@ export default function CallLogs() {
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Intent</label>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-heading">Intent</label>
           <select value={intentFilter} onChange={(e) => setIntentFilter(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs text-slate-700 dark:text-slate-300">
             <option value="all">All</option>
             <option value="Highly Interested">Highly Interested</option>
@@ -298,37 +305,44 @@ export default function CallLogs() {
         </div>
       </div>
 
-      <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl overflow-x-auto">
-        <table className="w-full text-left min-w-[1200px]">
-          <thead className="bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Time</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Phone</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Campaign</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Duration</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Sentiment</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Intent</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Summary</th>
-              <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Transcript</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+      <div className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 shadow-sm hover:shadow-md transition-all duration-300 rounded-3xl relative overflow-hidden group p-6">
+        {/* Accent colored line */}
+        <div className="absolute top-0 left-0 right-0 h-[4px] bg-indigo-500"></div>
+        {/* Radial soft glow */}
+        <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none"></div>
+
+        <div className="overflow-x-auto rounded-2xl border border-slate-150 dark:border-slate-800 relative z-10">
+          <table className="w-full text-left min-w-[1200px]">
+            <thead className="bg-slate-50 dark:bg-slate-900/80 sticky top-0">
               <tr>
-                <td className="px-4 py-10 text-slate-600 dark:text-slate-500 text-center" colSpan="9">Loading call logs...</td>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Time</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Phone</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Campaign</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Duration</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Sentiment</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Intent</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Summary</th>
+                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Transcript</th>
               </tr>
-            ) : filteredLogs.length === 0 ? (
-              <tr>
-                <td className="px-4 py-12 text-center text-slate-600 dark:text-slate-500" colSpan="9">
-                  No matching call logs found.
-                </td>
-              </tr>
-            ) : (
-              filteredLogs.map((log) => <CallRow key={log.id} log={log} />)
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td className="px-4 py-10 text-slate-650 dark:text-slate-400 text-center" colSpan="9">Loading call logs...</td>
+                </tr>
+              ) : filteredLogs.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-12 text-center text-slate-650 dark:text-slate-400" colSpan="9">
+                    No matching call logs found.
+                  </td>
+                </tr>
+              ) : (
+                filteredLogs.map((log) => <CallRow key={log.id} log={log} />)
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

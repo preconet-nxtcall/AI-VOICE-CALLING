@@ -22,8 +22,21 @@ export default function Register() {
   const navigate = useNavigate();
   const nameRef = useRef(null);
 
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const slides = [
+    { src: '/login_hero.png', alt: 'AINXT Call Metrics Visualizer' },
+    { src: '/login_hero_2.png', alt: 'AINXT Call Wave Visualizer' }
+  ];
+
   useEffect(() => {
     nameRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 4500);
+    return () => clearInterval(timer);
   }, []);
 
   const passwordValid = RULES.every((r) => r.test(password));
@@ -69,35 +82,39 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[120px] pointer-events-none" />
+    <div className="h-screen bg-slate-50 flex flex-col lg:grid lg:grid-cols-12 overflow-hidden relative font-sans">
+      {/* Background Decorative Glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/5 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="w-full max-w-md">
-        <div className="bg-[#111827] border border-slate-800 rounded-3xl shadow-2xl p-8 relative z-10">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
-              <BarChart2 className="text-white" size={24} />
+      {/* Left Pane: Form (Col Span 5 / 12) */}
+      <div className="lg:col-span-5 flex items-center justify-center p-6 sm:p-10 h-full relative z-10 bg-white overflow-y-auto">
+        <div className="w-full max-w-sm flex flex-col gap-6 my-auto py-4">
+          
+          {/* Logo and Greeting */}
+          <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
+              <BarChart2 className="text-white" size={20} />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Create an account</h1>
-            <p className="text-slate-400 text-sm mt-2">Start your 7-day free trial.</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight font-heading leading-none">Create your account</h1>
+            <p className="text-slate-500 text-xs mt-2 font-semibold">Get started with your 7-day free trial.</p>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-5" noValidate>
+          <form onSubmit={handleRegister} className="space-y-4" noValidate>
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3" role="alert">
-                <p className="text-red-400 text-xs text-center">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3" role="alert">
+                <p className="text-red-600 text-xs text-center font-semibold">{error}</p>
               </div>
             )}
 
             {/* Full Name */}
-            <div>
-              <label htmlFor="reg-name" className="block text-sm font-medium text-slate-300 mb-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="reg-name" className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest font-heading">
                 Full Name
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User size={18} className="text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <User size={16} className="text-slate-400" />
                 </div>
                 <input
                   id="reg-name"
@@ -105,7 +122,7 @@ export default function Register() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 !pl-11 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-xs"
                   placeholder="John Doe"
                   autoComplete="name"
                   required
@@ -115,20 +132,20 @@ export default function Register() {
             </div>
 
             {/* Email */}
-            <div>
-              <label htmlFor="reg-email" className="block text-sm font-medium text-slate-300 mb-2">
-                Email address
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="reg-email" className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest font-heading">
+                Email Address
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail size={18} className="text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Mail size={16} className="text-slate-400" />
                 </div>
                 <input
                   id="reg-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 !pl-11 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-xs"
                   placeholder="admin@enterprise.com"
                   autoComplete="email"
                   required
@@ -137,20 +154,20 @@ export default function Register() {
             </div>
 
             {/* Password */}
-            <div>
-              <label htmlFor="reg-password" className="block text-sm font-medium text-slate-300 mb-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="reg-password" className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest font-heading">
                 Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} className="text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Lock size={16} className="text-slate-400" />
                 </div>
                 <input
                   id="reg-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-10 pr-10 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 !pl-11 !pr-10 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-xs"
                   placeholder="••••••••"
                   autoComplete="new-password"
                   required
@@ -158,23 +175,23 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
 
               {/* Live password rules */}
               {password && (
-                <ul className="mt-3 space-y-1">
+                <ul className="mt-1.5 space-y-1 pl-1">
                   {RULES.map((rule) => {
                     const ok = rule.test(password);
                     return (
-                      <li key={rule.id} className={`flex items-center gap-2 text-xs ${ok ? 'text-emerald-400' : 'text-slate-500'}`}>
+                      <li key={rule.id} className={`flex items-center gap-1.5 text-[10px] font-bold ${ok ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-450'}`}>
                         {ok
-                          ? <CheckCircle2 size={13} className="shrink-0" />
-                          : <XCircle size={13} className="shrink-0" />}
+                          ? <CheckCircle2 size={11} className="shrink-0" />
+                          : <XCircle size={11} className="shrink-0" />}
                         {rule.label}
                       </li>
                     );
@@ -184,25 +201,25 @@ export default function Register() {
             </div>
 
             {/* Confirm Password */}
-            <div>
-              <label htmlFor="reg-confirm" className="block text-sm font-medium text-slate-300 mb-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="reg-confirm" className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest font-heading">
                 Confirm Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} className="text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Lock size={16} className="text-slate-400" />
                 </div>
                 <input
                   id="reg-confirm"
                   type={showConfirm ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full bg-slate-900/50 border rounded-xl py-3 pl-10 pr-10 text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
+                  className={`w-full bg-slate-50 border rounded-xl py-2.5 !pl-11 !pr-10 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 transition-all font-semibold text-xs ${
                     confirmPassword && !passwordsMatch
-                      ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500'
+                      ? 'border-red-500/65 focus:border-red-500 focus:ring-red-500'
                       : confirmPassword && passwordsMatch
-                      ? 'border-emerald-500/60 focus:border-emerald-500 focus:ring-emerald-500'
-                      : 'border-slate-800 focus:border-indigo-500 focus:ring-indigo-500'
+                      ? 'border-emerald-500/65 focus:border-emerald-500 focus:ring-emerald-500'
+                      : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                   placeholder="••••••••"
                   autoComplete="new-password"
@@ -211,18 +228,18 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                   aria-label={showConfirm ? 'Hide password' : 'Show password'}
                 >
-                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {confirmPassword && !passwordsMatch && (
-                <p className="text-red-400 text-xs mt-1 pl-1">Passwords do not match.</p>
+                <p className="text-red-500 text-[10px] mt-1 pl-1 font-bold">Passwords do not match.</p>
               )}
               {confirmPassword && passwordsMatch && (
-                <p className="text-emerald-400 text-xs mt-1 pl-1 flex items-center gap-1">
-                  <CheckCircle2 size={12} /> Passwords match.
+                <p className="text-emerald-600 text-[10px] mt-1 pl-1 flex items-center gap-1 font-bold">
+                  <CheckCircle2 size={11} /> Passwords match.
                 </p>
               )}
             </div>
@@ -230,28 +247,107 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading || !name || !email || !password || !confirmPassword}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl py-3 font-semibold transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 group mt-6"
+              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-550 hover:to-indigo-650 text-white rounded-xl py-3 font-bold transition-all shadow-lg shadow-indigo-500/10 flex items-center justify-center gap-2 group mt-4 cursor-pointer text-xs"
             >
               {isLoading ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
+                  <Loader2 size={14} className="animate-spin" />
                   Creating account…
                 </>
               ) : (
                 <>
                   Sign Up
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-400 mt-8">
+          <p className="text-center lg:text-left text-xs text-slate-500 mt-1 font-medium">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-indigo-400 hover:text-indigo-300">
+            <Link to="/login" className="font-extrabold text-indigo-600 hover:underline">
               Sign in
             </Link>
           </p>
+        </div>
+      </div>
+
+      {/* Right Pane: Hero Details (Col Span 7 / 12, hidden below lg) */}
+      <div className="hidden lg:flex lg:col-span-7 bg-slate-50 border-l border-slate-200 relative overflow-hidden flex-col justify-between p-10 select-none h-full">
+        {/* Soft Background Gradients */}
+        <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-indigo-50/60 rounded-full blur-[140px] pointer-events-none z-0" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-50/50 rounded-full blur-[120px] pointer-events-none z-0" />
+
+        {/* Small Brand Header */}
+        <div className="flex items-center gap-2 relative z-10">
+          <div className="w-8 h-8 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <BarChart2 className="text-white" size={16} />
+          </div>
+          <span className="text-slate-900 font-bold tracking-tight text-md font-heading">AINXT.call</span>
+          <span className="text-[9px] uppercase tracking-widest font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">Enterprise</span>
+        </div>
+
+        {/* Hero Visual Block */}
+        <div className="relative flex flex-col items-center justify-center my-auto py-2 z-10">
+          {/* Mockup Frame with increased width and modern shadow */}
+          <div className="relative bg-white border border-slate-200 p-2.5 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.06)] w-full max-w-[460px] overflow-hidden group transition-all duration-700 hover:scale-[1.01] hover:border-slate-300">
+            <div className="relative w-full h-[220px] overflow-hidden rounded-xl bg-slate-100">
+              {slides.map((slide, idx) => (
+                <img
+                  key={idx}
+                  src={slide.src}
+                  alt={slide.alt}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+                    currentSlide === idx ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                />
+              ))}
+            </div>
+            
+            {/* Slide Indicators / Dots */}
+            <div className="flex justify-center gap-1.5 mt-2">
+              {slides.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    currentSlide === idx ? 'w-4 bg-indigo-600' : 'w-1.5 bg-slate-300'
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Informative Feature Highlights */}
+        <div className="flex flex-col gap-4 relative z-10 max-w-xl">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 font-heading tracking-tight mb-2 leading-tight">Next-Gen Outbound AI Voice Agent Platform</h2>
+            <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+              Automate customer engagement, qualify outbound leads, and coordinate interactive support dials using real-time, highly natural-sounding AI agents.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-4">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider font-heading">Script Automation</span>
+              <span className="text-slate-600 text-[11px] leading-normal font-semibold">Configure welcome messages, rules, languages, and custom AI behaviors.</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider font-heading">Real-Time Dashboards</span>
+              <span className="text-slate-600 text-[11px] leading-normal font-semibold">Track active call concurrency, retry queues, and agent conversion statuses.</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider font-heading">Integrated Assets</span>
+              <span className="text-slate-600 text-[11px] leading-normal font-semibold">Bind documentation knowledge folders directly to AI agent prompt memory.</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider font-heading">VoiceLink DID Dialing</span>
+              <span className="text-slate-600 text-[11px] leading-normal font-semibold">Manage outbound caller IDs, retry intervals, and dialing speed concurrency bounds.</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

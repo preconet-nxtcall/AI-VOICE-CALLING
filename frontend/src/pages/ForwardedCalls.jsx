@@ -203,39 +203,57 @@ export default function ForwardedCalls() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 px-4 py-3 rounded-lg ring-1 ring-red-500/20">
+        <div className="flex items-center gap-2 text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl px-4 py-3 text-sm font-medium">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="bg-white dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-10 text-center">
-          <p className="text-slate-600 dark:text-slate-500">Loading forwarded calls...</p>
+        <div className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 rounded-3xl p-12 text-center shadow-sm relative overflow-hidden group">
+          {/* Accent colored line */}
+          <div className="absolute top-0 left-0 right-0 h-[4px] bg-indigo-500"></div>
+          {/* Radial soft glow */}
+          <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none"></div>
+          <p className="text-slate-500 dark:text-slate-400 font-semibold relative z-10">Loading forwarded calls...</p>
         </div>
       ) : logs.length === 0 ? (
-        <div className="bg-white dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-10 text-center">
-          <PhoneForwarded className="mx-auto mb-3 text-indigo-500" size={28} />
-          <p className="text-slate-700 dark:text-slate-300 font-medium">No forwarded calls yet.</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Start campaigns with handoff enabled to populate this feed.</p>
+        <div className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 rounded-3xl p-12 text-center shadow-sm relative overflow-hidden group">
+          {/* Accent colored line */}
+          <div className="absolute top-0 left-0 right-0 h-[4px] bg-indigo-500"></div>
+          {/* Radial soft glow */}
+          <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none"></div>
+
+          <div className="relative z-10">
+            <PhoneForwarded className="mx-auto mb-4 text-indigo-500" size={36} />
+            <p className="text-slate-900 dark:text-white font-bold text-lg font-heading">No forwarded calls yet.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto font-medium">Start campaigns with handoff enabled to populate this feed.</p>
+          </div>
         </div>
       ) : (
-        <div className="bg-[#FFFFFF] dark:bg-[#111827]/80 border border-[#E2E8F0] dark:border-slate-800 shadow-sm dark:shadow-2xl rounded-xl overflow-x-auto">
-          <table className="w-full text-left min-w-[900px]">
-            <thead className="bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Time</th>
-                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Phone</th>
-                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Campaign</th>
-                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Duration</th>
-                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Summary</th>
-                <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Transcript</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => <CallRow key={log.id} log={log} />)}
-            </tbody>
-          </table>
+        <div className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 shadow-sm hover:shadow-md transition-all duration-300 rounded-3xl relative overflow-hidden group p-6">
+          {/* Accent colored line */}
+          <div className="absolute top-0 left-0 right-0 h-[4px] bg-indigo-500"></div>
+          {/* Radial soft glow */}
+          <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none"></div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 relative z-10">
+            <table className="w-full text-left min-w-[900px]">
+              <thead className="bg-slate-50 dark:bg-slate-900/80 sticky top-0">
+                <tr>
+                  <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Time</th>
+                  <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Phone</th>
+                  <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Campaign</th>
+                  <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Duration</th>
+                  <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Summary</th>
+                  <th className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Transcript</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => <CallRow key={log.id} log={log} />)}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

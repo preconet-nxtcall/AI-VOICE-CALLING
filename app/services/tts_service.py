@@ -149,7 +149,7 @@ class TTSService:
         }
         payload = {
             "text": text,
-            "model_id": "eleven_multilingual_v2",
+            "model_id": _get_config("ELEVENLABS_TTS_MODEL") or "eleven_turbo_v2_5",
             "voice_settings": {
                 # Higher stability = more consistent/predictable delivery (good for phone)
                 "stability": 0.65,

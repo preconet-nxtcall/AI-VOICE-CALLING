@@ -48,6 +48,7 @@ class Config:
     BCRYPT_LOG_ROUNDS = 12
     # RAG / embeddings
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+    OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     FAISS_INDEX_DIR = os.environ.get("FAISS_INDEX_DIR", "./faiss_indices")
     # VoiceLink Telephony
     VOICELINK_API_TOKEN = os.environ.get("VOICELINK_API_TOKEN", "")
@@ -58,6 +59,7 @@ class Config:
     # Voice AI
     ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
     ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+    ELEVENLABS_TTS_MODEL = os.environ.get("ELEVENLABS_TTS_MODEL", "eleven_turbo_v2_5")
     # Recording storage
     RECORDINGS_DIR = os.environ.get("RECORDINGS_DIR", "./recordings")
     # TTS audio output

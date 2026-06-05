@@ -316,6 +316,26 @@ def create_app(config_override=None):
                 if default_voice:
                     TTSService.generate_alaw_8k(welcome_msg, voice_id=default_voice, language="Hindi", gender="female")
 
+                # Pre-warm all active scripts from the database
+                try:
+                    from app.models.script import Script
+                    from app.routes.twilio_voice import _parse_script_config
+                    active_scripts = Script.query.filter_by(is_active=True).all()
+                    app.logger.info("[TTS Pre-warm] Pre-warming %d active scripts...", len(active_scripts))
+                    for script in active_scripts:
+                        try:
+                            cfg = _parse_script_config(script.content)
+                            welcome = str(cfg.get("welcome_message") or "").strip()
+                            if welcome:
+                                lang = cfg.get("primary_language", "Hindi")
+                                gender = cfg.get("voice_style", "female")
+                                voice_id = str(cfg.get("voice_id") or "").strip() or None
+                                TTSService.generate_alaw_8k(welcome, voice_id=voice_id, language=lang, gender=gender)
+                        except Exception as se:
+                            app.logger.error("[TTS Pre-warm] Failed to pre-warm script %s: %s", script.id, se)
+                except Exception as db_err:
+                    app.logger.error("[TTS Pre-warm] Failed to query scripts for pre-warming: %s", db_err)
+
                 app.logger.info("[TTS Pre-warm] Cache pre-warm completed successfully.")
             except Exception as e:
                 app.logger.error("[TTS Pre-warm] Failed to pre-warm cache: %s", e)

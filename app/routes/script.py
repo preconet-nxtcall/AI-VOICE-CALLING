@@ -1,6 +1,7 @@
 import uuid
 import json
 import re
+import threading
 
 from flask import request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -9,6 +10,28 @@ from flask_restful import Resource
 from app.models import db
 from app.models.script import Script
 from app.utils.responses import error, success
+
+
+def _pre_warm_script_welcome_message(script_content_str: str) -> None:
+    """Background task to pre-generate and cache TTS welcome audio for script."""
+    def _task():
+        try:
+            from app.routes.twilio_voice import _parse_script_config
+            from app.services.tts_service import TTSService
+            parsed = _parse_script_config(script_content_str)
+            welcome = str(parsed.get("welcome_message") or "").strip()
+            if welcome:
+                lang = parsed.get("primary_language", "Hindi")
+                gender = parsed.get("voice_style", "female")
+                voice_id = str(parsed.get("voice_id") or "").strip() or None
+                # This generates and caches the audio file in background
+                TTSService.generate_alaw_8k(welcome, voice_id=voice_id, language=lang, gender=gender)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("[TTS Pre-warm] Failed to pre-warm welcome audio in background")
+    
+    threading.Thread(target=_task, daemon=True).start()
+
 
 _PHONE_RE = re.compile(r"^\+?[1-9]\d{6,14}$")
 
@@ -103,6 +126,7 @@ class ScriptListResource(Resource):
         )
         db.session.add(script)
         db.session.commit()
+        _pre_warm_script_welcome_message(script.content)
 
         resp = {"script": script.to_dict()}
         if warnings:
@@ -151,6 +175,7 @@ class ScriptDetailResource(Resource):
         script.content = content_str
         script.version = (script.version or 1) + 1  # increment version on every update
         db.session.commit()
+        _pre_warm_script_welcome_message(script.content)
 
         resp = {"script": script.to_dict()}
         if warnings:

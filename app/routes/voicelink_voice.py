@@ -501,25 +501,79 @@ def register_voicelink_websocket(sock_instance) -> None:
                         "prompt": "You are a helpful AI assistant on a test call. Answer the user's questions clearly and concisely based on the knowledge base."
                     }
 
-                    # ── CRITICAL FIX: Load welcome audio BEFORE starting PlaybackManager ──
-                    # SIP Cause 32 (RTP timeout) was triggered because the PlaybackManager
-                    # was sending ~460ms of silence before any real speech, causing VoiceLink
-                    # to treat the bot as unresponsive and disconnect immediately.
-                    # Solution: pre-load welcome audio into the queue, THEN start the manager
-                    # so the very first RTP packets contain real speech audio.
+                    # ── Synchronously resolve script config and lead info ──
+                    # Querying the database synchronously ensures we get the correct welcome message
+                    # and cache key immediately, enabling instant playback of the customized greeting.
+                    try:
+                        _log_ws_event(f"INIT: Starting DB initialization for call_sid={call_sid}")
+                        lead_obj = None
+                        if call_sid:
+                            lead_obj = Lead.query.filter_by(call_sid=call_sid).first()
+                        if not lead_obj and temp_call_sid:
+                            lead_obj = Lead.query.filter_by(call_sid=temp_call_sid).first()
+                            if lead_obj and call_sid:
+                                lead_obj.call_sid = call_sid
+                                db.session.commit()
+                                _log_ws_event(f"INIT: Swapped temp_call_sid={temp_call_sid} to real_call_sid={call_sid}")
 
+                        if lead_obj:
+                            lead_name = getattr(lead_obj, "first_name", "") or ""
+                            lead_phone = getattr(lead_obj, "phone_number", "") or lead_phone
+                            _log_ws_event(f"INIT: Lead name resolved to '{lead_name}', phone to '{lead_phone}'")
+
+                            # Load script config from campaign
+                            if lead_obj.campaign_id:
+                                campaign = db.session.get(Campaign, lead_obj.campaign_id)
+                                if campaign and campaign.script:
+                                    parsed_cfg = _parse_script_config(campaign.script.content)
+                                    if parsed_cfg:
+                                        script_config = parsed_cfg
+                                        _log_ws_event("INIT: Custom script config loaded successfully")
+
+                        # ALWAYS load script_id from custom params when present —
+                        # it has higher priority than a campaign script so the API caller
+                        # can override per-call agent persona.
+                        if script_id_param:
+                            from app.models.script import Script
+                            try:
+                                script_obj = db.session.get(Script, uuid.UUID(script_id_param))
+                                if script_obj:
+                                    parsed_cfg = _parse_script_config(script_obj.content)
+                                    if parsed_cfg:
+                                        script_config = parsed_cfg
+                                        _log_ws_event(f"INIT: Script '{script_obj.name}' loaded from customParameters script_id")
+                            except Exception:
+                                _log_ws_event(f"INIT: Failed to load script {script_id_param}")
+                    except Exception as db_exc:
+                        _log_ws_event(f"INIT DB ERROR: {db_exc}")
+
+                    # Final fallback: if neither campaign nor script_id resolved a config, use the default placeholder
+                    if not script_config:
+                        script_config = _DEFAULT_SCRIPT_CONFIG
+                        _log_ws_event("INIT: Using default placeholder script config (no campaign/script_id found)")
+
+                    # Resolve kb_id from params if still not set
+                    if not kb_id:
+                        kb_id = str(custom.get("kb") or custom.get("kb_id") or "").strip()
+
+                    # ── Load welcome audio BEFORE starting PlaybackManager ──
                     welcome_played_instantly = False
                     welcome_alaw_preloaded = b""
 
                     if stream_sid:
                         import hashlib
 
-                        # Resolve TTS cache key
+                        # Resolve TTS cache key using the actual script_config!
                         resolved_key = tts_key
                         if not resolved_key:
-                            default_welcome = "नमस्ते, मैं आपका एआई एजेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?"
-                            key_str = f"{default_welcome}|{''}|{'Hindi'}|{'female'}"
-                            resolved_key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
+                            welcome_msg = str(script_config.get("welcome_message") or "").strip()
+                            voice_id_cfg = str(script_config.get("voice_id") or "").strip() or None
+                            primary_lang = script_config.get("primary_language", "Hindi")
+                            voice_style = script_config.get("voice_style", "female")
+
+                            if welcome_msg:
+                                key_str = f"{welcome_msg.strip()}|{voice_id_cfg or ''}|{primary_lang or ''}|{voice_style or ''}"
+                                resolved_key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
 
                         cache_dir = Path(_get_config("TTS_AUDIO_DIR") or _DEFAULT_TTS_DIR).resolve()
                         cache_file = None
@@ -545,23 +599,22 @@ def register_voicelink_websocket(sock_instance) -> None:
                                 _log_ws_event(f"WELCOME CACHE LOAD ERROR: {fe}")
 
                         # Create PlaybackManager and pre-fill queue with welcome audio
-                        # BEFORE starting so first packets are speech, not silence
                         playback_manager = VoiceLinkPlaybackManager(ws, send_lock, stream_sid)
                         if welcome_alaw_preloaded:
-                            # Add a 100ms silence pre-roll (400 bytes A-law @ 8kHz)
+                            # Add a 40ms silence pre-roll (160 bytes × 2 = 320 bytes A-law @ 8kHz)
                             # to give VoiceLink RTP channel time to open before speech
-                            silence_preroll = playback_manager.silence_chunk * 5  # 5 × 20ms = 100ms
+                            silence_preroll = playback_manager.silence_chunk * 2  # 2 × 20ms = 40ms
                             playback_manager.add_audio(silence_preroll)
                             playback_manager.add_audio(welcome_alaw_preloaded)
-                            _log_ws_event("WELCOME: Pre-filled playback queue with 100ms silence + welcome audio. Starting manager.")
+                            _log_ws_event("WELCOME: Pre-filled playback queue with silence + welcome audio. Starting manager.")
                         else:
                             _log_ws_event("WELCOME: No cache found. PlaybackManager starting with silence (will generate welcome in background).")
-                        gevent.sleep(0.3)
+                        
+                        # Reduced sleep from 0.3 to 0.05 to minimize start delay!
+                        gevent.sleep(0.05)
                         playback_manager.start()
 
-                    # ── Offload DB queries and fallback welcome to a background greenlet ──
-                    # NO sleep delay here — let it run immediately so kb_id and script_config
-                    # are resolved as fast as possible before the caller speaks.
+                    # ── Offload DB broadcast and fallback welcome to a background greenlet ──
                     from flask import current_app
                     flask_app = current_app._get_current_object()
 
@@ -569,87 +622,29 @@ def register_voicelink_websocket(sock_instance) -> None:
                         _app=flask_app,
                         _manager=playback_manager,
                         _call_sid=call_sid,
-                        _temp_call_sid=temp_call_sid,
-                        _custom_params=custom,
                         _played_instantly=welcome_played_instantly,
-                        _script_id_param=script_id_param,
+                        _script_config=script_config,
+                        _kb_id=kb_id,
                     ):
-                        nonlocal kb_id, lead_name, lead_phone, script_config
-
-                        # Small cooperative yield so PlaybackManager greenlet can start
-                        # and get its first chunks into the wire before we hit the DB.
-                        gevent.sleep(0.1)
-
                         with _app.app_context():
                             try:
-                                _log_ws_event(f"ASYNC INIT: Starting DB initialization for call_sid={_call_sid}")
-
-                                # Consolidate Lead lookup and SID swap
-                                lead_obj = None
-                                if _call_sid:
-                                    lead_obj = Lead.query.filter_by(call_sid=_call_sid).first()
-                                if not lead_obj and _temp_call_sid:
-                                    lead_obj = Lead.query.filter_by(call_sid=_temp_call_sid).first()
-                                    if lead_obj and _call_sid:
-                                        lead_obj.call_sid = _call_sid
-                                        db.session.commit()
-                                        _log_ws_event(f"ASYNC INIT: Swapped temp_call_sid={_temp_call_sid} to real_call_sid={_call_sid}")
-
-                                if lead_obj:
-                                    lead_name = getattr(lead_obj, "first_name", "") or ""
-                                    lead_phone = getattr(lead_obj, "phone_number", "") or lead_phone
-                                    _log_ws_event(f"ASYNC INIT: Lead name resolved to '{lead_name}', phone to '{lead_phone}'")
-
-                                    # Load script config from campaign
-                                    if lead_obj.campaign_id:
-                                        campaign = db.session.get(Campaign, lead_obj.campaign_id)
-                                        if campaign and campaign.script:
-                                            parsed_cfg = _parse_script_config(campaign.script.content)
-                                            if parsed_cfg:
-                                                script_config = parsed_cfg
-                                                _log_ws_event("ASYNC INIT: Custom script config loaded successfully")
-
-                                # ALWAYS load script_id from custom params when present —
-                                # it has higher priority than a campaign script so the API caller
-                                # can override per-call agent persona.
-                                if _script_id_param:
-                                    from app.models.script import Script
-                                    try:
-                                        script_obj = db.session.get(Script, uuid.UUID(_script_id_param))
-                                        if script_obj:
-                                            parsed_cfg = _parse_script_config(script_obj.content)
-                                            if parsed_cfg:
-                                                script_config = parsed_cfg
-                                                _log_ws_event(f"ASYNC INIT: Script '{script_obj.name}' loaded from customParameters script_id")
-                                    except Exception:
-                                        _log_ws_event(f"ASYNC INIT: Failed to load script {_script_id_param}")
-
-                                # Final fallback: if neither campaign nor script_id resolved a config, use the default placeholder
-                                if not script_config:
-                                    script_config = _DEFAULT_SCRIPT_CONFIG
-                                    _log_ws_event("ASYNC INIT: Using default placeholder script config (no campaign/script_id found)")
-
-                                # Resolve kb_id from params if still not set
-                                if not kb_id:
-                                    kb_id = str(_custom_params.get("kb_id") or "").strip()
-
                                 # Broadcast live event
                                 broadcast_live_event({
                                     "event": "call_start",
                                     "call_sid": _call_sid,
-                                    "kb_id": kb_id,
+                                    "kb_id": _kb_id,
                                     "provider": "voicelink",
                                     "timestamp": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
                                 })
 
                                 # Fallback welcome: generate now if cache was missing
                                 if not _played_instantly:
-                                    welcome_msg = str(script_config.get("welcome_message") or "").strip()
+                                    welcome_msg = str(_script_config.get("welcome_message") or "").strip()
                                     if welcome_msg and _manager:
                                         _log_ws_event(f"WELCOME: Generating fallback welcome for call_sid={_call_sid}...")
-                                        primary_lang = script_config.get("primary_language", "Hindi")
-                                        voice_id_cfg = str(script_config.get("voice_id") or "").strip() or None
-                                        gender = script_config.get("voice_style", "female")
+                                        primary_lang = _script_config.get("primary_language", "Hindi")
+                                        voice_id_cfg = str(_script_config.get("voice_id") or "").strip() or None
+                                        gender = _script_config.get("voice_style", "female")
 
                                         welcome_alaw = TTSService.generate_alaw_8k(
                                             welcome_msg, voice_id=voice_id_cfg, language=primary_lang, gender=gender

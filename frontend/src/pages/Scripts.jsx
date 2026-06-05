@@ -222,19 +222,24 @@ export default function Scripts() {
       <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Script Details */}
         <div className="lg:col-span-8 space-y-6">
-          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-xl">
-            <div className="flex items-center gap-3 mb-8">
-              <div className={`p-3 rounded-xl ${isEditing ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
+          <section className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 rounded-3xl p-8 shadow-sm hover:shadow-md hover:border-indigo-500/20 dark:hover:border-indigo-500/30 transition-all duration-300 relative overflow-hidden group">
+            {/* Accent colored line */}
+            <div className={`absolute top-0 left-0 right-0 h-[4px] transition-colors duration-300 ${isEditing ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
+            {/* Radial soft glow */}
+            <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none ${isEditing ? 'bg-amber-500/10 dark:bg-amber-500/20' : 'bg-indigo-500/10 dark:bg-indigo-500/20'}`}></div>
+            
+            <div className="flex items-center gap-3 mb-8 relative z-10">
+              <div className={`p-3 rounded-xl transition-colors duration-300 ${isEditing ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
                 {isEditing
                   ? <Pencil className="text-amber-600 dark:text-amber-400" size={24} />
                   : <Bot className="text-indigo-600 dark:text-indigo-400" size={24} />}
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-heading">
                   {isEditing ? 'Edit AI Script' : 'New AI Script'}
                 </h2>
                 {isEditing && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-0.5">Editing existing agent — changes will update the version</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-0.5">Editing existing agent — changes will update the version</p>
                 )}
               </div>
             </div>
@@ -351,8 +356,13 @@ export default function Scripts() {
 
         {/* Right Column: Automation & Tags */}
         <div className="lg:col-span-4 space-y-6">
-          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Call Automation</h3>
+          <section className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm hover:shadow-md hover:border-indigo-500/20 dark:hover:border-indigo-500/30 transition-all duration-300 relative overflow-hidden group space-y-6">
+            {/* Accent colored line */}
+            <div className="absolute top-0 left-0 right-0 h-[4px] bg-indigo-500"></div>
+            {/* Radial soft glow */}
+            <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none"></div>
+            
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white font-heading relative z-10">Call Automation</h3>
 
             <div className="space-y-4">
               {/* Human Handoff */}
@@ -465,9 +475,14 @@ export default function Scripts() {
       </form>
 
       {/* List of Saved Scripts */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-xl">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Active Agents</h2>
+      <section className="bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/50 rounded-3xl p-8 shadow-sm hover:shadow-md hover:border-indigo-500/20 dark:hover:border-indigo-500/30 transition-all duration-300 relative overflow-hidden group">
+        {/* Accent colored line */}
+        <div className="absolute top-0 left-0 right-0 h-[4px] bg-indigo-500"></div>
+        {/* Radial soft glow */}
+        <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none"></div>
+        
+        <div className="flex items-center justify-between mb-8 relative z-10">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-heading">Active Agents</h2>
           <span className="px-4 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-sm font-medium text-slate-500">{scripts.length} Total</span>
         </div>
 
@@ -488,61 +503,68 @@ export default function Scripts() {
               return (
                 <div
                   key={s.id}
-                  className={`group relative bg-white dark:bg-slate-950 border rounded-2xl p-6 transition-all shadow-sm ${
+                  className={`group relative bg-white dark:bg-slate-900/40 border rounded-3xl p-6 transition-all duration-300 shadow-sm ${
                     isCurrentlyEditing
-                      ? 'border-amber-400 shadow-amber-200 dark:shadow-amber-900/20 ring-2 ring-amber-300'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:shadow-xl'
-                  }`}
+                      ? 'border-amber-400 ring-2 ring-amber-300/40 shadow-amber-500/10'
+                      : 'border-slate-200/80 dark:border-slate-800/50 hover:border-indigo-500/20 dark:hover:border-indigo-500/30 hover:shadow-md'
+                  } overflow-hidden`}
                 >
+                  {/* Accent colored line */}
+                  <div className={`absolute top-0 left-0 right-0 h-[4px] ${isCurrentlyEditing ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
+                  {/* Radial soft glow */}
+                  <div className={`absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500 pointer-events-none ${
+                    isCurrentlyEditing ? 'bg-amber-500/10 dark:bg-amber-500/20' : 'bg-indigo-500/10 dark:bg-indigo-500/20'
+                  }`}></div>
+
                   {isCurrentlyEditing && (
-                    <div className="absolute -top-2 left-4 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    <div className="absolute top-2.5 left-4 bg-amber-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full z-10 font-heading tracking-wide">
                       EDITING
                     </div>
                   )}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-xl transition-colors ${isCurrentlyEditing ? 'bg-amber-100 dark:bg-amber-900/20' : 'bg-indigo-50 dark:bg-indigo-900/20 group-hover:bg-indigo-600'}`}>
+                  <div className="flex items-start justify-between mb-4 relative z-10">
+                    <div className={`p-3 rounded-xl transition-colors duration-300 ${isCurrentlyEditing ? 'bg-amber-100 dark:bg-amber-900/20' : 'bg-indigo-50 dark:bg-indigo-900/20 group-hover:bg-indigo-600'}`}>
                       <Bot className={`${isCurrentlyEditing ? 'text-amber-600' : 'text-indigo-600 dark:text-indigo-400 group-hover:text-white'}`} size={20} />
                     </div>
-                    <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400">v{s.version}</span>
+                    <span className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400 font-heading">v{s.version}</span>
                   </div>
 
-                  <h3 className="font-bold text-slate-900 dark:text-white text-lg line-clamp-1">{s.name}</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-lg line-clamp-1 relative z-10">{s.name}</h3>
 
                   {/* Welcome message preview */}
                   {cfg.welcome_message ? (
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-2 italic">"{cfg.welcome_message}"</p>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2 italic relative z-10">"{cfg.welcome_message}"</p>
                   ) : (
-                    <p className="text-xs text-amber-500 mt-1">⚠ No welcome message</p>
+                    <p className="text-xs text-amber-500 mt-1 relative z-10">⚠ No welcome message</p>
                   )}
 
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="mt-4 space-y-2 relative z-10">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                       <Languages size={12} /> {cfg.primary_language || '—'}{cfg.secondary_language ? ` + ${cfg.secondary_language}` : ''}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                       <Mic size={12} /> {cfg.voice_style ? cfg.voice_style.charAt(0).toUpperCase() + cfg.voice_style.slice(1) : '—'} Voice
                     </div>
                     {cfg.handoff_number && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                         <PhoneForwarded size={12} /> Handoff: {cfg.handoff_number}
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <p className="text-[10px] text-slate-400">Created {new Date(s.created_at).toLocaleDateString()}</p>
+                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between relative z-10">
+                    <p className="text-[10px] text-slate-400 font-semibold">Created {new Date(s.created_at).toLocaleDateString()}</p>
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => loadScriptIntoForm(s)}
-                        className="text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:underline"
+                        className="text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:underline cursor-pointer"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => startDelete(s.id)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
+                        className="text-red-500 hover:text-red-700 transition-colors cursor-pointer"
                         title="Delete script"
                       >
                         <Trash2 size={14} />

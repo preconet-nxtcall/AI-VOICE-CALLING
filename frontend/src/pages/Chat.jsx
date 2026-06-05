@@ -3,20 +3,19 @@ import {
   Send, Bot, User, Sparkles, Loader2, AlertTriangle,
   ChevronDown, Database, Trash2, Volume2, VolumeX,
   BookOpen, FileText, Link as LinkIcon, MessageSquare,
-  Zap, Copy, Check, RotateCcw, Mic, MessageCircle
+  Zap, Copy, Check, RotateCcw, Mic, MessageCircle, Compass
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 
-// ─────────────────────────────────────────────────────────────
-//  Typing Dots
-// ─────────────────────────────────────────────────────────────
+// ── Typing Dots ──────────────────────────────────────────────────────────────
 function TypingDots() {
   return (
     <div className="flex gap-1 items-center py-1 px-1">
       {[0, 1, 2].map(i => (
         <span
           key={i}
-          className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
+          className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-bounce"
           style={{ animationDelay: `${i * 0.15}s` }}
         />
       ))}
@@ -24,9 +23,7 @@ function TypingDots() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Audio Player
-// ─────────────────────────────────────────────────────────────
+// ── Audio Player ─────────────────────────────────────────────────────────────
 function AudioPlayer({ url }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -38,22 +35,20 @@ function AudioPlayer({ url }) {
   };
 
   return (
-    <div className="mt-2 flex items-center gap-2">
+    <div className="mt-2.5 flex items-center gap-2">
       <audio ref={audioRef} src={url} onEnded={() => setPlaying(false)} className="hidden" />
       <button
         onClick={toggle}
-        className="flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-100 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 px-3 py-1.5 rounded-full transition-all"
+        className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-3.5 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
       >
-        {playing ? <VolumeX size={12} /> : <Volume2 size={12} />}
-        {playing ? 'Pause' : 'Play Response'}
+        {playing ? <VolumeX size={11} /> : <Volume2 size={11} />}
+        {playing ? 'Pause' : 'Listen AI Speech'}
       </button>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Copy Button
-// ─────────────────────────────────────────────────────────────
+// ── Copy Button ──────────────────────────────────────────────────────────────
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -68,54 +63,52 @@ function CopyButton({ text }) {
   return (
     <button
       onClick={copy}
-      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-600 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-all"
-      title="Copy"
+      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+      title="Copy message"
     >
-      {copied ? <Check size={13} /> : <Copy size={13} />}
+      {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
     </button>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Message Bubble
-// ─────────────────────────────────────────────────────────────
-function MessageBubble({ msg, kbDocs }) {
+// ── Message Bubble ───────────────────────────────────────────────────────────
+function MessageBubble({ msg }) {
   const isUser = msg.role === 'user';
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} group`}>
+    <div className={`flex gap-3.5 ${isUser ? 'flex-row-reverse' : 'flex-row'} group`}>
       {/* Avatar */}
       <div className={`
-        flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
+        flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold
         ${isUser
-          ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-slate-900 dark:text-white shadow-lg shadow-violet-500/20'
-          : 'bg-gradient-to-br from-indigo-600 to-violet-600 text-slate-900 dark:text-white shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30'
+          ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-sm'
+          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
         }
       `}>
-        {isUser ? <User size={14} /> : <Bot size={14} />}
+        {isUser ? <User size={15} /> : <Bot size={15} />}
       </div>
 
       {/* Content */}
-      <div className={`flex flex-col gap-1 max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+      <div className={`flex flex-col gap-1 max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div className={`
-          relative px-4 py-3 rounded-2xl text-sm leading-relaxed
+          relative px-4.5 py-3.5 rounded-2xl text-xs font-medium leading-relaxed shadow-sm
           ${isUser
-            ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20'
+            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tr-sm'
             : msg.isError
-              ? 'bg-red-50 dark:bg-red-500/8 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 rounded-tl-sm'
-              : 'bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-800 dark:text-slate-200 rounded-tl-sm shadow-sm'
+              ? 'bg-rose-50 dark:bg-rose-500/5 border border-rose-250 dark:border-rose-500/20 text-rose-600 dark:text-rose-300 rounded-tl-sm'
+              : 'bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/60 text-slate-850 dark:text-slate-200 rounded-tl-sm'
           }
         `}>
-          <p className="whitespace-pre-wrap break-words leading-7">{msg.content}</p>
+          <p className="whitespace-pre-wrap break-words leading-relaxed font-medium">{msg.content}</p>
 
           {/* Sources */}
           {!isUser && msg.context && msg.context.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-white/5">
-              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500 mb-2">
-                <MessageSquare size={9} /> Sources used
+            <div className="mt-3.5 pt-3.5 border-t border-slate-100 dark:border-slate-800/80">
+              <span className="flex items-center gap-1.5 text-[9px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2 font-heading">
+                <MessageSquare size={10} /> Ingested References
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {msg.context.slice(0, 3).map((ctx, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-[10px] text-violet-400 bg-violet-500/8 border border-violet-500/15 rounded-full px-2 py-0.5 max-w-[160px] truncate">
+                  <span key={i} className="inline-flex items-center gap-1 text-[9px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/25 rounded-md px-2 py-0.5 max-w-[180px] truncate font-bold uppercase tracking-wider">
                     {ctx.file_type === 'url' ? <LinkIcon size={9} /> : <FileText size={9} />}
                     {ctx.filename || 'Document'}
                   </span>
@@ -128,9 +121,9 @@ function MessageBubble({ msg, kbDocs }) {
           {!isUser && msg.audioUrl && <AudioPlayer url={msg.audioUrl} />}
         </div>
 
-        {/* Copy action row */}
+        {/* Action controls under bubble */}
         {!isUser && (
-          <div className="flex items-center gap-1 px-1">
+          <div className="flex items-center gap-1.5 px-1.5 mt-0.5">
             <CopyButton text={msg.content} />
           </div>
         )}
@@ -139,9 +132,7 @@ function MessageBubble({ msg, kbDocs }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Welcome Screen
-// ─────────────────────────────────────────────────────────────
+// ── Welcome Screen ───────────────────────────────────────────────────────────
 function WelcomeScreen({ selectedKb, kbDocs, onSuggestionClick }) {
   const suggestions = [
     'Summarize the key points in this document',
@@ -150,40 +141,41 @@ function WelcomeScreen({ selectedKb, kbDocs, onSuggestionClick }) {
     'Give me a brief overview of this knowledge base',
   ];
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-8 px-4 py-12 text-center">
+    <div className="flex flex-col items-center justify-center h-full gap-7 px-6 py-12 text-center">
       {/* Logo */}
       <div className="relative">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-600 via-indigo-600 to-fuchsia-600 flex items-center justify-center shadow-2xl shadow-violet-500/30 ring-1 ring-violet-400/20">
-          <Sparkles size={36} className="text-slate-900 dark:text-white" />
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/15">
+          <Sparkles size={28} className="text-white" />
         </div>
-        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-[#0d1117] flex items-center justify-center">
-          <Zap size={10} className="text-slate-900 dark:text-white" />
+        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 flex items-center justify-center animate-pulse">
+          <span className="w-1 h-1 rounded-full bg-white"></span>
         </div>
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
-          How can I help you today?
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-1.5 tracking-tight font-heading">
+          AI Agent RAG Sandbox
         </h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md">
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold max-w-md leading-relaxed">
           {selectedKb
-            ? <>Searching through <span className="text-violet-400 font-medium">{selectedKb.name}</span>
-              {kbDocs.length > 0 && <> · {kbDocs.length} document{kbDocs.length !== 1 ? 's' : ''}</>}</>
-            : 'Select a knowledge base and start asking questions'
+            ? <>Querying directory <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">"{selectedKb.name}"</span>
+              {kbDocs.length > 0 && <> with {kbDocs.length} indexed document{kbDocs.length !== 1 ? 's' : ''}</>}</>
+            : 'Select a knowledge folder from the toolbar to begin testing.'
           }
         </p>
       </div>
 
-      {/* Suggestion chips */}
+      {/* Suggestion Chips */}
       {selectedKb && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl mt-3">
           {suggestions.map((s, i) => (
             <button
               key={i}
               onClick={() => onSuggestionClick(s)}
-              className="text-left px-4 py-3 rounded-xl border border-[#E2E8F0] dark:border-[#1e2d4a] bg-white/60 dark:bg-[#0d1624]/60 hover:bg-slate-50 dark:hover:bg-[#141e33] hover:border-violet-500/40 text-slate-600 dark:text-slate-300 text-xs leading-relaxed transition-all group"
+              className="text-left px-4.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/30 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-indigo-500/40 text-slate-600 dark:text-slate-350 text-xs font-semibold leading-relaxed transition-all cursor-pointer group flex items-start gap-2.5 shadow-sm active:scale-98"
             >
-              <span className="group-hover:text-violet-300 transition-colors">{s}</span>
+              <Compass size={14} className="text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 shrink-0 mt-0.5 transition-colors" />
+              <span className="group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{s}</span>
             </button>
           ))}
         </div>
@@ -192,15 +184,12 @@ function WelcomeScreen({ selectedKb, kbDocs, onSuggestionClick }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Main Component
-// ─────────────────────────────────────────────────────────────
+// ── Main Component ───────────────────────────────────────────────────────────
 export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Knowledge base state
   const [knowledgeBases, setKnowledgeBases] = useState([]);
   const [selectedKbId, setSelectedKbId] = useState('');
   const [kbDocs, setKbDocs] = useState([]);
@@ -208,7 +197,6 @@ export default function Chat() {
   const [kbLoading, setKbLoading] = useState(true);
   const [kbError, setKbError] = useState('');
 
-  // Voice mode: mimics phone call short responses
   const [voiceMode, setVoiceMode] = useState(false);
 
   const messagesEndRef = useRef(null);
@@ -231,7 +219,6 @@ export default function Chat() {
         const kbs = res.data.knowledge_bases || [];
         setKnowledgeBases(kbs);
         if (kbs.length > 0) {
-          // If no KB is selected yet, pick the first one
           if (!selectedKbId) {
             setSelectedKbId(kbs[0].id);
           }
@@ -251,7 +238,6 @@ export default function Chat() {
   // Sync documents when selected KB changes
   useEffect(() => {
     if (knowledgeBases.length > 0) {
-      // If no KB selected, or the current selected KB is not in the list, default to the first one
       const exists = knowledgeBases.some(k => String(k.id) === String(selectedKbId));
       if (!selectedKbId || !exists) {
         setSelectedKbId(knowledgeBases[0].id);
@@ -261,7 +247,6 @@ export default function Chat() {
       const kb = knowledgeBases.find(k => String(k.id) === String(selectedKbId));
       setKbDocs(kb?.documents || []);
       
-      // If the current selected doc is not in the new KB, reset to 'all'
       if (selectedDocId !== 'all') {
         const docExists = kb?.documents?.some(d => String(d.id) === String(selectedDocId));
         if (!docExists) setSelectedDocId('all');
@@ -305,7 +290,6 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      // Map existing messages to history format — last 10 messages for good context
       const history = messages.slice(-10).map(m => ({
         role: m.role,
         content: m.content
@@ -315,8 +299,6 @@ export default function Chat() {
         knowledge_base_id: selectedKbId, 
         query: trimmed,
         history,
-        // 'voice' mode → short 1-2 sentence responses (simulates phone call)
-        // 'chat'  mode → full helpful responses
         mode: voiceMode ? 'voice' : 'chat',
       };
       if (selectedDocId && selectedDocId !== 'all') payload.document_id = selectedDocId;
@@ -354,7 +336,6 @@ export default function Chat() {
     setInput(suggestion);
     if (textareaRef.current) {
       textareaRef.current.focus();
-      // Adjust height
       setTimeout(() => {
         textareaRef.current.style.height = 'auto';
         textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 140) + 'px';
@@ -368,174 +349,150 @@ export default function Chat() {
 
   return (
     <>
-      {/* ── Escape layout padding for full-height ── */}
       <style>{`
-        /* Override parent <main> padding only on chat route */
         .chat-fullscreen-escape {
           margin: -2rem;
-          height: calc(100vh - 5rem); /* 5rem = header h-20 */
+          height: calc(100vh - 5rem);
         }
         @media (max-width: 768px) {
           .chat-fullscreen-escape { margin: -1rem; }
         }
         .chat-messages-scroll::-webkit-scrollbar { width: 4px; }
         .chat-messages-scroll::-webkit-scrollbar-track { background: transparent; }
-        .chat-messages-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
-        .chat-messages-scroll { scrollbar-width: thin; scrollbar-color: #1e293b transparent; }
+        .chat-messages-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        .dark .chat-messages-scroll::-webkit-scrollbar-thumb { background: #1e293b; }
+        .chat-messages-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+        .dark .chat-messages-scroll { scrollbar-color: #1e293b transparent; }
+        
         @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .msg-animate { animation: fadeUp 0.2s ease forwards; }
-        @keyframes shimmer {
-          0%   { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
+        .msg-animate { animation: fadeUp 0.2s ease-out forwards; }
+        
         .gradient-text {
-          background: linear-gradient(135deg, #a78bfa, #818cf8, #c084fc);
+          background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
-        .glass-input {
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-        }
-        .glow-violet {
-          box-shadow: 0 0 0 1px rgba(139,92,246,0.3), 0 8px 32px rgba(139,92,246,0.15);
-        }
-        .glow-violet:focus-within {
-          box-shadow: 0 0 0 2px rgba(139,92,246,0.5), 0 12px 40px rgba(139,92,246,0.2);
-        }
       `}</style>
 
-      <div className="chat-fullscreen-escape flex flex-col bg-[#F8FAFC] dark:bg-[#080e1a] overflow-hidden">
+      {/* Main Container */}
+      <div className="chat-fullscreen-escape flex flex-col bg-background overflow-hidden border-t border-slate-200 dark:border-slate-800/60">
 
-        {/* ══════════════════════════════════════════
-            TOP BAR — compact identity + controls
-        ══════════════════════════════════════════ */}
-        <div className="flex-shrink-0 border-b border-[#E2E8F0] dark:border-[#1a2540] bg-[#FFFFFF] dark:bg-[#0a1020]/95 glass-input">
-          {/* Title row */}
-          <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        {/* Toolbar Header Panel */}
+        <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 backdrop-blur-xl z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-3.5">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-md shadow-violet-500/20">
-                <Sparkles size={13} className="text-slate-900 dark:text-white" />
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/15">
+                <Sparkles size={16} className="text-white animate-pulse" />
               </div>
               <div>
-                <h1 className="text-sm font-bold gradient-text leading-none">AI Assistant</h1>
-                <p className="text-[10px] text-slate-600 dark:text-slate-500 leading-none mt-0.5">RAG-powered knowledge search</p>
+                <h1 className="text-sm font-extrabold leading-none gradient-text font-heading">AI Agent Sandbox</h1>
+                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Test vector similarity & RAG queries</p>
               </div>
             </div>
 
-            {/* Status + clear */}
-            <div className="flex items-center gap-2">
-              {/* Voice Mode Toggle */}
+            {/* Config & Action controls */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Voice Mode Toggle Button */}
               <button
                 onClick={() => setVoiceMode(v => !v)}
-                title={voiceMode ? 'Switch to Chat Mode (full responses)' : 'Switch to Voice Mode (short phone-call responses)'}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all text-[10px] font-semibold ${
+                title={voiceMode ? 'Use Chat Mode for full details' : 'Use Voice Mode to preview short phone actions'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[10px] font-bold uppercase tracking-wider cursor-pointer ${
                   voiceMode
-                    ? 'bg-violet-600/20 border-violet-500/40 text-violet-300'
-                    : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-[#1e2d4a] text-slate-500 hover:border-violet-400/40 hover:text-violet-400'
+                    ? 'bg-indigo-600/10 border-indigo-500/40 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
-                {voiceMode ? <Mic size={11} /> : <MessageCircle size={11} />}
+                {voiceMode ? <Mic size={11} className="text-indigo-500" /> : <MessageCircle size={11} />}
                 {voiceMode ? 'Voice Mode' : 'Chat Mode'}
               </button>
 
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/15">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] font-semibold text-emerald-400">Online</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Active</span>
               </div>
+              
               {messages.length > 0 && (
                 <button
                   onClick={clearChat}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-[#E2E8F0] dark:border-[#1e2d4a] text-slate-600 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/5 transition-all text-[10px] font-medium"
-                  title="Clear chat"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-all text-[10px] font-bold uppercase tracking-wider cursor-pointer"
                 >
                   <RotateCcw size={11} />
-                  Clear
+                  Reset Chat
                 </button>
               )}
             </div>
           </div>
 
-          {/* Controls row — KB + Document selectors */}
-          <div className="flex items-center gap-2 px-4 pb-2.5 overflow-x-auto">
-            {/* KB selector */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <Database size={11} className="text-slate-600 dark:text-slate-500 flex-shrink-0" />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500 flex-shrink-0">KB</span>
+          {/* Directory Context strip */}
+          <div className="flex flex-wrap items-center gap-4 px-6 pb-3 overflow-x-auto text-xs border-t border-slate-100 dark:border-slate-800/40 pt-2.5">
+            <div className="flex items-center gap-2 shrink-0">
+              <Database size={12} className="text-slate-400" />
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide font-heading">Source Folder</span>
               <div className="relative">
                 <select
                   value={selectedKbId}
                   onChange={e => handleKbChange(e.target.value)}
                   disabled={kbLoading || knowledgeBases.length === 0}
-                  className="appearance-none bg-white dark:bg-[#0f1929] border border-[#E2E8F0] dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[180px] truncate disabled:opacity-40"
+                  className="appearance-none bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl text-slate-850 dark:text-slate-200 text-xs pl-3 pr-8 py-1.5 cursor-pointer focus:outline-none focus:border-indigo-500 transition-all font-semibold min-w-[130px] max-w-[200px] truncate disabled:opacity-40"
                 >
-                  {kbLoading && <option>Loading…</option>}
-                  {!kbLoading && knowledgeBases.length === 0 && <option>No knowledge bases</option>}
+                  {kbLoading && <option>Syncing…</option>}
+                  {!kbLoading && knowledgeBases.length === 0 && <option>No directories</option>}
                   {knowledgeBases.map(kb => (
                     <option key={kb.id} value={kb.id}>{kb.name}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-500 pointer-events-none" />
+                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
-            <div className="w-px h-4 bg-slate-200 dark:bg-[#1e2d4a] flex-shrink-0" />
+            <div className="hidden sm:block w-px h-4 bg-slate-200 dark:bg-slate-850 shrink-0" />
 
-            {/* Document selector */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <BookOpen size={11} className="text-slate-600 dark:text-slate-500 flex-shrink-0" />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500 flex-shrink-0">Doc</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <BookOpen size={12} className="text-slate-400" />
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide font-heading">Document Filter</span>
               <div className="relative">
                 <select
                   value={selectedDocId}
                   onChange={e => setSelectedDocId(e.target.value)}
                   disabled={kbDocs.length === 0}
-                  className="appearance-none bg-white dark:bg-[#0f1929] border border-[#E2E8F0] dark:border-[#1e2d4a] hover:border-violet-500/40 rounded-lg text-slate-800 dark:text-slate-200 text-xs pl-3 pr-7 py-1.5 cursor-pointer focus:outline-none focus:border-violet-500/60 transition-all min-w-[130px] max-w-[220px] truncate disabled:opacity-40"
+                  className="appearance-none bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl text-slate-850 dark:text-slate-200 text-xs pl-3 pr-8 py-1.5 cursor-pointer focus:outline-none focus:border-indigo-500 transition-all font-semibold min-w-[130px] max-w-[220px] truncate disabled:opacity-40"
                 >
-                  <option value="all">All Documents</option>
+                  <option value="all">Query All Files</option>
                   {kbDocs.map(doc => (
                     <option key={doc.id} value={doc.id}>{doc.filename}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-500 pointer-events-none" />
+                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
-            {/* Active filter badge */}
             {selectedDocId !== 'all' && selectedDoc && (
-              <>
-                <div className="w-px h-4 bg-slate-200 dark:bg-[#1e2d4a] flex-shrink-0" />
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 flex-shrink-0">
-                  <FileText size={9} className="text-violet-400" />
-                  <span className="text-[10px] text-violet-300 max-w-[120px] truncate font-medium">
-                    {selectedDoc.filename?.split('.')[0]}
-                  </span>
-                </div>
-              </>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 shrink-0">
+                <FileText size={10} className="text-indigo-600 dark:text-indigo-400" />
+                <span className="text-[9px] text-indigo-700 dark:text-indigo-400 font-extrabold uppercase tracking-wide max-w-[150px] truncate">
+                  {selectedDoc.filename}
+                </span>
+              </div>
             )}
           </div>
 
-          {/* Error banner */}
           {kbError && (
-            <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-2 bg-amber-500/5 border border-amber-500/15 rounded-lg">
-              <AlertTriangle size={12} className="text-amber-400 flex-shrink-0" />
-              <p className="text-xs text-amber-300">{kbError}</p>
+            <div className="flex items-center gap-2 mx-6 mb-3 px-3 py-2 bg-amber-500/5 border border-amber-500/15 rounded-xl">
+              <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">{kbError}</p>
             </div>
           )}
         </div>
 
-        {/* ══════════════════════════════════════════
-            MESSAGES AREA — fills remaining height
-        ══════════════════════════════════════════ */}
+        {/* Conversation Board */}
         <div
           ref={chatBodyRef}
-          className="flex-1 overflow-y-auto chat-messages-scroll px-4 py-6 md:px-8"
+          className="flex-1 overflow-y-auto chat-messages-scroll px-6 py-6 md:px-8"
         >
-          {/* Welcome / empty state */}
           {messages.length === 0 && !loading && (
             <WelcomeScreen 
               selectedKb={selectedKb} 
@@ -544,21 +501,20 @@ export default function Chat() {
             />
           )}
 
-          {/* Message list */}
-          <div className="max-w-3xl mx-auto flex flex-col gap-5">
+          <div className="max-w-3xl mx-auto flex flex-col gap-6">
             {messages.map(msg => (
               <div key={msg.id} className="msg-animate">
-                <MessageBubble msg={msg} kbDocs={kbDocs} />
+                <MessageBubble msg={msg} />
               </div>
             ))}
 
-            {/* Typing indicator */}
+            {/* Loading / Typing entry */}
             {loading && (
-              <div className="msg-animate flex gap-3 flex-row">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30 mt-0.5">
-                  <Loader2 size={14} className="text-white animate-spin" />
+              <div className="msg-animate flex gap-3.5 flex-row">
+                <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-sm shrink-0">
+                  <Loader2 size={15} className="text-indigo-600 dark:text-indigo-400 animate-spin" />
                 </div>
-                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a]">
+                <div className="px-4.5 py-3.5 rounded-2xl rounded-tl-sm bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/60 shadow-sm">
                   <TypingDots />
                 </div>
               </div>
@@ -568,59 +524,55 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* ══════════════════════════════════════════
-            INPUT BAR — sticky bottom
-        ══════════════════════════════════════════ */}
-        <div className="flex-shrink-0 px-4 pb-4 pt-2 md:px-8 bg-[#FFFFFF] dark:bg-[#080e1a]/95 border-t border-[#E2E8F0] dark:border-[#1a2540] glass-input">
+        {/* Input Console Area */}
+        <div className="flex-shrink-0 px-6 pb-6 pt-3 md:px-8 bg-white dark:bg-slate-900/60 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800/60">
           <div className="max-w-3xl mx-auto">
-            {/* Input container */}
-            <div className={`glow-violet flex items-end gap-3 bg-white dark:bg-[#0d1624] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded-2xl px-4 py-3 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>
+            
+            {voiceMode && (
+              <div className="flex items-start gap-2.5 mb-3 px-4 py-3 bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+                <Mic size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                  <strong className="text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Voice Response Simulator ON</strong>: The AI agent uses direct, punchy, conversational replies suitable for synthesis (1–2 sentences max). Turn this mode off for standard, comprehensive RAG chat analysis.
+                </p>
+              </div>
+            )}
+
+            {/* Input Wrapper */}
+            <div className={`flex items-end gap-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-250 dark:border-slate-800 rounded-2xl px-4 py-3.5 focus-within:border-indigo-500/50 focus-within:bg-white dark:focus-within:bg-slate-950 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all ${!isReady ? 'opacity-50 pointer-events-none' : ''}`}>
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  kbLoading ? 'Loading knowledge bases…'
-                  : !selectedKbId ? 'Select a knowledge base to start…'
+                  kbLoading ? 'Syncing knowledge resources…'
+                  : !selectedKbId ? 'Please select a source folder…'
                   : selectedDocId !== 'all' && selectedDoc
-                    ? `Ask about "${selectedDoc.filename?.split('.')[0]}"…`
-                    : `Ask about ${selectedKb?.name || 'your documents'}…`
+                    ? `Query file: "${selectedDoc.filename?.split('.')[0]}"…`
+                    : `Query directory: "${selectedKb?.name}"…`
                 }
                 disabled={!isReady || loading}
                 rows={1}
-                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-slate-200 text-sm leading-relaxed placeholder-slate-400 dark:placeholder-slate-600 min-h-[24px] max-h-[140px] font-sans"
+                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-slate-250 text-xs font-semibold leading-relaxed placeholder-slate-400 dark:placeholder-slate-600 min-h-[20px] max-h-[140px] font-sans"
               />
 
-              {/* Send button */}
+              {/* Submit Trigger */}
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || !isReady || loading}
-                className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed enabled:bg-gradient-to-br enabled:from-violet-600 enabled:to-indigo-600 enabled:hover:from-violet-500 enabled:hover:to-indigo-500 enabled:shadow-lg enabled:shadow-violet-500/25 enabled:hover:scale-105 enabled:active:scale-95"
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-500/10 hover:scale-105 active:scale-95 shrink-0 cursor-pointer"
               >
-                {loading
-                  ? <Loader2 size={16} className="text-slate-900 dark:text-white animate-spin" />
-                  : <Send size={15} className="text-slate-900 dark:text-white" />
-                }
+                {loading ? (
+                  <Loader2 size={15} className="animate-spin text-white" />
+                ) : (
+                  <Send size={14} className="text-white" />
+                )}
               </button>
             </div>
 
-            {/* Voice mode banner */}
-            {voiceMode && (
-              <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-violet-500/8 border border-violet-500/20 rounded-xl">
-                <Mic size={12} className="text-violet-400 flex-shrink-0" />
-                <p className="text-[10px] text-violet-300 leading-snug">
-                  <span className="font-bold">Voice Mode ON</span> — Responses are short (1–2 sentences) exactly as the AI will speak on a phone call. Select a document below to test with specific content.
-                </p>
-              </div>
-            )}
-
-            {/* Hint */}
-            <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 mt-2">
-              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-500 font-sans">Enter</kbd>
-              {' '}to send &middot;{' '}
-              <kbd className="bg-slate-100 dark:bg-[#141e33] border border-[#E2E8F0] dark:border-[#1e2d4a] rounded px-1.5 py-0.5 text-slate-600 dark:text-slate-500 font-sans">Shift+Enter</kbd>
-              {' '}for new line &middot; AI may make mistakes
+            {/* Quick Helper hint */}
+            <p className="text-center text-[9px] text-slate-400 dark:text-slate-500 font-semibold mt-2.5 tracking-wide uppercase">
+              Press <kbd className="bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-md px-1.5 py-0.5 text-slate-500 font-sans">Enter</kbd> to dispatch &middot; <kbd className="bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-md px-1.5 py-0.5 text-slate-500 font-sans">Shift + Enter</kbd> for multi-line
             </p>
           </div>
         </div>

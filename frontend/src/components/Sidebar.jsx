@@ -74,7 +74,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
               animate={{ opacity: 1, width: 'auto' }}
               exit={{ opacity: 0, width: 0 }}
               transition={{ duration: 0.2 }}
-              className="text-sm font-medium whitespace-nowrap overflow-hidden"
+              className="text-sm font-semibold font-heading tracking-wide whitespace-nowrap overflow-hidden"
             >
               {item.name}
             </motion.span>
@@ -123,7 +123,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                 className="whitespace-nowrap"
               >
                 <h1 className="text-white font-bold text-lg tracking-tight">AINXT.call</h1>
-                <p className="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Enterprise</p>
+                <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase font-heading">Enterprise</p>
               </motion.div>
             )}
           </AnimatePresence>

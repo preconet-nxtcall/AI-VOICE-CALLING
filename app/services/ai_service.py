@@ -68,13 +68,17 @@ _CALL_LAST_SEEN: Dict[str, datetime] = {}
 _MEMORY_LOCK = Lock()
 
 
-def _get_openai_key() -> str:
+def _get_config(key: str) -> str:
     try:
         from flask import current_app
-        key = current_app.config.get("OPENAI_API_KEY")
+        val = current_app.config.get(key)
     except (RuntimeError, ImportError):
-        key = None
-    return key or os.environ.get("OPENAI_API_KEY", "")
+        val = None
+    return val or os.environ.get(key, "")
+
+
+def _get_openai_key() -> str:
+    return _get_config("OPENAI_API_KEY")
 
 
 class AIService:
@@ -160,7 +164,7 @@ class AIService:
 
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model=_get_config("OPENAI_MODEL") or "gpt-4o-mini",
                 messages=messages,
                 max_tokens=_MAX_TOKENS,
                 temperature=0.75,  # Slightly more natural/creative for conversational warmth
@@ -315,7 +319,7 @@ class AIService:
         )
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=_get_config("OPENAI_MODEL") or "gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a precise sales lead analyzer. Extract tags and appointment intents."},
                 {"role": "user", "content": prompt},
@@ -463,7 +467,7 @@ class AIService:
                     f"Transcript:\n{text}"
                 )
                 resp = client.chat.completions.create(
-                    model="gpt-4o",
+                    model=_get_config("OPENAI_MODEL") or "gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": "You are a precise call analytics engine."},
                         {"role": "user", "content": prompt},
